@@ -78,5 +78,6 @@
     "2F_Seq_smsrdeluxe_custom": ["25"],
     "30_Seq_smsrdeluxe_custom": ["25"],
     "31_Seq_smsrdeluxe_custom": ["25"],
-    "32_Seq_smsrdeluxe_custom": ["25"]
+    "32_Seq_smsrdeluxe_custom": ["25"],
+    "33_menu_title_screen": ["11"]
 }
