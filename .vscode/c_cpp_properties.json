@@ -1,0 +1,35 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:\\msys64\\mingw64\\include\\**"
+            ],
+            "defines": [
+                "VSCODE",
+                "DEBUG",
+                "AVOID_UB",
+                "RAPI_GL",
+                "VERSION_US",
+                "WAPI_SDL2",
+                "CAPI_SDL2",
+                "_LANGUAGE_C",
+                "F3DEX_GBI_2E",
+                "EXT_OPTIONS_MENU=1",
+                "NODRAWINGDISTANCE=1",
+                "BETTERCAMERA=1",
+                "TEXTURE_FIX=1",
+                "NON_MATCHING=1",
+                "BAD_RETURN(x)=x",
+                "__attribute__(...)="
+            ],
+            "windowsSdkVersion": "10.0.19041.0",
+            "compilerPath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\bin\\Hostx64\\x64\\cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}
