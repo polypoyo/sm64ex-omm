@@ -1,5 +1,6 @@
 #ifndef _SM64_TYPES_H_
 #define _SM64_TYPES_H_
+#define SUPER_MARIO_STAR_ROAD
 
 // This file contains various data types used in Super Mario 64 that don't yet
 // have an appropriate header.
