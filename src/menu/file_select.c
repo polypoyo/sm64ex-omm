@@ -82,6 +82,7 @@ static s16 sCursorClickingTimer = 0;
 
 // Equal to sCursorPos if the cursor gets clicked, {-10000, -10000} otherwise.
 static s16 sClickPos[] = {-10000, -10000};
+static s8 sClickedWithStart = FALSE;
 
 // Used for determining which file has been selected during copying and erasing.
 static s8 sSelectedFileIndex = -1;
@@ -1175,6 +1176,10 @@ void check_sound_mode_menu_clicked_buttons(struct Object *soundModeButton) {
 void load_main_menu_save_file(struct Object *fileButton, s32 fileNum) {
     if (fileButton->oMenuButtonState == MENU_BUTTON_STATE_FULLSCREEN) {
         sSelectedFileNum = fileNum;
+        if (sClickedWithStart) {
+            gCurrAreaIndex = 2;
+            sWarpDest.areaIdx = 2;
+        }
     }
 }
 
@@ -1656,6 +1661,7 @@ void handle_cursor_button_input(void) {
             )) {
             sClickPos[0] = sCursorPos[0];
             sClickPos[1] = sCursorPos[1];
+            sClickedWithStart = (gPlayer3Controller->buttonPressed & START_BUTTON) != 0;
             sCursorClickingTimer = 1;
         }
     }
