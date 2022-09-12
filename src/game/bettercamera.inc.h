@@ -58,20 +58,6 @@ struct newcam_hardpos {
     s16 newcam_hard_lookZ;
 };
 
-///This is the bit that defines where the angles happen. They're basically environment boxes that dictate camera behaviour.
-//Permaswap is a boolean that simply determines wether or not when the camera changes at this point it stays changed. 0 means it resets when you leave, and 1 means it stays changed.
-//The camera position fields accept "32767" as an ignore flag.
-struct newcam_hardpos newcam_fixedcam[] = {
-    {
-        /*Level ID*/ 16,/*Area ID*/ 1,/*Permaswap*/ 0,/*Mode*/ NC_MODE_FIXED_NOMOVE, //Standard params.
-        /*X begin*/ -540,/*Y begin*/ 800,/*Z begin*/ -3500, //Where the activation box begins
-        /*X end*/ 540,/*Y end*/ 2000,/*Z end*/ -1500, //Where the activation box ends.
-        /*Cam X*/ 0,/*Cam Y*/ 1500,/*Cam Z*/ -1000, //The position the camera gets placed for NC_MODE_FIXED and NC_MODE_FIXED_NOMOVE
-        /*Look X*/ 0,/*Look Y*/ 800,/*Look Z*/ -2500 //The position the camera looks at for NC_MODE_FIXED_NOMOVE
-    },
-};
-
-
 #ifdef noaccel
     u8 accel = 255;
     #else
@@ -125,18 +111,6 @@ void newcam_init(struct Camera *c, u8 dv) {
     newcam_distance_target = newcam_distance_values[dv];
     newcam_yaw = -c->yaw+0x4000; //Mario and the camera's yaw have this offset between them.
     newcam_mode = NC_MODE_NORMAL;
-    ///This here will dictate what modes the camera will start in at the beginning of a level. Below are some examples.
-    switch (gCurrLevelNum) {
-        case LEVEL_BITDW: newcam_yaw = 0x4000; newcam_mode = NC_MODE_8D; newcam_tilt = 4000; newcam_distance_target = newcam_distance_values[2]; break;
-        case LEVEL_BITFS: newcam_yaw = 0x4000; newcam_mode = NC_MODE_8D; newcam_tilt = 4000; newcam_distance_target = newcam_distance_values[2]; break;
-        case LEVEL_BITS: newcam_yaw = 0x4000; newcam_mode = NC_MODE_8D; newcam_tilt = 4000; newcam_distance_target = newcam_distance_values[2]; break;
-        case LEVEL_WF: newcam_yaw = 0x4000; newcam_tilt = 2000; newcam_distance_target = newcam_distance_values[1]; break;
-        case LEVEL_RR: newcam_yaw = 0x6000; newcam_tilt = 2000; newcam_distance_target = newcam_distance_values[2]; break;
-        case LEVEL_CCM: if (gCurrAreaIndex == 1) {newcam_yaw = -0x4000; newcam_tilt = 2000; newcam_distance_target = newcam_distance_values[1];} else newcam_mode = NC_MODE_SLIDE; break;
-        case LEVEL_WDW: newcam_yaw = 0x2000; newcam_tilt = 3000; newcam_distance_target = newcam_distance_values[1]; break;
-        case 27: newcam_mode = NC_MODE_SLIDE; break;
-        case LEVEL_TTM: if (gCurrAreaIndex == 2) newcam_mode = NC_MODE_SLIDE; break;
-    }
 
     // clear these out when entering a new level to prevent "camera mode buffering"
     newcam_saved_defmode = -1;
@@ -602,44 +576,6 @@ static void newcam_position_cam(void) {
 
 }
 
-//Nested if's baybeeeee
-static void newcam_find_fixed(void) {
-    u8 i = 0;
-    newcam_mode = newcam_intendedmode;
-    newcam_modeflags = newcam_mode;
-    for (i = 0; i < sizeof(newcam_fixedcam) / sizeof(struct newcam_hardpos); i++) {
-        if (newcam_fixedcam[i].newcam_hard_levelID == gCurrLevelNum && newcam_fixedcam[i].newcam_hard_areaID == gCurrAreaIndex) {
-            if ((newcam_pos_target[0] > newcam_fixedcam[i].newcam_hard_X1)
-            &&  (newcam_pos_target[0] < newcam_fixedcam[i].newcam_hard_X2)
-            &&  (newcam_pos_target[1] > newcam_fixedcam[i].newcam_hard_Y1)
-            &&  (newcam_pos_target[1] < newcam_fixedcam[i].newcam_hard_Y2)
-            &&  (newcam_pos_target[2] > newcam_fixedcam[i].newcam_hard_Z1)
-            &&  (newcam_pos_target[2] < newcam_fixedcam[i].newcam_hard_Z2)) {
-                if (newcam_fixedcam[i].newcam_hard_permaswap)
-                    newcam_intendedmode = newcam_fixedcam[i].newcam_hard_modeset;
-                newcam_mode = newcam_fixedcam[i].newcam_hard_modeset;
-                newcam_modeflags = newcam_mode;
-
-                if (newcam_fixedcam[i].newcam_hard_camX != 32767 && !(newcam_modeflags & NC_FLAG_POSX))
-                    newcam_pos[0] = newcam_fixedcam[i].newcam_hard_camX;
-                if (newcam_fixedcam[i].newcam_hard_camY != 32767 && !(newcam_modeflags & NC_FLAG_POSY))
-                    newcam_pos[1] = newcam_fixedcam[i].newcam_hard_camY;
-                if (newcam_fixedcam[i].newcam_hard_camZ != 32767 && !(newcam_modeflags & NC_FLAG_POSZ))
-                    newcam_pos[2] = newcam_fixedcam[i].newcam_hard_camZ;
-
-                if (newcam_fixedcam[i].newcam_hard_lookX != 32767 && !(newcam_modeflags & NC_FLAG_FOCUSX))
-                    newcam_lookat[0] = newcam_fixedcam[i].newcam_hard_lookX;
-                if (newcam_fixedcam[i].newcam_hard_lookY != 32767 && !(newcam_modeflags & NC_FLAG_FOCUSY))
-                    newcam_lookat[1] = newcam_fixedcam[i].newcam_hard_lookY;
-                if (newcam_fixedcam[i].newcam_hard_lookZ != 32767 && !(newcam_modeflags & NC_FLAG_FOCUSZ))
-                    newcam_lookat[2] = newcam_fixedcam[i].newcam_hard_lookZ;
-
-                newcam_yaw = atan2s(newcam_pos[0]-newcam_pos_target[0],newcam_pos[2]-newcam_pos_target[2]);
-            }
-        }
-    }
-}
-
 static void newcam_apply_values(struct Camera *c) {
     c->pos[0] = newcam_pos[0];
     c->pos[1] = newcam_pos[1];
@@ -703,7 +639,6 @@ void newcam_loop(struct Camera *c) {
     newcam_rotate_button();
     newcam_zoom_button();
     newcam_position_cam();
-    newcam_find_fixed();
     if (gMarioObject)
         newcam_apply_values(c);
     newcam_fade_target_closeup();
