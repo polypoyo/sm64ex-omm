@@ -12,11 +12,6 @@ static struct RacingPenguinData sRacingPenguinData[] = {
 };
 
 void bhv_racing_penguin_init(void) {
-    if (gMarioState->numStars == 120) {
-        cur_obj_scale(8.0f);
-        o->header.gfx.scale[1] = 5.0f;
-        o->oBehParams2ndByte = 1;
-    }
 }
 
 static void racing_penguin_act_wait_for_mario(void) {
@@ -95,25 +90,18 @@ static void racing_penguin_act_race(void) {
             spawn_object_relative_with_scale(0, 0, -100, 0, 4.0f, o, MODEL_SMOKE, bhvWhitePuffSmoke2);
         }
     }
-
-    if (mario_is_in_air_action()) {
-        if (o->oTimer > 60) {
-            o->oRacingPenguinMarioCheated = TRUE;
-        }
-    } else {
-        o->oTimer = 0;
-    }
 }
 
 static void racing_penguin_act_finish_race(void) {
 
     // Star road fix: Force the penguin to bump against the
     // finish line wall to prevent her from going out of bounds
-    if (o->oPosX < -5100.f && o->oPosY < -3500.f) {
-        o->oPosX = -5100.f;
+    if (o->oPosY < -3500 && (o->oPosX < -5100 || o->oPosZ < 960)) {
+        o->oPosX = max(o->oPosX, -5100);
+        o->oPosZ = max(o->oPosZ, 960);
         cur_obj_play_sound_2(SOUND_OBJ_POUNDING_LOUD);
         set_camera_shake_from_point(SHAKE_POS_SMALL, o->oPosX, o->oPosY, o->oPosZ);
-        o->oForwardVel = 0.0f;
+        o->oForwardVel = 0.f;
     }
 
     if (o->oForwardVel != 0.0f) {
@@ -135,12 +123,7 @@ static void racing_penguin_act_show_final_text(void) {
 
             if (cur_obj_can_mario_activate_textbox_2(400.0f, 400.0f)) {
                 if (o->oRacingPenguinMarioWon) {
-                    if (o->oRacingPenguinMarioCheated) {
-                        o->oRacingPenguinFinalTextbox = DIALOG_132;
-                        o->oRacingPenguinMarioWon = FALSE;
-                    } else {
-                        o->oRacingPenguinFinalTextbox = DIALOG_056;
-                    }
+                    o->oRacingPenguinFinalTextbox = DIALOG_056;
                 } else {
                     o->oRacingPenguinFinalTextbox = DIALOG_037;
                 }
@@ -202,15 +185,15 @@ void bhv_racing_penguin_update(void) {
 }
 
 void bhv_penguin_race_finish_line_update(void) {
-    if ((o->parentObj->oRacingPenguinReachedBottom
-         || (o->oDistanceToMario < 1000.0f && gMarioObject->oPosZ - o->oPosZ < 0.0f))
-        && !o->parentObj->oRacingPenguinReachedBottom) {
+
+    // Star Road fix: hardcode finish line area
+    if (!o->parentObj->oRacingPenguinReachedBottom &&
+        -5200 < gMarioState->pos[0] && gMarioState->pos[0] < -3800 &&
+        -4600 < gMarioState->pos[1] && gMarioState->pos[1] < -3300 &&
+          900 < gMarioState->pos[2] && gMarioState->pos[2] <  2400) {
         o->parentObj->oRacingPenguinMarioWon = TRUE;
     }
 }
 
 void bhv_penguin_race_shortcut_check_update(void) {
-    if (o->oDistanceToMario < 500.0f) {
-        o->parentObj->oRacingPenguinMarioCheated = TRUE;
-    }
 }
