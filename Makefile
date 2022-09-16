@@ -588,6 +588,10 @@ endif
 
 # Check for enhancement options
 
+# Super Mario 64: The Green Stars id macro
+CC_CHECK += -DSUPER_MARIO_64_THE_GREEN_STARS
+CFLAGS += -DSUPER_MARIO_64_THE_GREEN_STARS
+
 # Check for Puppycam option
 ifeq ($(BETTERCAMERA),1)
   CC_CHECK += -DBETTERCAMERA
