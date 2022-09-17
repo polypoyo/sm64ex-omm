@@ -962,10 +962,6 @@ endif
 CC_CHECK += $(CUSTOM_C_DEFINES)
 CFLAGS += $(CUSTOM_C_DEFINES)
 
-# Super Mario Star Road id macro
-CC_CHECK += -DSUPER_MARIO_STAR_ROAD
-CFLAGS += -DSUPER_MARIO_STAR_ROAD
-
 ifeq ($(shell getconf LONG_BIT), 32)
   # Work around memory allocation bug in QEMU
   export QEMU_GUEST_BASE := 1
@@ -1175,6 +1171,10 @@ endif
 
 CC_CHECK += $(CUSTOM_C_DEFINES)
 CFLAGS += $(CUSTOM_C_DEFINES)
+
+# Super Mario Star Road id macro
+CC_CHECK += -DSUPER_MARIO_STAR_ROAD
+CFLAGS += -DSUPER_MARIO_STAR_ROAD
 
 # Load external textures
 ifeq ($(EXTERNAL_DATA),1)
