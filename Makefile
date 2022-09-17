@@ -1194,8 +1194,9 @@ LOADER_FLAGS = -vwf
 SHA1SUM = sha1sum
 PRINT = printf
 ZEROTERM = $(PYTHON) $(TOOLS_DIR)/zeroterm.py
-ENDIAN_BITWIDTH := $(BUILD_DIR)/endian-and-bitwidth
 GET_GODDARD_SIZE = $(PYTHON) $(TOOLS_DIR)/getGoddardSize.py
+
+ENDIAN_BITWIDTH  := $(BUILD_DIR)/endian-and-bitwidth
 
 # Common build print status function
 define print
