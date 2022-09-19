@@ -1,42 +1,39 @@
 DEFINE_DIALOG(DIALOG_000,1,6,30,200, _("Welcome to a new\n\
 world!"))
 
-DEFINE_DIALOG(DIALOG_001,1,4,95,200, _("Watch out! If you wander\n\
-around here, you're liable\n\
-to be plastered by a\n\
-water bomb!\n\
-Those enemy Bob-ombs love\n\
-to fight, and they're\n\
-always finding ways to\n\
-attack.\n\
-This meadow has become\n\
-a battlefield ever since\n\
-the Big Bob-omb got his\n\
-paws on the Power Star.\n\
-Can you recover the Star\n\
-for us? Cross the bridge\n\
-and go left up the path\n\
-to find the Big Bob-omb.\n\
-Please come back to see\n\
-me after you've retrieved\n\
-the Power Star!"))
-
-DEFINE_DIALOG(DIALOG_002,1,4,95,200, _("Hey, you! It's dangerous\n\
-ahead, so listen up! Take\n\
-my advice.\n\
+DEFINE_DIALOG(DIALOG_001,1,4,30,200, _("Welcome to Vanish\n\
+Cap under the Moat!\n\
 \n\
-Cross the two\n\
-bridges ahead, then\n\
-watch for falling\n\
-water bombs.\n\
-The Big Bob-omb at the\n\
-top of the mountain is\n\
-very powerful--don't let\n\
-him grab you!\n\
-We're Bob-omb Buddies,\n\
-and we're on your side.\n\
-You can talk to us\n\
-whenever you'd like to!"))
+...\n\
+Just kidding. Welcome\n\
+to the Levora Sphere,\n\
+the mechanical temple\n\
+of levitation.\n\
+This place has been\n\
+abandoned for a long,\n\
+long time. Quite a\n\
+sight to behold.\n\
+This is for all the SM74\n\
+fans who liked the sphere\n\
+levels. Here's a new\n\
+rotation for you. Enjoy.\n\
+There are 4 red coins in\n\
+the lower half and 4 of\n\
+them in the upper half.\n\
+Sounds manageable.\n\
+By the way, all stars\n\
+in this level are fake.\n\
+They won't increase\n\
+your star counter."))
+
+DEFINE_DIALOG(DIALOG_002,1,4,30,200, _("This is the 『Kubus of\n\
+levitation』. It keeps all\n\
+those floating video game\n\
+platforms in the air.\n\
+That includes this very\n\
+level. So don't mess with\n\
+this cube or everything\n\
+will fall down and crash."))
 
 DEFINE_DIALOG(DIALOG_003,1,5,95,200, _("Thank you, Mario! The Big\n\
 Bob-omb is nothing but a\n\
@@ -669,36 +666,10 @@ Control Stick or press [A]\n\
 as soon as you grab the\n\
 ledge to climb up quickly."))
 
-DEFINE_DIALOG(DIALOG_075,1,5,30,200, _("Mario!! My castle is in\n\
-great peril. I know that\n\
-Bowser is the cause...and\n\
-I know that only you can\n\
-stop him!\n\
-The doors in the castle\n\
-that have been sealed by\n\
-Bowser can be opened only\n\
-with Star Power.\n\
-\n\
-But there are secret\n\
-paths in the castle,\n\
-paths that Bowser hasn't\n\
-found.\n\
-\n\
-One of those paths is in\n\
-this room, and it holds\n\
-one of the castle's Secret\n\
-Stars!\n\
-\n\
-Find that Secret Star,\n\
-Mario! It will help you\n\
-on your quest. Please,\n\
-Mario, you have to\n\
-help us!\n\
-Retrieve all of the\n\
-Power Stars in the castle\n\
-and free us from this\n\
-awful prison!\n\
-Please!"))
+DEFINE_DIALOG(DIALOG_075,1,4,30,200, _("Hey, I have a secret for\n\
+you. The Vanish Cap switch\n\
+is hidden somewhere in\n\
+this level. Good luck!"))
 
 DEFINE_DIALOG(DIALOG_076,1,6,30,200, _("Wow Mario! I love those\n\
 pole skills you have!\n\
@@ -714,7 +685,6 @@ lingering around this \n\
 castle. You can have it!"))
 
 DEFINE_DIALOG(DIALOG_077,1,2,150,200, _("ELEVATOR OUT OF ORDER\n\
-\n\
 \n\
 USE EMERGENCY EXIT\n\
 TO GET TO CONTROL ROOM"))
