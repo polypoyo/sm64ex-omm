@@ -422,9 +422,7 @@ Gfx *create_skybox_facing_camera(s8 player, s8 background, f32 fov,
     is3D = ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f);
 #endif
 
-    // If the "Plunder in the Sunken Ship" star in JRB is collected, make the sky darker and slightly green
-    if (background == 8
-        && !(save_file_get_star_flags(gCurrSaveFileNum - 1, COURSE_NUM_TO_INDEX(COURSE_JRB)) & (1 << 0))) {
+    if (background == 8 && gCurrAreaIndex == 2) {
         colorIndex = 0;
     }
 
