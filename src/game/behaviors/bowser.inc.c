@@ -854,10 +854,7 @@ s32 bowser_dead_bits_end(void) {
     s32 ret = 0;
     s32 dialogID;
     if (o->oBowserUnkF8 < 2) {
-        if (gHudDisplay.stars < 120)
-            dialogID = DIALOG_121;
-        else
-            dialogID = DIALOG_163;
+        dialogID = DIALOG_163;
         if (o->oBowserUnkF8 == 0) {
             func_8031FFB4(SEQ_PLAYER_LEVEL, 60, 40);
             o->oBowserUnkF8++;
