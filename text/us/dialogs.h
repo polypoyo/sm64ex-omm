@@ -1,11 +1,11 @@
 DEFINE_DIALOG(DIALOG_000,1,6,30,200, _("Welcome to a new\n\
 world!"))
 
-DEFINE_DIALOG(DIALOG_001,1,4,30,200, _("Welcome to Vanish\n\
-Cap under the Moat!\n\
-\n\
-...\n\
-Just kidding. Welcome\n\
+DEFINE_DIALOG(DIALOG_001,1,4,30,200, _("Incredible! You managed\n\
+to find the super secret\n\
+entrance to the Vanish...\n\
+Cap... course?\n\
+Not really. Welcome\n\
 to the Levora Sphere,\n\
 the mechanical temple\n\
 of levitation.\n\
