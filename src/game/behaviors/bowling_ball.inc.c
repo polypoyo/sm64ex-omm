@@ -13,16 +13,15 @@ static struct ObjectHitbox sBowlingBallHitbox = {
 };
 
 static Trajectory sThiHugeMetalBallTraj[] = {
-    TRAJECTORY_POS(0, /*pos*/ -4786,   101, -2166),
-    TRAJECTORY_POS(1, /*pos*/ -5000,    81, -2753),
-    TRAJECTORY_POS(2, /*pos*/ -5040,    33, -3846),
-    TRAJECTORY_POS(3, /*pos*/ -4966,    38, -4966),
-    TRAJECTORY_POS(4, /*pos*/ -4013,  -259, -4893),
-    TRAJECTORY_POS(5, /*pos*/ -2573, -1019, -4780),
-    TRAJECTORY_POS(6, /*pos*/ -1053, -1399, -4806),
-    TRAJECTORY_POS(7, /*pos*/   760, -1637, -4833),
-    TRAJECTORY_POS(8, /*pos*/  2866, -2047, -4886),
-    TRAJECTORY_POS(9, /*pos*/  3386, -6546, -4833),
+    TRAJECTORY_POS(0, -1546, 6719, 7173),
+    TRAJECTORY_POS(1, 82, 6298, 7143),
+    TRAJECTORY_POS(2, 1108, 6029, 6691),
+    TRAJECTORY_POS(3, 1544, 6102, 5737),
+    TRAJECTORY_POS(4, 1089, 5427, 4659),
+    TRAJECTORY_POS(5, 610, 5341, 4363),
+    TRAJECTORY_POS(6, -432, 5056, 4102),
+    TRAJECTORY_POS(7, -1265, 4784, 3373),
+    TRAJECTORY_POS(8, -1400, 4619, 1820),
     TRAJECTORY_END(),
 };
 
