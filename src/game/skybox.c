@@ -422,7 +422,8 @@ Gfx *create_skybox_facing_camera(s8 player, s8 background, f32 fov,
     is3D = ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f);
 #endif
 
-    if (background == 8 && gCurrAreaIndex == 2) {
+    // Virusvine Veranda skybox
+    if (background == 8 && gCurrAreaIndex == SM74_MODE_EXTREME) {
         colorIndex = 0;
     }
 

@@ -475,24 +475,6 @@ void init_mario_after_warp(void) {
             play_music(SEQ_PLAYER_LEVEL, SEQUENCE_ARGS(4, SEQ_LEVEL_SLIDE), 0);
         }
 #endif
-
-        if (sWarpDest.levelNum == LEVEL_CASTLE && sWarpDest.areaIdx == 1
-#ifndef VERSION_JP
-            && (sWarpDest.nodeId == 31 || sWarpDest.nodeId == 32)
-#else
-            && sWarpDest.nodeId == 31
-#endif
-        ) {
-            play_sound(SOUND_MENU_MARIO_CASTLE_WARP, gGlobalSoundSource);
-        }
-
-#ifndef VERSION_JP
-        if (sWarpDest.levelNum == LEVEL_CASTLE_GROUNDS && sWarpDest.areaIdx == 1
-            && (sWarpDest.nodeId == 7 || sWarpDest.nodeId == 10 || sWarpDest.nodeId == 20
-                || sWarpDest.nodeId == 30)) {
-            play_sound(SOUND_MENU_MARIO_CASTLE_WARP, gGlobalSoundSource);
-        }
-#endif
     }
 }
 
@@ -1072,7 +1054,13 @@ s32 play_mode_paused(void) {
             gSavedCourseNum = COURSE_NONE;
         }
     } else if (gMenuOptSelectIndex == 3) {
-        initiate_warp(gCurrLevelNum, gCurrAreaIndex ^ 3, 10, 0);
+        if (gCurrAreaIndex == SM74_MODE_NORMAL) {
+            gCurrAreaIndex = sWarpDest.areaIdx = SM74_MODE_EXTREME;
+            initiate_warp(gCurrLevelNum, SM74_MODE_EXTREME, 10, 0);
+        } else if (gCurrAreaIndex == SM74_MODE_EXTREME) {
+            gCurrAreaIndex = sWarpDest.areaIdx = SM74_MODE_NORMAL;
+            initiate_warp(gCurrLevelNum, SM74_MODE_NORMAL, 10, 0);
+        }
         fade_into_special_warp(0, 0);
 		gSavedCourseNum = COURSE_NONE;
     }
@@ -1365,6 +1353,7 @@ s32 lvl_init_from_save_file(UNUSED s16 arg0, s32 levelNum) {
 }
 
 s32 lvl_set_current_level(UNUSED s16 arg0, s32 levelNum) {
+    sWarpDest.areaIdx = gCurrAreaIndex;
     s32 warpCheckpointActive = sWarpCheckpointActive;
 
     sWarpCheckpointActive = FALSE;

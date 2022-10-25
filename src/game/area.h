@@ -153,6 +153,8 @@ extern struct Area *gCurrentArea;
 extern s16 gCurrSaveFileNum;
 extern s16 gCurrLevelNum;
 
+#define SM74_MODE_NORMAL    1
+#define SM74_MODE_EXTREME   2
 
 void override_viewport_and_clip(Vp *a, Vp *b, u8 c, u8 d, u8 e);
 void print_intro_text(void);

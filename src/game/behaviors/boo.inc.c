@@ -619,9 +619,9 @@ static void big_boo_act_3(void) {
             } else if (o->oBehParams2ndByte == 1) {
                 big_boo_spawn_merry_go_round_star();
             } else {
-				if (gCurrAreaIndex == 1)
+				if (gCurrAreaIndex == SM74_MODE_NORMAL)
 					big_boo_spawn_balcony_star();
-				else
+				else if (gCurrAreaIndex == SM74_MODE_EXTREME)
 					big_boo_spawn_balcony_star_EE();
             }
         }

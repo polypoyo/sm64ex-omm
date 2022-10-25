@@ -470,10 +470,6 @@ void spawn_objects_from_info(UNUSED s32 unused, struct SpawnInfo *spawnInfo) {
     clear_mario_platform();
 #endif
 
-    if (gCurrAreaIndex == 2) {
-        gCCMEnteredSlide |= 1;
-    }
-
     while (spawnInfo != NULL) {
         struct Object *object;
         UNUSED u8 filler[4];

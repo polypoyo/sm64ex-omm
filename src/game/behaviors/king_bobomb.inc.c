@@ -214,9 +214,9 @@ void king_bobomb_act_7(void) {
         spawn_mist_particles_variable(0, 0, 200.0f);
         spawn_triangle_break_particles(20, MODEL_DIRT_ANIMATION, 3.0f, 4);
         cur_obj_shake_screen(SHAKE_POS_SMALL);
-		if (gCurrAreaIndex == 1) {
+		if (gCurrAreaIndex == SM74_MODE_NORMAL) {
             cur_obj_spawn_star_at_y_offset(4423, 150, 5607, 200.0f);
-		} else{
+		} else if (gCurrAreaIndex == SM74_MODE_EXTREME) {
             cur_obj_spawn_star_at_y_offset(-4635, 750, 5108, 200.0f);
 		}
         o->oAction = 8;

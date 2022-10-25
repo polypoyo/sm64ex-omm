@@ -264,42 +264,30 @@ void print_act_selector_strings(void) {
 #endif
     unsigned char starNumbers[] = { TEXT_ZERO };
 
-#ifdef VERSION_EU
-    u8 **levelNameTbl;
+    u8 **courseNameTbl;
     u8 *currLevelName;
     u8 **actNameTbl;
-#else
-    u8 **levelNameTbl = segmented_to_virtual(sWarpDest.areaIdx == 1 ? seg2_course_name_table : seg2_course_name_table_EE);
-    u8 *currLevelName = segmented_to_virtual(levelNameTbl[COURSE_NUM_TO_INDEX(gCurrCourseNum)]);
-    u8 **actNameTbl = segmented_to_virtual(sWarpDest.areaIdx == 1 ? seg2_act_name_table : seg2_act_name_table_EE);
-#endif
     u8 *selectedActName;
     s16 lvlNameX;
     s16 actNameX;
     s8 i;
-#ifdef VERSION_EU
-    s16 language = eu_get_language();
-#endif
+
+    if (sWarpDest.areaIdx == SM74_MODE_NORMAL) {
+        courseNameTbl = segmented_to_virtual(seg2_course_name_table);
+    } else if (sWarpDest.areaIdx == SM74_MODE_EXTREME) {
+        courseNameTbl = segmented_to_virtual(seg2_course_name_table_EE);
+    }
+
+    if (sWarpDest.areaIdx == SM74_MODE_NORMAL) {
+        actNameTbl = segmented_to_virtual(seg2_act_name_table);
+    } else if (sWarpDest.areaIdx == SM74_MODE_EXTREME) {
+        actNameTbl = segmented_to_virtual(seg2_act_name_table_EE);
+    }
+    
+    currLevelName = segmented_to_virtual(courseNameTbl[COURSE_NUM_TO_INDEX(gCurrCourseNum)]);
 
     create_dl_ortho_matrix();
 
-#ifdef VERSION_EU
-    switch (language) {
-        case LANGUAGE_ENGLISH:
-            actNameTbl = segmented_to_virtual(act_name_table_eu_en);
-            levelNameTbl = segmented_to_virtual(course_name_table_eu_en);
-            break;
-        case LANGUAGE_FRENCH:
-            actNameTbl = segmented_to_virtual(act_name_table_eu_fr);
-            levelNameTbl = segmented_to_virtual(course_name_table_eu_fr);
-            break;
-        case LANGUAGE_GERMAN:
-            actNameTbl = segmented_to_virtual(act_name_table_eu_de);
-            levelNameTbl = segmented_to_virtual(course_name_table_eu_de);
-            break;
-    }
-    currLevelName = segmented_to_virtual(levelNameTbl[COURSE_NUM_TO_INDEX(gCurrCourseNum)]);
-#endif
     // Print the coin highscore.
     gSPDisplayList(gDisplayListHead++, dl_rgba16_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
@@ -380,6 +368,7 @@ Gfx *geo_act_selector_strings(s16 callContext, UNUSED struct GraphNode *node) {
  * Also load how much stars a course has, without counting the 100 coin star.
  */
 s32 lvl_init_act_selector_values_and_stars(UNUSED s32 arg, UNUSED s32 unused) {
+    gCurrAreaIndex = sWarpDest.areaIdx;
     u8 stars = save_file_get_star_flags(gCurrSaveFileNum - 1, COURSE_NUM_TO_INDEX(gCurrCourseNum));
 
     sLoadedActNum = 0;

@@ -33,7 +33,7 @@ struct WarpTransition gWarpTransition;
 
 s16 gCurrCourseNum;
 s16 gCurrActNum;
-s16 gCurrAreaIndex;
+s16 gCurrAreaIndex = SM74_MODE_NORMAL;
 s16 gSavedCourseNum;
 s16 gMenuOptSelectIndex;
 s16 gSaveOptSelectIndex;

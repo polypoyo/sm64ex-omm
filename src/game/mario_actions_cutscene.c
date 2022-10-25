@@ -1010,16 +1010,8 @@ s32 act_emerge_from_pipe(struct MarioState *m) {
 
     play_sound_if_no_flag(m, SOUND_MARIO_YAHOO, MARIO_MARIO_SOUND_PLAYED);
 
-    if (gCurrLevelNum == LEVEL_THI) {
-        if (gCurrAreaIndex == 2) {
-            play_sound_if_no_flag(m, SOUND_MENU_EXIT_PIPE, MARIO_ACTION_SOUND_PLAYED);
-        } else {
-            play_sound_if_no_flag(m, SOUND_MENU_ENTER_PIPE, MARIO_ACTION_SOUND_PLAYED);
-        }
-    }
-
     // ZZ warp pipes
-    if (gCurrLevelNum == LEVEL_BITS && gCurrAreaIndex == 2) {
+    if (gCurrLevelNum == LEVEL_BITS && gCurrAreaIndex == SM74_MODE_EXTREME) {
         set_mario_animation(m, MARIO_ANIM_SINGLE_JUMP);
         mario_set_forward_vel(m, 8.f);
         m->pos[0] += m->vel[0];

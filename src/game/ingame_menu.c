@@ -1797,10 +1797,11 @@ void render_dialog_entries(void) {
             break;
     }
 #else
-    if (gCurrAreaIndex == 1)
+    if (gCurrAreaIndex == SM74_MODE_NORMAL) {
         dialogTable = segmented_to_virtual(seg2_dialog_table);
-    else
+    } else if (gCurrAreaIndex == SM74_MODE_EXTREME) {
 		dialogTable = segmented_to_virtual(seg2_dialog_table_EE);
+    }
 #endif
     dialog = segmented_to_virtual(dialogTable[gDialogID]);
 
@@ -2335,10 +2336,17 @@ void render_pause_my_score_coins(void) {
     u8 courseIndex;
     u8 starFlags;
 
-#ifndef VERSION_EU
-    courseNameTbl = segmented_to_virtual(gCurrAreaIndex == 1 ? seg2_course_name_table : seg2_course_name_table_EE);
-    actNameTbl = segmented_to_virtual(gCurrAreaIndex == 1 ? seg2_act_name_table : seg2_act_name_table_EE);
-#endif
+    if (gCurrAreaIndex == SM74_MODE_NORMAL) {
+        courseNameTbl = segmented_to_virtual(seg2_course_name_table);
+    } else if (gCurrAreaIndex == SM74_MODE_EXTREME) {
+        courseNameTbl = segmented_to_virtual(seg2_course_name_table_EE);
+    }
+
+    if (gCurrAreaIndex == SM74_MODE_NORMAL) {
+        actNameTbl = segmented_to_virtual(seg2_act_name_table);
+    } else if (gCurrAreaIndex == SM74_MODE_EXTREME) {
+        actNameTbl = segmented_to_virtual(seg2_act_name_table_EE);
+    }
 
     courseIndex = COURSE_NUM_TO_INDEX(gCurrCourseNum);
     starFlags = save_file_get_star_flags(gCurrSaveFileNum - 1, COURSE_NUM_TO_INDEX(gCurrCourseNum));
@@ -2592,9 +2600,9 @@ void render_pause_castle_main_strings(s16 x, s16 y) {
 	// Draw some title text for version name
 	u8 sm74EE[] = { TEXT_SM74EE };
 	u8 sm74[] = { TEXT_SM74 };
-	if (gCurrAreaIndex == 1) {
+	if (gCurrAreaIndex == SM74_MODE_NORMAL) {
 		print_generic_string(x + 90, y , sm74);
-	} else {
+	} else if (gCurrAreaIndex == SM74_MODE_EXTREME) {
 		print_generic_string(x + 75, y , sm74EE);
 	}
 
@@ -2875,26 +2883,17 @@ void render_course_complete_lvl_info_and_hud_str(void) {
 
     u8 strCourseNum[4];
 
-#ifdef VERSION_EU
-    s16 centerX;
-    switch (gInGameLanguage) {
-        case LANGUAGE_ENGLISH:
-            actNameTbl = segmented_to_virtual(act_name_table_eu_en);
-            courseNameTbl = segmented_to_virtual(course_name_table_eu_en);
-            break;
-        case LANGUAGE_FRENCH:
-            actNameTbl = segmented_to_virtual(act_name_table_eu_fr);
-            courseNameTbl = segmented_to_virtual(course_name_table_eu_fr);
-            break;
-        case LANGUAGE_GERMAN:
-            actNameTbl = segmented_to_virtual(act_name_table_eu_de);
-            courseNameTbl = segmented_to_virtual(course_name_table_eu_de);
-            break;
+    if (gCurrAreaIndex == SM74_MODE_NORMAL) {
+        courseNameTbl = segmented_to_virtual(seg2_course_name_table);
+    } else if (gCurrAreaIndex == SM74_MODE_EXTREME) {
+        courseNameTbl = segmented_to_virtual(seg2_course_name_table_EE);
     }
-#else
-    actNameTbl = segmented_to_virtual(gCurrAreaIndex == 1 ? seg2_act_name_table : seg2_act_name_table_EE);
-    courseNameTbl = segmented_to_virtual(gCurrAreaIndex == 1 ? seg2_course_name_table : seg2_course_name_table_EE);
-#endif
+
+    if (gCurrAreaIndex == SM74_MODE_NORMAL) {
+        actNameTbl = segmented_to_virtual(seg2_act_name_table);
+    } else if (gCurrAreaIndex == SM74_MODE_EXTREME) {
+        actNameTbl = segmented_to_virtual(seg2_act_name_table_EE);
+    }
 
     if (gLastCompletedCourseNum <= COURSE_STAGES_MAX) { // Main courses
         print_hud_course_complete_coins(118, 103);
