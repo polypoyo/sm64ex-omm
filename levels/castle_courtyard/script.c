@@ -12,8 +12,16 @@
 #include "make_const_nonconst.h"
 #include "levels/castle_courtyard/header.h"
 
+#define CASTLE_ENTRY_POINT_74_MARIO     MARIO_POS(1,   135, -6558,   61, 6300)
+#define CASTLE_ENTRY_POINT_74           OBJECT_WITH_ACTS(0, -6558,   61, 6300, 0, 135, 0, 0x000A0000, bhvSpinAirborneWarp, 31), WARP_NODE(0x0A, 0, 1, 0x0A, 0)
+#define RETURN_TO_CASTLE_74             OBJECT_WITH_ACTS(0, -5000, -861, 5400, 0, 110, 0, 0x00400000, bhvSpinAirborneWarp, 31), WARP_NODE(0x40, 0, 1, 0x40, 0)
+
+#define CASTLE_ENTRY_POINT_EE_MARIO     MARIO_POS(2,   225,  7450,    0, 7270)
+#define CASTLE_ENTRY_POINT_EE           OBJECT_WITH_ACTS(0,  7450,    0, 7270, 0, 225, 0, 0x000A0000, bhvSpinAirborneWarp, 31), WARP_NODE(0x0A, 0, 2, 0x0A, 0)
+#define RETURN_TO_CASTLE_EE             OBJECT_WITH_ACTS(0,  5700, -922, 6300, 0, 250, 0, 0x00400000, bhvSpinAirborneWarp, 31), WARP_NODE(0x40, 0, 2, 0x40, 0)
+
 const LevelScript level_castle_courtyard_ee_loop[] = {
-    MARIO_POS(2,225,7450,0,7270),
+    CASTLE_ENTRY_POINT_EE_MARIO,
     CALL(/*arg*/ 0, /*func*/ lvl_init_or_update),
     CALL_LOOP(/*arg*/ 1, /*func*/ lvl_init_or_update),
     CLEAR_LEVEL(),
@@ -33,7 +41,7 @@ const LevelScript level_castle_courtyard_entry[] = {
     JUMP_LINK(local_area_castle_courtyard_2_),
     FREE_LEVEL_POOL(),
     JUMP_AREA(0,2,level_castle_courtyard_ee_loop),
-    MARIO_POS(1,135,-6558,0,6464),
+    CASTLE_ENTRY_POINT_74_MARIO,
     CALL(/*arg*/ 0, /*func*/ lvl_init_or_update),
     CALL_LOOP(/*arg*/ 1, /*func*/ lvl_init_or_update),
     CLEAR_LEVEL(),
@@ -53,8 +61,8 @@ const LevelScript local_area_castle_courtyard_1_[] = {
 };
 
 const LevelScript local_objects_castle_courtyard_1_[] = {
-    OBJECT_WITH_ACTS(0,-3446,-696,5347,0,0,0,0x00400000, bhvSpinAirborneWarp,31),
-    OBJECT_WITH_ACTS(0,-3446,-696,5347,0,135,0,0x000a0000, bhvSpinAirborneWarp,31),
+    CASTLE_ENTRY_POINT_74,
+    RETURN_TO_CASTLE_74,
     OBJECT_WITH_ACTS(0,-3446,-696,5347,0,0,0,0x0, bhvSpinAirborneWarp,31),
     OBJECT_WITH_ACTS(0,2882,-286,1807,0,63,0,0x10000, bhvLaunchStarCollectWarp,31),
     OBJECT_WITH_ACTS(0,2876,-280,1778,0,80,0,0x20000, bhvPaintingDeathWarp,31),
@@ -124,9 +132,7 @@ const LevelScript local_warps_castle_courtyard_1_[] = {
     WARP_NODE(53,0,0,0,0),
     WARP_NODE(54,0,0,0,0),
     WARP_NODE(55,0,0,0,0),
-    WARP_NODE(0x40,0,0,0,0),
     WARP_NODE(0,0,0,0,0),
-    WARP_NODE(10,0,0,10,0),
     WARP_NODE(0x60,7,1,10,0),
     WARP_NODE(11,8,1,10,0),
     WARP_NODE(12,9,1,10,0),
@@ -156,8 +162,8 @@ const LevelScript local_area_castle_courtyard_2_[] = {
 };
 
 const LevelScript local_objects_castle_courtyard_2_[] = {
-    OBJECT_WITH_ACTS(0,7450,0,7270,0,-135,0,0xa0000, bhvSpinAirborneWarp,31),
-    OBJECT_WITH_ACTS(0,7450,0,7270,0,-135,0,0x400000, bhvSpinAirborneWarp,31),
+    CASTLE_ENTRY_POINT_EE,
+    RETURN_TO_CASTLE_EE,
     OBJECT_WITH_ACTS(22,2198,-447,1436,0,-154,0,0x160000, bhvWarpPipe,31),
     OBJECT_WITH_ACTS(0,-5627,137,3491,0,-150,0,0xd010000, bhvWarp,31),
     OBJECT_WITH_ACTS(0,3961,-591,-5519,0,90,0,0xd170000, bhvWarp,31),
@@ -264,9 +270,7 @@ const LevelScript local_warps_castle_courtyard_2_[] = {
     WARP_NODE(48,26,2,10,0),
     WARP_NODE(49,26,2,10,0),
     WARP_NODE(50,26,2,10,0),
-    WARP_NODE(0x40,0,1,0,0),
     WARP_NODE(0,0,1,0,0),
-    WARP_NODE(10,9,2,10,0),
     WARP_NODE(11,9,2,12,0),
     WARP_NODE(12,9,2,11,0),
     WARP_NODE(13,9,2,14,0),

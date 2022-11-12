@@ -2562,7 +2562,7 @@ static void end_peach_cutscene_run_to_castle(struct MarioState *m) {
 
 static void end_peach_cutscene_fade_out(struct MarioState *m) {
     if (m->actionState == 0) {
-        level_trigger_warp(m, WARP_OP_CREDITS_NEXT);
+        fade_into_special_warp(-2, 0);
         gPaintingMarioYEntry = 1500.0f; // ensure medium water level in WDW credits cutscene
         m->actionState = 1;
     }
