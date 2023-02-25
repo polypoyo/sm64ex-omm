@@ -32,9 +32,10 @@
 #define OBJ_OVERLAP_FLAG_IGNORE_INTANGIBLE                  (1 << 3)
 
 #define OBJ_STEP_UPDATE_HOME                                (1 << 0)
-#define OBJ_STEP_MOVE_THROUGH_WALLS                         (1 << 1)
-#define OBJ_STEP_STICKY_FEET                                (1 << 2)
-#define OBJ_STEP_CHECK_ON_GROUND                            (1 << 3)
+#define OBJ_STEP_UPDATE_PREV_POS                            (1 << 1)
+#define OBJ_STEP_MOVE_THROUGH_WALLS                         (1 << 2)
+#define OBJ_STEP_STICKY_FEET                                (1 << 3)
+#define OBJ_STEP_CHECK_ON_GROUND                            (1 << 4)
 
 #define OBJ_PARTICLE_NONE                                   (0 << 0)
 #define OBJ_PARTICLE_MIST                                   (1 << 0)
@@ -43,6 +44,7 @@
 #define OBJ_PARTICLE_WATER_DROPLET                          (1 << 3)
 #define OBJ_PARTICLE_FIRE                                   (1 << 4)
 #define OBJ_PARTICLE_FLAME                                  (1 << 5)
+#define OBJ_PARTICLE_BUBBLE                                 (1 << 6)
 
 #define OBJ_SPAWN_TRI_BREAK_PRESET_COINS                    20, MODEL_YELLOW_COIN,    1.0f, 0
 #define OBJ_SPAWN_TRI_BREAK_PRESET_DIRT                     20, MODEL_DIRT_ANIMATION, 0.7f, 3
@@ -57,6 +59,11 @@
 #define OBJ_SPAWN_TRI_BREAK_PRESET_SWITCH_YELLOW            60, MODEL_CARTOON_STAR,   0.3f, 3
 #define OBJ_SPAWN_TRI_BREAK_PRESET_TRIANGLES_20             20, MODEL_DIRT_ANIMATION, 3.0f, 4
 #define OBJ_SPAWN_TRI_BREAK_PRESET_TRIANGLES_30             30, MODEL_DIRT_ANIMATION, 3.0f, 4
+
+#define OBJ_INT_RESULT_NONE                                 0
+#define OBJ_INT_RESULT_CONTACT                              1
+#define OBJ_INT_RESULT_INTERACT                             2
+#define OBJ_INT_RESULT_STOP                                 3
 
 #define OBJ_INT_ATTACK_WEAK                                 (1 << 0) // Common attacks
 #define OBJ_INT_ATTACK_STRONG                               (1 << 1) // Strong attacks, such as charged snowballs or beams
@@ -79,6 +86,7 @@
 #define OBJ_INT_PERRY_ATTACK                                (1 << 24)
 #define OBJ_INT_PERRY_SWORD                                 (1 << 25)
 #define OBJ_INT_PERRY_TRAIL                                 (1 << 26)
+#define OBJ_INT_PERRY_CHARGE                                (1 << 27)
 
 #define OBJ_INT_PRESET_ATTACK_SURFACE                       (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_STRONG | OBJ_INT_ATTACK_DESTRUCTIBLE)
 #define OBJ_INT_PRESET_CAPPY                                (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_BREAKABLE | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS | OBJ_INT_GRAB_OBJECTS | (OBJ_INT_COLLECT_STARS * OMM_CHEAT_CAPPY_CAN_COLLECT_STARS))
@@ -91,7 +99,8 @@
 #define OBJ_INT_PRESET_BEAM_LARGE                           (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_STRONG | OBJ_INT_ATTACK_BREAKABLE | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS)
 #define OBJ_INT_PRESET_SNUFIT_BALL_SMALL                    (OBJ_INT_ATTACK_WEAK | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS)
 #define OBJ_INT_PRESET_SNUFIT_BALL_LARGE                    (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_STRONG | OBJ_INT_ATTACK_BREAKABLE | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS)
-#define OBJ_INT_PRESET_ROCK                                 (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_BREAKABLE | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS)
+#define OBJ_INT_PRESET_ROCK_SMALL                           (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_BREAKABLE | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS)
+#define OBJ_INT_PRESET_ROCK_LARGE                           (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_BREAKABLE | OBJ_INT_ATTACK_STRONG | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS)
 #define OBJ_INT_PRESET_BLARGG_FIRE                          (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_STRONG | OBJ_INT_ATTACK_DESTRUCTIBLE | OBJ_INT_ATTACK_BREAKABLE | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS)
 
 #define OBJ_INT_PRESET_PEACH_VIBE_JOY_TORNADO               (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_KNOCKBACK | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_TRIGGERS | OBJ_INT_ATTRACT_COINS_WEAK | OBJ_INT_ATTRACT_COINS_RANGE(900) | OBJ_INT_PERRY_ATTACK)

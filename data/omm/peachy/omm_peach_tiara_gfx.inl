@@ -22,10 +22,10 @@ static void omm_peach_tiara_gfx_set_tiara_tex_palette(GfxTexture *tex) {
         l2 = omm_hmap_get(sOmmTiaraEyeTexLightBottom, Lights1 *, i);
         px = omm_hmap_get(sOmmTiaraEyeTexPixelMatrix, PxMtx *, i);
     } else {
-        l1 = omm_new(Lights1, 1);
-        l2 = omm_new(Lights1, 1);
-        px = omm_new(PxMtx, 1);
-        px->px = omm_new(bool *, tex->w * tex->h);
+        l1 = mem_new(Lights1, 1);
+        l2 = mem_new(Lights1, 1);
+        px = mem_new(PxMtx, 1);
+        px->px = mem_new(bool *, tex->w * tex->h);
         u32 xmin = tex->w;
         u32 xmax = 0;
         u32 ymin = tex->h;
@@ -55,9 +55,9 @@ static void omm_peach_tiara_gfx_set_tiara_tex_palette(GfxTexture *tex) {
         omm_hmap_insert(sOmmTiaraEyeTexLightBottom, tex->hash, l2);
         omm_hmap_insert(sOmmTiaraEyeTexPixelMatrix, tex->hash, px);
     }
-    if (!omm_same(l1, &omm_tiara_eye_top_light, sizeof(Lights1)) || !omm_same(l2, &omm_tiara_eye_bottom_light, sizeof(Lights1))) {
+    if (!mem_eq(l1, &omm_tiara_eye_top_light, sizeof(Lights1)) || !mem_eq(l2, &omm_tiara_eye_bottom_light, sizeof(Lights1))) {
         u32 size = tex->w * tex->h * 4;
-        u8 *data = omm_dup(tex->data, size);
+        u8 *data = mem_dup(tex->data, size);
         for (u32 i = 0, j = 0; i != size; i += 4, ++j) {
             if (px->px[j]) {
                 u32 x = j % tex->w;
@@ -71,9 +71,9 @@ static void omm_peach_tiara_gfx_set_tiara_tex_palette(GfxTexture *tex) {
             }
         }
         sGfxRapi->upload_texture(data, tex->w, tex->h);
-        omm_free(data);
-        omm_copy(l1, &omm_tiara_eye_top_light, sizeof(Lights1));
-        omm_copy(l2, &omm_tiara_eye_bottom_light, sizeof(Lights1));
+        mem_del(data);
+        mem_cpy(l1, &omm_tiara_eye_top_light, sizeof(Lights1));
+        mem_cpy(l2, &omm_tiara_eye_bottom_light, sizeof(Lights1));
     }
 }
 

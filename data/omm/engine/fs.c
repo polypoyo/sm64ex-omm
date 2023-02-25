@@ -26,6 +26,7 @@ char fs_gamedir[SYS_MAX_PATH] = "";
 char fs_writepath[SYS_MAX_PATH] = "";
 
 struct fs_dir_s {
+    u8 flags;
     void *pack;
     const char *realpath;
     fs_packtype_t *packer;
@@ -43,15 +44,15 @@ static fs_dir_t *fs_dir_find(const char *realpath) {
     return NULL;
 }
 
-static void fs_dir_scan(const char *ropath, const char *dir) {
-    omm_cat_paths(dirpath, SYS_MAX_PATH, ropath, dir);
+static void fs_dir_scan(const char *ropath, const char *dir, u8 flags) {
+    str_cat_paths_sa(dirpath, SYS_MAX_PATH, ropath, dir);
     if (fs_sys_dir_exists(dirpath)) {
         fs_pathlist_t plist = fs_sys_enumerate(dirpath, false);
         for (s32 i = 0; i != plist.numpaths; ++i) {
-            fs_mount(plist.paths[i]);
+            fs_mount(plist.paths[i], flags);
         }
         fs_pathlist_free(&plist);
-        fs_mount(dirpath);
+        fs_mount(dirpath, flags);
     }
 }
 
@@ -148,20 +149,20 @@ bool fs_init(const char **rodirs, const char *gamedir, const char *writepath) {
 
     // Mount all dirs from rodirs
     for (const char **p = rodirs; p && *p; ++p) {
-        fs_dir_scan(fs_convert_path(buf, sizeof(buf), *p), FS_BASEDIR);
+        fs_dir_scan(fs_convert_path(buf, sizeof(buf), *p), FS_BASEDIR, FS_DIR_READ);
     }
-    fs_dir_scan(fs_writepath, FS_BASEDIR);
+    fs_dir_scan(fs_writepath, FS_BASEDIR, FS_DIR_WRITE);
 
     // Do the same if the game dir isn't the 'res' directory
     if (sys_strcasecmp(FS_BASEDIR, fs_gamedir)) {
         for (const char **p = rodirs; p && *p; ++p) {
-            fs_dir_scan(fs_convert_path(buf, sizeof(buf), *p), fs_gamedir);
+            fs_dir_scan(fs_convert_path(buf, sizeof(buf), *p), fs_gamedir, FS_DIR_READ);
         }
-        fs_dir_scan(fs_writepath, fs_gamedir);
+        fs_dir_scan(fs_writepath, fs_gamedir, FS_DIR_WRITE);
     }
 
     // Finally, mount writepath
-    fs_mount(fs_writepath);
+    fs_mount(fs_writepath, FS_DIR_WRITE);
     
     // Sort fs_searchpaths:
     // - custom zips are first
@@ -171,7 +172,7 @@ bool fs_init(const char **rodirs, const char *gamedir, const char *writepath) {
     for_each_until_null(fs_dir_f, fs_dir_is, fs_dir_types) {
         for_each_dir_in_search_paths {
             if ((*fs_dir_is)(dir)) {
-                fs_dir_t *path = omm_dup(dir, sizeof(fs_dir_t));
+                fs_dir_t *path = mem_dup(dir, sizeof(fs_dir_t));
                 path->prev = NULL;
                 path->next = paths;
                 if (paths) paths->prev = path;
@@ -184,19 +185,23 @@ bool fs_init(const char **rodirs, const char *gamedir, const char *writepath) {
 
     // Other inits
     omm_audio_init();
+#if OMM_GAME_IS_R96X
+    extern void omm_r96x_generate_json();
+    omm_r96x_generate_json();
+#endif
 
     // Done
     return true;
 }
 
-bool fs_mount(const char *realpath) {
+bool fs_mount(const char *realpath, u8 flags) {
     if (!fs_dir_find(realpath)) {
         const char *ext = sys_file_extension(realpath);
         fs_packtype_t *packer = NULL;
         void *pack = NULL;
 
         // Select packer
-        for (u32 i = 0; i != omm_static_array_length(fs_packers); ++i) {
+        for (u32 i = 0; i != array_length(fs_packers); ++i) {
             if (!ext || !sys_strcasecmp(ext, fs_packers[i]->extension)) {
                 pack = fs_packers[i]->mount(realpath);
                 if (pack) {
@@ -208,8 +213,9 @@ bool fs_mount(const char *realpath) {
 
         // Add to search paths
         if (pack && packer) {
-            fs_dir_t *dir = omm_new(fs_dir_t, 1);
+            fs_dir_t *dir = mem_new(fs_dir_t, 1);
             if (OMM_LIKELY(dir)) {
+                dir->flags = flags;
                 dir->pack = pack;
                 dir->realpath = sys_strdup(realpath);
                 dir->packer = packer;
@@ -229,22 +235,24 @@ bool fs_unmount(const char *realpath) {
     fs_dir_t *dir = fs_dir_find(realpath);
     if (dir) {
         dir->packer->unmount(dir->pack);
-        omm_free(dir->realpath);
+        mem_del(dir->realpath);
         if (dir->prev) dir->prev->next = dir->next;
         if (dir->next) dir->next->prev = dir->prev;
         if (dir == fs_searchpaths) fs_searchpaths = dir->next;
-        omm_free(dir);
+        mem_del(dir);
         return true;
     }
     return false;
 }
 
-s32 fs_walk(const char *base, walk_fn_t walkfn, void *user, const bool recur) {
+s32 fs_walk(const char *base, walk_fn_t walkfn, void *user, const bool recur, u8 flags) {
     bool found = false;
     for_each_dir_in_search_paths {
-        s32 res = dir->packer->walk(dir->pack, base, walkfn, user, recur);
-        if (res == FS_WALK_INTERRUPTED) return res;
-        if (res != FS_WALK_NOTFOUND) found = true;
+        if (dir->flags & flags) {
+            s32 res = dir->packer->walk(dir->pack, base, walkfn, user, recur);
+            if (res == FS_WALK_INTERRUPTED) return res;
+            if (res != FS_WALK_NOTFOUND) found = true;
+        }
     }
     return found ? FS_WALK_SUCCESS : FS_WALK_NOTFOUND;
 }
@@ -319,35 +327,35 @@ bool fs_eof(fs_file_t *file) {
     return true;
 }
 
-const char *fs_find(char *outname, const u64 outlen, const char *pattern) {
+const char *fs_find(char *outname, const u64 outlen, const char *pattern, u8 flags) {
     struct finddata_s data = {
         .pattern = pattern,
         .dst = outname,
         .dst_len = outlen,
     };
-    if (fs_walk("", fs_find_walk, &data, true) == FS_WALK_INTERRUPTED) {
+    if (fs_walk("", fs_find_walk, &data, true, flags) == FS_WALK_INTERRUPTED) {
         return outname;
     }
     return NULL;
 }
 
-const char *fs_match(char *outname, const u64 outlen, const char *prefix) {
+const char *fs_match(char *outname, const u64 outlen, const char *prefix, u8 flags) {
     struct matchdata_s data = {
         .prefix = prefix,
         .prefix_len = strlen(prefix),
         .dst = outname,
         .dst_len = outlen,
     };
-    if (fs_walk("", fs_match_walk, &data, true) == FS_WALK_INTERRUPTED) {
+    if (fs_walk("", fs_match_walk, &data, true, flags) == FS_WALK_INTERRUPTED) {
         return outname;
     }
     return NULL;
 }
 
-fs_pathlist_t fs_enumerate(const char *base, const bool recur) {
-    char **paths = omm_new(char *, 32);
+fs_pathlist_t fs_enumerate(const char *base, const bool recur, u8 flags) {
+    char **paths = mem_new(char *, 32);
     fs_pathlist_t pathlist = { paths, 0, 32 };
-    if (paths && fs_walk(base, fs_enumerate_walk, &pathlist, recur) == FS_WALK_INTERRUPTED) {
+    if (paths && fs_walk(base, fs_enumerate_walk, &pathlist, recur, flags) == FS_WALK_INTERRUPTED) {
         fs_pathlist_free(&pathlist);
     }
     return pathlist;
@@ -356,9 +364,9 @@ fs_pathlist_t fs_enumerate(const char *base, const bool recur) {
 void fs_pathlist_free(fs_pathlist_t *pathlist) {
     if (pathlist && pathlist->paths) {
         for (s32 i = 0; i < pathlist->numpaths; ++i) {
-            omm_free(pathlist->paths[i]);
+            mem_del(pathlist->paths[i]);
         }
-        omm_free(pathlist->paths);
+        mem_del(pathlist->paths);
         pathlist->paths = NULL;
         pathlist->numpaths = 0;
     }
@@ -382,13 +390,13 @@ void *fs_load_file(const char *vpath, u64 *outsize) {
     if (f) {
         s64 size = fs_size(f);
         if (OMM_LIKELY(size > 0)) {
-            buf = (void *) omm_new(u8, size);
+            buf = (void *) mem_new(u8, size);
             if (OMM_LIKELY(buf)) {
                 s64 rx = fs_read(f, buf, size);
                 if (rx == size) {
                     if (outsize) *outsize = size;
                 } else {
-                    omm_free(buf);
+                    mem_del(buf);
                 }
             }
         }
@@ -402,7 +410,7 @@ u8 *fs_load_png(const char *vpath, s32 *w, s32 *h) {
     u8 *file = fs_load_file(vpath, &size);
     if (file) {
         u8 *data = stbi_load_from_memory(file, size, w, h, NULL, 4);
-        omm_free(file);
+        mem_del(file);
         return data;
     }
     return NULL;
@@ -420,7 +428,7 @@ const char *fs_convert_path(char *buf, const u64 bufsiz, const char *path)  {
     } else {
         str_cpy(buf, bufsiz, path);
     }
-    str_rep(buf, '\\', '/');
+    str_rep(buf, bufsiz, buf, '\\', '/');
     return buf;
 }
 
@@ -464,7 +472,7 @@ bool fs_sys_walk(const char *base, walk_fn_t walk, void *user, const bool recur)
         struct dirent *ent;
         while ((ent = readdir(dir)) != NULL) {
             if (ent->d_name[0] != 0 && ent->d_name[0] != '.') {
-                omm_cat_paths(fullpath, SYS_MAX_PATH, base, ent->d_name);
+                str_cat_paths_sa(fullpath, SYS_MAX_PATH, base, ent->d_name);
                 if (fs_sys_dir_exists(fullpath)) {
                     if (recur && !fs_sys_walk(fullpath, walk, user, recur)) {
                         closedir(dir);
@@ -483,7 +491,7 @@ bool fs_sys_walk(const char *base, walk_fn_t walk, void *user, const bool recur)
 }
 
 fs_pathlist_t fs_sys_enumerate(const char *base, const bool recur) {
-    char **paths = omm_new(char *, 32);
+    char **paths = mem_new(char *, 32);
     fs_pathlist_t pathlist = { paths, 0, 32 };
     if (paths && !fs_sys_walk(base, fs_enumerate_walk, &pathlist, recur)) {
         fs_pathlist_free(&pathlist);

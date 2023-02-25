@@ -191,10 +191,10 @@ static bool is_zip(FILE *f) {
 static void zip_close(zip_file_t *zipfile) {
     if (zipfile->buffer) {
         inflateEnd(&zipfile->zstream);
-        omm_free(zipfile->buffer);
+        mem_del(zipfile->buffer);
     }
     if (zipfile->fstream) fclose(zipfile->fstream);
-    omm_free(zipfile);
+    mem_del(zipfile);
 }
 
 //
@@ -205,7 +205,7 @@ static void *fs_packtype_zip_mount(const char *realpath) {
     FILE *f = fopen(realpath, "rb");
     if (f) {
         if (is_zip(f)) {
-            zip_pack_t *pack = omm_new(zip_pack_t, 1);
+            zip_pack_t *pack = mem_new(zip_pack_t, 1);
             if (OMM_LIKELY(pack != NULL)) {
                 u64 cdir_ofs, data_ofs, count;
                 if (zip_parse_eocd(f, &cdir_ofs, &data_ofs, &count) &&
@@ -215,7 +215,7 @@ static void *fs_packtype_zip_mount(const char *realpath) {
                     pack->zipf = f;
                     return pack;
                 }
-                omm_free(pack);
+                mem_del(pack);
             }
         }
         fclose(f);
@@ -227,8 +227,8 @@ static void fs_packtype_zip_unmount(void *pack) {
     zip_pack_t *zip = (zip_pack_t *) pack;
     fs_dirtree_free(&zip->tree);
     if (zip->zipf) fclose(zip->zipf);
-    omm_free(zip->realpath);
-    omm_free(zip);
+    mem_del(zip->realpath);
+    mem_del(zip);
 }
 
 static bool fs_packtype_zip_is_file(void *pack, const char *fname) {
@@ -245,13 +245,13 @@ static fs_file_t *fs_packtype_zip_open(void *pack, const char *vpath) {
     zip_pack_t *zip = (zip_pack_t *) pack;
     zip_entry_t *ent = (zip_entry_t *) fs_dirtree_find((fs_dirtree_t *) zip, vpath);
     if (OMM_LIKELY(ent && !ent->tree.is_dir)) {
-        zip_file_t *zipfile = omm_new(zip_file_t, 1);
+        zip_file_t *zipfile = mem_new(zip_file_t, 1);
         if (OMM_LIKELY(zipfile != NULL)) {
             zipfile->entry = ent;
             zipfile->fstream = fopen(zip->realpath, "rb");
             if (OMM_LIKELY(zipfile->fstream && (ent->ofs_fixed || zip_fixup_offset(zipfile)))) {
                 if (ent->comp_type) {
-                    zipfile->buffer = omm_new(u8, ZIP_BUFSIZE);
+                    zipfile->buffer = mem_new(u8, ZIP_BUFSIZE);
                     if (zipfile->buffer && inflateInit2(&zipfile->zstream, -MAX_WBITS) == Z_OK) {
                         zipfile->inited = true;
                     }
@@ -259,7 +259,7 @@ static fs_file_t *fs_packtype_zip_open(void *pack, const char *vpath) {
                     zipfile->inited = true;
                 }
                 if (OMM_LIKELY(zipfile->inited)) {
-                    fs_file_t *fsfile = omm_new(fs_file_t, 1);
+                    fs_file_t *fsfile = mem_new(fs_file_t, 1);
                     if (OMM_LIKELY(fsfile != NULL)) {
                         fsfile->handle = zipfile;
                         fsfile->parent = NULL;
@@ -278,7 +278,7 @@ static void fs_packtype_zip_close(UNUSED void *pack, fs_file_t *file) {
     if (!file) return;
     zip_file_t *zipfile = (zip_file_t *) file->handle;
     if (zipfile) zip_close(zipfile);
-    omm_free(file);
+    mem_del(file);
 }
 
 static s64 fs_packtype_zip_read(UNUSED void *pack, fs_file_t *file, void *buf, const u64 size) {

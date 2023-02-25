@@ -64,17 +64,17 @@ static bool omm_sparkly_act_star_dance_update(struct MarioState *m) {
     
     // Display the text box "Pink-Gold/Crystal/Nebula star"
     else if (m->actionTimer == 28) {
-        s32 index = omm_sparkly_get_index(gOmmSparklyMode, gCurrLevelNum, gCurrAreaIndex);
+        s32 starIndex = omm_sparkly_get_index(gOmmSparklyMode, gCurrLevelNum, gCurrAreaIndex);
         omm_render_effect_you_got_a_star_begin(
             OMM_SPARKLY_TEXT_STAR[gOmmSparklyMode],
-            omm_sparkly_get_level_name(gOmmSparklyMode, index),
-            omm_sparkly_get_star_name(gOmmSparklyMode, index)
+            omm_sparkly_get_level_name(gOmmSparklyMode, starIndex),
+            omm_sparkly_get_star_name(gOmmSparklyMode, starIndex)
         );
     }
     
     // Wa-hoo!
     else if (m->actionTimer == 29) {
-        play_sound(SOUND_MARIO_HERE_WE_GO, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MARIO_HERE_WE_GO);
         set_camera_shake_from_hit(SHAKE_GROUND_POUND);
     }
     
@@ -149,7 +149,7 @@ static void omm_sparkly_act_ending_update_toad_jump(EndToadStruct *toad) {
 
 static void omm_sparkly_act_ending_set_toad_message(const char *msg, s16 duration) {
     const u8 *converted = omm_text_get_string_for_selected_player(omm_text_convert(msg, false));
-    omm_copy(sOmmEndToadDialog->msg, converted, omm_text_length(converted) + 1);
+    mem_cpy(sOmmEndToadDialog->msg, converted, omm_text_length(converted) + 1);
     sOmmEndToadDialog->timer = duration + 10; // + Fade in/out frames
     sOmmEndToadDialog->fade = 0;
 }
@@ -157,7 +157,7 @@ static void omm_sparkly_act_ending_set_toad_message(const char *msg, s16 duratio
 static void omm_sparkly_act_ending_set_visual_pos(struct Object *o, f32 *value) {
     Vec3s t; find_mario_anim_flags_and_translation(o, o->oGfxAngle[1], t);
     f32 x = o->oGfxPos[0] + t[0];
-    f32 y = o->oGfxPos[1] + 10.0f;
+    f32 y = o->oGfxPos[1] + 10.f;
     f32 z = o->oGfxPos[2] + t[2];
     struct Surface *floor;
     *value = find_floor(x, y, z, &floor);

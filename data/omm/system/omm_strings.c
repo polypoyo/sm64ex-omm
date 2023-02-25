@@ -6,7 +6,7 @@
 // Texts
 //
 
-#define OMM_TEXT_(id, str) const char OMM_TEXT_##id[] = OMM_TEXT_FORMAT(id, str);
+#define OMM_TEXT_(id, str) const char OMM_TEXT_##id[] = OMM_TEXT_FORMAT(#id, str);
 #include "data/omm/omm_defines_texts.inl"
 #undef OMM_TEXT_
 
@@ -159,7 +159,7 @@ const char *OMM_TEXTURE_MENU_FONT_[96] = {
     OMM_TEXTURE_MENU_FONT_7E,
     OMM_TEXTURE_MENU_FONT_7F,
 };
-int OMM_STAR_COLOR_[20] = {
+int OMM_STAR_COLOR_[OMM_STAR_COLOR_COUNT] = {
     OMM_STAR_COLORS
 };
 

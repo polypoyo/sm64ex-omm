@@ -44,7 +44,7 @@ static OmmLoadingScreenText sOmmLoadingScreenText[256];
     pText->r = _r_;                                                      \
     pText->g = _g_;                                                      \
     pText->b = _b_;                                                      \
-    snprintf(pText->s, 128, _fmt_, __VA_ARGS__);                         \
+    str_fmt(pText->s, 128, _fmt_, __VA_ARGS__);                          \
     pText++;                                                             \
 }
 
@@ -103,7 +103,7 @@ static void omm_loading_state_update() {
 }
 
 static void omm_loading_state_text() {
-    omm_zero(sOmmLoadingScreenText, sizeof(sOmmLoadingScreenText));
+    mem_clr(sOmmLoadingScreenText, sizeof(sOmmLoadingScreenText));
     OmmLoadingScreenText *pText = &sOmmLoadingScreenText[0];
     if (sOmmLoadingState->state >= OMM_LOADING_FILE_SYSTEM) {
         omm_loading_screen_set_text(0, 0, 0xFF, 0xFF, 0xFF, "%s", "> Initializing File system... ");
@@ -167,8 +167,8 @@ static void omm_loading_screen_produce_one_frame() {
                 omm_render_texrect(
                     GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE((x + 3) * CHAR_WIDTH),
                     SCREEN_HEIGHT - CHAR_HEIGHT - (8 + LINE_SPACING * y),
-                    CHAR_WIDTH, CHAR_HEIGHT, G_IM_FMT_RGBA, G_IM_SIZ_32b,
-                    64, 128, text->r, text->g, text->b, 0xFF,
+                    CHAR_WIDTH, CHAR_HEIGHT, 64, 128,
+                    text->r, text->g, text->b, 0xFF,
                     OMM_TEXTURE_MENU_FONT_[*c - 0x20], false
                 );
             }

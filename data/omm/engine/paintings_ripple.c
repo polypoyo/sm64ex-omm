@@ -30,7 +30,7 @@ void gfx_interpolate_frame_paintings(f32 t) {
 }
 
 void gfx_clear_frame_paintings() {
-    omm_zero(sPaintingVtx, sizeof(sPaintingVtx));
+    mem_clr(sPaintingVtx, sizeof(sPaintingVtx));
     sPaintingCount = 0;
 }
 
@@ -42,14 +42,14 @@ void gfx_interpolate_painting(Vtx *vtx, s32 numVtx) {
         // Previous frame
         if (vb0->count == numVtx) {
             sPaintingVtx[sPaintingCount] = vtx;
-            omm_copy(vb0->vtx, vb1->vtx, sizeof(Vtx) * numVtx);
+            mem_cpy(vb0->vtx, vb1->vtx, sizeof(Vtx) * numVtx);
         } else {
-            omm_copy(vb0->vtx, vtx, sizeof(Vtx) * numVtx);
+            mem_cpy(vb0->vtx, vtx, sizeof(Vtx) * numVtx);
         }
         vb0->count = numVtx;
         
         // Current frame
-        omm_copy(vb1->vtx, vtx, sizeof(Vtx) * numVtx);
+        mem_cpy(vb1->vtx, vtx, sizeof(Vtx) * numVtx);
         vb1->count = numVtx;
         
         // Increase painting count

@@ -20,10 +20,12 @@ typedef struct {
 } OmmStarData;
 static OmmStarData **sOmmStarsData[LEVEL_COUNT][8] = { { NULL } };
 
-static void omm_stars_add_data(s32 level, s32 area, s32 index, const BehaviorScript *behavior, s32 behParams) {
-    sOmmStarsData[level][area][index] = omm_new(OmmStarData, 1);
-    sOmmStarsData[level][area][index]->behavior = behavior;
-    sOmmStarsData[level][area][index]->behParams = behParams;
+static void omm_stars_add_data(s32 levelNum, s32 areaIndex, u8 starIndex, const BehaviorScript *behavior, s32 behParams) {
+    if (starIndex < OMM_NUM_STARS_MAX_PER_COURSE) {
+        sOmmStarsData[levelNum][areaIndex][starIndex] = mem_new(OmmStarData, 1);
+        sOmmStarsData[levelNum][areaIndex][starIndex]->behavior = behavior;
+        sOmmStarsData[levelNum][areaIndex][starIndex]->behParams = behParams;
+    }
 }
 
 //
@@ -117,7 +119,7 @@ static s32 omm_stars_preprocess_level_cmd(u8 type, void *cmd) {
                 (behavior == bhvCustomSMSRStarMoving) ||
 #endif        
             0) {
-                u8 starIndex = (u8) ((behaviorArg >> 24) & 0x07);
+                u8 starIndex = (u8) (behaviorArg >> 24);
                 omm_stars_add_data(sOmmStarsTargetLevelNum, sOmmStarsTargetAreaIndex, starIndex, behavior, behaviorArg);
             }
 
@@ -128,7 +130,7 @@ static s32 omm_stars_preprocess_level_cmd(u8 type, void *cmd) {
             // Everything is fine as long as the first is 0 or the second is 8,
             // but it will give wrong star indexes if it's not the case...
             else if (behavior == bhvExclamationBox) {
-                u8 starIndex = (u8) ((behaviorArg >> 24) & 0x07);
+                u8 starIndex = (u8) (behaviorArg >> 24);
                 switch ((behaviorArg >> 16) & 0xFF) {
                     case 0x08: omm_stars_add_data(sOmmStarsTargetLevelNum, sOmmStarsTargetAreaIndex, starIndex | 0, bhvExclamationBox, behaviorArg); break;
                     case 0x0A: omm_stars_add_data(sOmmStarsTargetLevelNum, sOmmStarsTargetAreaIndex, starIndex | 1, bhvExclamationBox, behaviorArg); break;
@@ -157,7 +159,7 @@ static s32 omm_stars_preprocess_level_cmd(u8 type, void *cmd) {
             MacroObject *data = level_cmd_get(cmd, MacroObject *, 4);
             for (; *data != MACRO_OBJECT_END(); data += 5) {
                 s32 presetId = (s32) ((data[0] & 0x1FF) - 0x1F);
-                s32 starIndex = -1;
+                u8 starIndex = 0xFF;
                 switch (presetId) {
                     case macro_box_star_1: starIndex = 0; break;
                     case macro_box_star_2: starIndex = 1; break;
@@ -166,7 +168,7 @@ static s32 omm_stars_preprocess_level_cmd(u8 type, void *cmd) {
                     case macro_box_star_5: starIndex = 4; break;
                     case macro_box_star_6: starIndex = 5; break;
                 }
-                if (starIndex != -1) {
+                if (starIndex != 0xFF) {
                     const BehaviorScript *behavior = MacroObjectPresets[presetId].behavior;
                     s32 presetParams = MacroObjectPresets[presetId].param;
                     s32 objParams = (data[4] & 0xFF00) + (presetParams & 0x00FF);
@@ -179,45 +181,45 @@ static s32 omm_stars_preprocess_level_cmd(u8 type, void *cmd) {
     return LEVEL_SCRIPT_CONTINUE;
 }
 
-static void omm_stars_load_data(s32 level, s32 area) {
-    if (!sOmmStarsData[level][area]) {
-        sOmmStarsData[level][area] = omm_new(OmmStarData *, 8);
+static void omm_stars_load_data(s32 levelNum, s32 areaIndex) {
+    if (!sOmmStarsData[levelNum][areaIndex]) {
+        sOmmStarsData[levelNum][areaIndex] = mem_new(OmmStarData *, OMM_NUM_STARS_MAX_PER_COURSE);
 
         // Level Stars
-        sOmmStarsTargetLevelNum = level;
-        sOmmStarsTargetAreaIndex = area;
+        sOmmStarsTargetLevelNum = levelNum;
+        sOmmStarsTargetAreaIndex = areaIndex;
         sOmmStarsCurrAreaIndex = 0;
-        level_script_preprocess(omm_level_get_script(level), omm_stars_preprocess_level_cmd);
+        level_script_preprocess(omm_level_get_script(levelNum), omm_stars_preprocess_level_cmd);
 
         // 100 Coins Star
-        if (COURSE_IS_MAIN_COURSE(omm_level_get_course(level))) {
-            omm_stars_add_data(level, area, 6, NULL, 0);
+        if (COURSE_IS_MAIN_COURSE(omm_level_get_course(levelNum))) {
+            omm_stars_add_data(levelNum, areaIndex, 6, NULL, 0);
         }
 
         // Slide Secret Star
-        if (level == OMM_LEVEL_SLIDE) {
-            omm_stars_add_data(level, area, 1, NULL, 0);
+        if (levelNum == OMM_LEVEL_SLIDE) {
+            omm_stars_add_data(levelNum, areaIndex, 1, NULL, 0);
         }
     }
 }
 
-static u8 omm_stars_get_bits_per_area(s32 level, s32 area) {
-    omm_stars_load_data(level, area);
+static u8 omm_stars_get_bits_per_area(s32 levelNum, s32 areaIndex) {
+    omm_stars_load_data(levelNum, areaIndex);
     u8 starBits = 0;
-    for (s32 i = 0; i != 8; ++i) {
-        if (sOmmStarsData[level][area][i]) {
+    for (s32 i = 0; i != OMM_NUM_STARS_MAX_PER_COURSE; ++i) {
+        if (sOmmStarsData[levelNum][areaIndex][i]) {
             starBits |= (1 << i);
         }
     }
     return starBits;
 }
 
-static u32 omm_stars_get_color_per_course(s32 course) {
+static u32 omm_stars_get_color_per_course(s32 courseNum, s32 modeIndex) {
     static u32 *sOmmStarsColors = NULL;
     if (!sOmmStarsColors) {
-        sOmmStarsColors = omm_new(u32, omm_static_array_length(OMM_TEXTURE_STAR_BODY_));
-        for (s32 i = 0; i != omm_static_array_length(OMM_TEXTURE_STAR_BODY_); ++i) {
-            omm_str_cat(filename, 256, "gfx/", OMM_TEXTURE_STAR_BODY_[OMM_STAR_COLOR_[i]], ".png");
+        sOmmStarsColors = mem_new(u32, OMM_STAR_COLOR_COUNT);
+        for (s32 i = 0; i != OMM_STAR_COLOR_COUNT; ++i) {
+            str_cat_sa(filename, 256, "gfx/", OMM_TEXTURE_STAR_BODY_[OMM_STAR_COLOR_[i]], ".png");
             s32 w, h;
             u8 *p = fs_load_png(filename, &w, &h);
             if (p) {
@@ -234,14 +236,14 @@ static u32 omm_stars_get_color_per_course(s32 course) {
             }
         }
     }
-    return sOmmStarsColors[((course < COURSE_COUNT) ? clamp_s(course, 0, 16) : 17)];
+    return sOmmStarsColors[clamp_s(courseNum, 0, 16) + OMM_STAR_COLOR_OFFSET(modeIndex)];
 }
 
 //
 // Stars
 //
 
-static u8 sOmmStarsBits = 0;
+u8 sOmmStarsBits = 0;
 
 void omm_stars_init_bits() {
     sOmmStarsBits = 0;
@@ -251,49 +253,54 @@ u8 omm_stars_get_bits() {
     return sOmmStarsBits;
 }
 
-u8 omm_stars_get_bits_total(s32 level) {
+u8 omm_stars_get_bits_total(s32 levelNum, s32 modeIndex) {
 #if OMM_GAME_IS_SM74
-    return omm_stars_get_bits_per_area(level, sWarpDest.areaIdx);
+    return omm_stars_get_bits_per_area(levelNum, modeIndex + 1);
 #else
-    return omm_stars_get_bits_per_area(level, 0) |
-           omm_stars_get_bits_per_area(level, 1) |
-           omm_stars_get_bits_per_area(level, 2) |
-           omm_stars_get_bits_per_area(level, 3) |
-           omm_stars_get_bits_per_area(level, 4) |
-           omm_stars_get_bits_per_area(level, 5) |
-           omm_stars_get_bits_per_area(level, 6) |
-           omm_stars_get_bits_per_area(level, 7);
+    return omm_stars_get_bits_per_area(levelNum, 0) |
+           omm_stars_get_bits_per_area(levelNum, 1) |
+           omm_stars_get_bits_per_area(levelNum, 2) |
+           omm_stars_get_bits_per_area(levelNum, 3) |
+           omm_stars_get_bits_per_area(levelNum, 4) |
+           omm_stars_get_bits_per_area(levelNum, 5) |
+           omm_stars_get_bits_per_area(levelNum, 6) |
+           omm_stars_get_bits_per_area(levelNum, 7);
 #endif
 }
 
-u32 omm_stars_get_color(s32 level) {
-    s32 course = (level <= 0 ? COURSE_COUNT : omm_level_get_course(level));
-    return omm_stars_get_color_per_course(course);
+u32 omm_stars_get_color(s32 levelNum, s32 modeIndex) {
+    return omm_stars_get_color_per_course(omm_level_get_course(levelNum), modeIndex);
 }
 
-bool omm_stars_is_collected(s32 index) {
-    return OMM_STARS_NON_STOP && ((sOmmStarsBits >> index) & 1);
+bool omm_stars_is_collected(s32 starIndex) {
+    return OMM_STARS_NON_STOP && ((sOmmStarsBits >> starIndex) & 1);
 }
 
-// All stars of a level are declared collected if
-// - It's not a Bowser or a Castle level
-// and
-// - It's a Bowser fight
-// or
-// - Every star bit is 1 and there is an exit warp
-bool omm_stars_all_collected(s32 level) {
-    return level != LEVEL_BITDW    &&
-           level != LEVEL_BITFS    &&
-           level != LEVEL_BITS     && 
-           level != LEVEL_GROUNDS  && 
-           level != LEVEL_CASTLE   && 
-           level != LEVEL_COURT    && (
-           level == OMM_LEVEL_END  ||
-           level == LEVEL_BOWSER_1 ||
-           level == LEVEL_BOWSER_2 ||
-           level == LEVEL_BOWSER_3 || (
-           omm_level_get_exit_warp(level, gCurrAreaIndex) &&
-           omm_stars_get_bits() == omm_stars_get_bits_total(level)));
+bool omm_stars_all_collected(s32 levelNum, s32 modeIndex) {
+
+    // Bowser level or Castle: never collected
+    if (levelNum == LEVEL_BITDW) return false;
+    if (levelNum == LEVEL_BITFS) return false;
+    if (levelNum == LEVEL_BITS) return false;
+    if (levelNum == LEVEL_GROUNDS) return false;
+    if (levelNum == LEVEL_CASTLE) return false;
+    if (levelNum == LEVEL_COURT) return false;
+
+    // Bowser fight or ending: always collected
+    if (levelNum == LEVEL_BOWSER_1) return true;
+    if (levelNum == LEVEL_BOWSER_2) return true;
+    if (levelNum == LEVEL_BOWSER_3) return true;
+    if (levelNum == OMM_LEVEL_END) return true;
+
+    // No exit warp: never collected
+    if (!omm_level_get_exit_warp(levelNum, modeIndex + 1)) return false;
+
+    // No star in the level: never collected
+    u8 starBits = omm_stars_get_bits_total(levelNum, modeIndex);
+    if (!starBits) return false;
+
+    // All stars collected?
+    return omm_stars_get_bits() == starBits;
 }
 
 void omm_stars_set_bits(u8 bits) {
@@ -321,7 +328,7 @@ static void unload_objects_with_param(const BehaviorScript *behavior, s32 behPar
     for (bool done = false; !done;) {
         done = true;
         for_each_object_with_behavior(obj, behavior) {
-            if (obj->oBhvArgs2ndByte == behParams2ndByte) {
+            if (obj->oBehParams2ndByte == behParams2ndByte) {
                 unload_object(obj);
                 done = false;
                 break;
@@ -340,18 +347,18 @@ OMM_ROUTINE_UPDATE(omm_stars_update) {
         (gMarioState->action != ACT_OMM_STAR_DANCE) &&
         (gMarioState->action != ACT_OMM_SPARKLY_STAR_DANCE) &&
         (gMarioState->action != ACT_OMM_TRANSITION_WF_TOWER) &&
-        (gMarioState->action != ACT_OMM_POSSESSION || gOmmMario->capture.timer != 0xFF)) {
+        (!omm_mario_is_capture(gMarioState) || gOmmMario->capture.timer != 0xFF)) {
 
         // Check and update for each star bit
         // Unload objects or set actions to prevent already collected stars from respawning
         omm_stars_load_data(gCurrLevelNum, gCurrAreaIndex);
-        for (s32 i = 0; i != 8; ++i) {
+        for (s32 i = 0; i != OMM_NUM_STARS_MAX_PER_COURSE; ++i) {
             const OmmStarData *starData = sOmmStarsData[gCurrLevelNum][gCurrAreaIndex][i];
             if (starData && ((sOmmStarsBits >> i) & 1)) {
                 for (bool done = false; !done;) {
                     done = true;
                     for_each_object_with_behavior(o, starData->behavior) {
-                        if (starData->behParams == o->oBhvArgs) {
+                        if (starData->behParams == o->oBehParams) {
 
                             // Unload the object
                             if (starData->behavior == bhvExclamationBox ||

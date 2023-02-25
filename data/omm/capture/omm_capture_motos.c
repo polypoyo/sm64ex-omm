@@ -123,28 +123,30 @@ s32 omm_cappy_motos_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Lava must be handled separately
     if (obj_is_on_ground(o) && o->oFloor->type == SURFACE_BURNING && !OMM_CHEAT_WALK_ON_LAVA) {
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_BURNT, false, 0);
         omm_mario_set_action(gMarioState, ACT_LAVA_BOOST, 0, 0);
         o->oAction = MOTOS_ACT_DEATH;
-        POBJ_STOP_IF_UNPOSSESSED;
+        pobj_stop_if_unpossessed();
     }
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
 
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
     switch (gOmmObject->state.actionState) {
+
+        // Idle, walk, jump
         case 0: {
             obj_anim_play(o, gOmmObject->motos.heldObj ? MOTOS_ANIM_CARRY_RUN : MOTOS_ANIM_WALK, 1.f);
             omm_obj_update_held_object(gOmmObject->motos.heldObj, o, OMM_CAPPY_MOTOS_HAND_POS_1);
@@ -157,23 +159,25 @@ s32 omm_cappy_motos_update(struct Object *o) {
             }
         } break;
 
+        // Hold
         case 1: {
-            obj_anim_play(o, MOTOS_ANIM_CARRY_START, 1.f);
+            obj_anim_play(o, MOTOS_ANIM_CARRY_START, 1.5f);
             omm_obj_update_held_object(gOmmObject->motos.heldObj, o, OMM_CAPPY_MOTOS_HAND_POS_1);
             gOmmObject->motos.heldObj->oPosX = relerp_0_1_f(obj_anim_get_frame(o), 0, 30, gOmmObject->motos.heldObj->oHomeX, gOmmObject->motos.heldObj->oPosX);
             gOmmObject->motos.heldObj->oPosY = relerp_0_1_f(obj_anim_get_frame(o), 0, 30, gOmmObject->motos.heldObj->oHomeY, gOmmObject->motos.heldObj->oPosY);
             gOmmObject->motos.heldObj->oPosZ = relerp_0_1_f(obj_anim_get_frame(o), 0, 30, gOmmObject->motos.heldObj->oHomeZ, gOmmObject->motos.heldObj->oPosZ);
             gOmmObject->motos.heldObj->oPosY += 0.5f * o->hitboxHeight * sins(relerp_0_1_s(obj_anim_get_frame(o), 0, 30, 0, 0x8000));
             obj_update_gfx(gOmmObject->motos.heldObj);
-            if (obj_anim_is_at_end(o)) {
+            if (obj_anim_is_near_end(o)) {
                 sound_stop(SOUND_GENERAL_CANNON_UP, o->oCameraToObject);
                 omm_mario_unlock(gMarioState);
                 gOmmObject->state.actionState = 0;
             }
         } break;
 
+        // Throw
         case 2: {
-            obj_anim_play(o, MOTOS_ANIM_PITCH, 1.f);
+            obj_anim_play(o, MOTOS_ANIM_PITCH, 1.5f);
             Vec3f pos1 = { OMM_CAPPY_MOTOS_HAND_POS_1 };
             Vec3f pos2 = { OMM_CAPPY_MOTOS_HAND_POS_2 };
             f32 t = sins(relerp_0_1_f(obj_anim_get_frame(o), 0, 14, 0, 0x8000));
@@ -182,10 +186,10 @@ s32 omm_cappy_motos_update(struct Object *o) {
             f32 z = lerp_f(t, pos1[2], pos2[2]);
             omm_obj_update_held_object(gOmmObject->motos.heldObj, o, x, y, z);
             if (gOmmObject->motos.heldObj && obj_anim_get_frame(o) >= 14) {
-                omm_obj_throw(gOmmObject->motos.heldObj, 40.f, 20.f);
+                omm_obj_throw(gOmmObject->motos.heldObj, 48.f, 24.f);
                 obj_play_sound(o, SOUND_OBJ_UNKNOWN4);
                 gOmmObject->motos.heldObj = NULL;
-            } else if (obj_anim_is_at_end(o)) {
+            } else if (obj_anim_is_near_end(o)) {
                 omm_mario_unlock(gMarioState);
                 gOmmObject->state.actionState = 0;
             }
@@ -197,5 +201,5 @@ s32 omm_cappy_motos_update(struct Object *o) {
     gOmmObject->cappy.scale     = 0.5f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

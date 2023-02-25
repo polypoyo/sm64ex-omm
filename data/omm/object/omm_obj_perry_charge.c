@@ -27,7 +27,7 @@ static const Gfx omm_perry_charge_gfx[] = {
 //
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_perry_charge_gfx)];
+    Gfx gfx[array_length(omm_perry_charge_gfx)];
     Gfx tri[(1 + OMM_PERRY_CHARGE_NUM_FRAMES + OMM_PERRY_CHARGE_NUM_POINTS) * 2 + 22];
     Vtx vtx[(1 + OMM_PERRY_CHARGE_NUM_FRAMES + OMM_PERRY_CHARGE_NUM_POINTS) * 4];
     Vec3f pos[OMM_PERRY_CHARGE_NUM_POINTS];
@@ -100,7 +100,7 @@ static void bhv_omm_perry_charge_update() {
     struct Object *p = omm_perry_get_object();
     struct MarioState *m = gMarioState;
     OmmPerryChargeGeoData *data = NULL;
-    if (!p || !OMM_PLAYER_IS_PEACH) {
+    if (!p || !OMM_PERRY_SWORD_ACTION) {
         obj_mark_for_deletion(o);
         return;
     }
@@ -122,7 +122,7 @@ static void bhv_omm_perry_charge_update() {
 
     // Update position
     data = geo_get_geo_data(o, sizeof(OmmPerryChargeGeoData), omm_perry_charge_gfx, sizeof(omm_perry_charge_gfx));
-    omm_move(data->pos + OMM_PERRY_CHARGE_NUM_POINTS_PER_FRAME, data->pos, sizeof(Vec3f) * OMM_PERRY_CHARGE_NUM_POINTS_PER_FRAME * (OMM_PERRY_CHARGE_NUM_FRAMES - 1));
+    mem_mov(data->pos + OMM_PERRY_CHARGE_NUM_POINTS_PER_FRAME, data->pos, sizeof(Vec3f) * OMM_PERRY_CHARGE_NUM_POINTS_PER_FRAME * (OMM_PERRY_CHARGE_NUM_FRAMES - 1));
     vec3f_copy(data->pos[0], pos0);
     Vtx *vtx = data->vtx;
     Gfx *tri = data->tri;
@@ -215,7 +215,7 @@ const BehaviorScript bhvOmmPerryCharge[] = {
 //
 
 OMM_ROUTINE_UPDATE(omm_spawn_perry_charge) {
-    if (gMarioObject && OMM_PLAYER_IS_PEACH) {
+    if (gMarioObject && OMM_PERRY_SWORD_ACTION) {
         struct Object *charge = obj_get_first_with_behavior(bhvOmmPerryCharge);
         if (!charge) {
             charge = obj_spawn_from_geo(gMarioObject, omm_geo_perry_charge, bhvOmmPerryCharge);

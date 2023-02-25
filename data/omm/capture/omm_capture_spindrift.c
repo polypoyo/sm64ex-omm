@@ -80,23 +80,23 @@ s32 omm_cappy_spindrift_update(struct Object *o) {
             omm_spawn_shockwave_spindrift(o);
         }
     }
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Movement
     perform_object_step(o, POBJ_STEP_FLAGS);
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, gOmmObject->state.actionFlag ? 0.25f : 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
     
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     vec3f_copy(o->oGfxPos, &o->oPosX);
@@ -129,5 +129,5 @@ s32 omm_cappy_spindrift_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.2f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

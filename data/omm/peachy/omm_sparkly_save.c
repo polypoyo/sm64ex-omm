@@ -7,9 +7,9 @@
 //
 
 #define TIMER_MAX               10799970 // 99h 59m 59s
-#define CHECK_MODE(ret)         if (OMM_UNLIKELY(mode < 1 || mode >= OMM_SPARKLY_MODE_COUNT)) { return ret; }
-#define CHECK_INDEX_LAST(ret)   if (OMM_UNLIKELY(index < 0 || index >= omm_sparkly_get_bowser_4_index(mode))) { return ret; }
-#define CHECK_INDEX_COUNT(ret)  if (OMM_UNLIKELY(index < 0 || index >= omm_sparkly_get_bowser_4_index(mode) + 1)) { return ret; }
+#define CHECK_MODE(ret)         if (sparklyMode < 1 || sparklyMode >= OMM_SPARKLY_MODE_COUNT) { return ret; }
+#define CHECK_INDEX_LAST(ret)   if (starIndex < 0 || starIndex >= omm_sparkly_get_bowser_4_index(sparklyMode)) { return ret; }
+#define CHECK_INDEX_COUNT(ret)  if (starIndex < 0 || starIndex >= omm_sparkly_get_bowser_4_index(sparklyMode) + 1) { return ret; }
 
 typedef struct {
     bool unlocked;
@@ -21,91 +21,7 @@ typedef struct {
     s32 timer;
 } OmmSparklySaveData;
 static OmmSparklySaveData sOmmSparklySaveData[OMM_SPARKLY_MODE_COUNT];
-#define sOmmSparklySave (&sOmmSparklySaveData[mode])
-
-// REMOVE THIS IN V8.0.0
-static s32 i2c(s32 input, bool shuffle, bool c2i) {
-    static const char sDefaultTable[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    static char sRandomTable[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    if (shuffle) {
-        for (s32 i = 0; i != 62; ++i) {
-            s32 j = rand() % 62;
-            char c = sRandomTable[i];
-            sRandomTable[i] = sRandomTable[j];
-            sRandomTable[j] = c;
-        }
-    } else {
-        omm_copy(sRandomTable, sDefaultTable, 62);
-    }
-    if (c2i) {
-        for (s32 i = 0; i != 62; ++i) {
-            if (sRandomTable[i] == (char) input) {
-                return i;
-            }
-        }
-        return 0;
-    }
-    return (s32) sRandomTable[input];
-}
-
-// REMOVE THIS IN V8.0.0
-static s32 read_chars(const char **data, s32 count, bool shuffle) {
-    s32 output = 0;
-    for (s32 i = 0, j = 1; i != count; ++i, j *= 62) {
-        s32 value = i2c((*data)[i], shuffle, true);
-        output += value * j;
-    }
-    (*data) += count;
-    return output;
-}
-
-// REMOVE THIS IN V8.0.0
-static bool omm_sparkly_read_old(const char *data) {
-
-    // Seed
-    s32 seed = read_chars(&data, 2, false);
-    srand(seed);
-
-    // Data 1
-    bool flags1[34];
-    for (s32 i = 0; i != 34; ++i) {
-        flags1[i] = (read_chars(&data, 1, true) == 1);
-    }
-    s32 timer1 = read_chars(&data, 4, true);
-    s32 mode = read_chars(&data, 1, true);
-
-    // Data 2
-    bool flags2[34];
-    for (s32 i = 0; i != 34; ++i) {
-        flags2[i] = (read_chars(&data, 1, true) == 1);
-    }
-    s32 timer2 = read_chars(&data, 4, true);
-    s32 mode2 = read_chars(&data, 1, true);
-
-    // Check modes
-    if (mode == mode2 && mode >= OMM_SPARKLY_MODE_NORMAL && mode < OMM_SPARKLY_MODE_COUNT) {
-
-        // Check flags
-        if (omm_same(flags1, flags2, sizeof(flags1))) {
-            sOmmSparklySave->unlocked = flags1[0];
-            sOmmSparklySave->timerStarted = flags1[1];
-            sOmmSparklySave->bowser4 = flags1[31];
-            sOmmSparklySave->grandStar = flags1[32];
-            sOmmSparklySave->completed = flags1[33];
-            omm_copy(sOmmSparklySave->stars, &flags1[2], sizeof(bool) * 29);
-        } else {
-            omm_zero(sOmmSparklySave, sizeof(OmmSparklySaveData));
-        }
-    
-        // Check timers
-        if (timer1 == timer2) {
-            sOmmSparklySave->timer = timer1;
-        } else {
-            sOmmSparklySave->timer = TIMER_MAX;
-        }
-    }
-    return true;
-}
+#define sOmmSparklySave (&sOmmSparklySaveData[sparklyMode])
 
 //
 // Save file
@@ -119,19 +35,13 @@ static u64 N = sizeof(D) - 1;
 #define read() { char c = *(data++); for (u64 i = 0; i != N; ++i) { if (R[i] == c) { z += i * w; break; } } }
 #define write(...) { *buffer += sprintf(*buffer, __VA_ARGS__); }
 #define shuffle() { for (u64 i = 0; i != N; ++i) { u64 j = random_u16() % N; char c = R[i]; R[i] = R[j]; R[j] = c; } }
-#define reset() { omm_copy(R, D, N); }
+#define reset() { mem_cpy(R, D, N); }
 #define convert(x, b, s) { u64 z = x, y = (1llu << b##llu); while (y) { write("%c", R[z % N]); z /= N; y /= N; if (s) shuffle(); } }
 #define invert(x, b, s) { u64 z = 0, w = 1, y = (1llu << b); while (y) { read(); w *= N; y /= N; if (s) shuffle(); } x = z; }
 
 bool omm_sparkly_read(const char **tokens) {
     if (strcmp(tokens[0], "sparkly_stars") == 0) {
         const char *data = tokens[1];
-
-        // Backwards compatibility
-        // REMOVE THIS IN V8.0.0
-        if (strlen(data) == 80) {
-            return omm_sparkly_read_old(data);
-        }
 
         // Retrieve seed
         reset();
@@ -140,7 +50,7 @@ bool omm_sparkly_read(const char **tokens) {
         // Read data
         OmmSparklySaveData saves[2]; s32 modes[2];
         for (s32 j = 0; j != 2; ++j) {
-            omm_zero(&saves[j], sizeof(OmmSparklySaveData));
+            mem_clr(&saves[j], sizeof(OmmSparklySaveData));
 
             // Flags
             u8 flags; invert(flags, 5, 1);
@@ -174,14 +84,14 @@ bool omm_sparkly_read(const char **tokens) {
             omm_log("[ERROR] Modes don't match!\n");
             return true;
         }
-        if (!omm_same(&saves[0], &saves[1], sizeof(OmmSparklySaveData))) {
+        if (!mem_eq(&saves[0], &saves[1], sizeof(OmmSparklySaveData))) {
             omm_log("[ERROR] Save data don't match!\n");
             return true;
         }
 
         // Fill save struct
-        s32 mode = modes[0];
-        omm_copy(sOmmSparklySave, &saves[0], sizeof(OmmSparklySaveData));
+        s32 sparklyMode = modes[0];
+        mem_cpy(sOmmSparklySave, &saves[0], sizeof(OmmSparklySaveData));
         return true;
     }
     return false;
@@ -190,8 +100,8 @@ bool omm_sparkly_read(const char **tokens) {
 void omm_sparkly_write(char **buffer) {
     gRandomSeed = (u16) SDL_GetPerformanceCounter();
     write("[sparkly_stars]\n");
-    for (s32 mode = OMM_SPARKLY_MODE_NORMAL; mode != OMM_SPARKLY_MODE_COUNT; ++mode) {
-        if (omm_sparkly_is_unlocked(mode)) {
+    for (s32 sparklyMode = OMM_SPARKLY_MODE_NORMAL; sparklyMode != OMM_SPARKLY_MODE_COUNT; ++sparklyMode) {
+        if (omm_sparkly_is_unlocked(sparklyMode)) {
             write("sparkly_stars = ");
             reset();
 
@@ -227,7 +137,7 @@ void omm_sparkly_write(char **buffer) {
                 convert(sOmmSparklySave->timer, 32, 1);
 
                 // Mode
-                convert(mode, 4, 1);
+                convert(sparklyMode, 4, 1);
             }
             write("\n");
         }
@@ -246,49 +156,49 @@ void omm_sparkly_write(char **buffer) {
 // Save data
 //
 
-bool omm_sparkly_is_available(s32 mode) {
+bool omm_sparkly_is_available(s32 sparklyMode) {
     CHECK_MODE(true);
     static const bool is_available[] = OMM_SPARKLY_BLOCK_AVAILABLE;
-    return is_available[mode - 1];
+    return is_available[sparklyMode - 1];
 }
 
-bool omm_sparkly_is_unlocked(s32 mode) {
+bool omm_sparkly_is_unlocked(s32 sparklyMode) {
     CHECK_MODE(false);
     return sOmmSparklySave->unlocked;
 }
 
-bool omm_sparkly_is_selectible(s32 mode) {
-    return mode == OMM_SPARKLY_MODE_DISABLED || (
-           omm_sparkly_is_unlocked(mode) &&
-           omm_sparkly_is_available(mode));
+bool omm_sparkly_is_selectible(s32 sparklyMode) {
+    return sparklyMode == OMM_SPARKLY_MODE_DISABLED || (
+           omm_sparkly_is_unlocked(sparklyMode) &&
+           omm_sparkly_is_available(sparklyMode));
 }
 
-bool omm_sparkly_is_selected(s32 mode) {
-    return gOmmSparklyMode == mode;
+bool omm_sparkly_is_selected(s32 sparklyMode) {
+    return gOmmSparklyMode == sparklyMode;
 }
 
-bool omm_sparkly_is_completed(s32 mode) {
+bool omm_sparkly_is_completed(s32 sparklyMode) {
     CHECK_MODE(true);
     return sOmmSparklySave->completed;
 }
 
-bool omm_sparkly_is_timer_started(s32 mode) {
+bool omm_sparkly_is_timer_started(s32 sparklyMode) {
     CHECK_MODE(false);
     return sOmmSparklySave->timerStarted;
 }
 
-bool omm_sparkly_is_star_collected(s32 mode, s32 index) {
+bool omm_sparkly_is_star_collected(s32 sparklyMode, s32 starIndex) {
     CHECK_MODE(false);
     CHECK_INDEX_LAST(false);
-    return sOmmSparklySave->stars[index];
+    return sOmmSparklySave->stars[starIndex];
 }
 
-bool omm_sparkly_is_grand_star_collected(s32 mode) {
+bool omm_sparkly_is_grand_star_collected(s32 sparklyMode) {
     CHECK_MODE(false);
     return sOmmSparklySave->grandStar;
 }
 
-bool omm_sparkly_is_bowser_4_unlocked(s32 mode) {
+bool omm_sparkly_is_bowser_4_unlocked(s32 sparklyMode) {
     CHECK_MODE(false);
     return sOmmSparklySave->bowser4;
 }
@@ -301,7 +211,7 @@ bool omm_sparkly_is_bowser_4_battle() {
 #endif
 }
 
-s32 omm_sparkly_get_timer(s32 mode) {
+s32 omm_sparkly_get_timer(s32 sparklyMode) {
     CHECK_MODE(0);
     return sOmmSparklySave->timer;
 }
@@ -310,53 +220,55 @@ void omm_sparkly_disable() {
     gOmmSparklyMode = OMM_SPARKLY_MODE_DISABLED;
 }
 
-void omm_sparkly_set_mode(s32 mode) {
-    if (OMM_SPARKLY_STARS_MODE != (u32) mode) {
-        OMM_SPARKLY_STARS_MODE = (u32) mode;
-        gSaveFileModified = true;
+void omm_sparkly_set_mode(s32 sparklyMode) {
+    if (OMM_SPARKLY_STARS_MODE != (u32) sparklyMode) {
+        OMM_SPARKLY_STARS_MODE = (u32) sparklyMode;
+        omm_save_file_do_save();
     }
 }
 
-void omm_sparkly_unlock_mode(s32 mode) {
+void omm_sparkly_unlock_mode(s32 sparklyMode) {
     CHECK_MODE();
     sOmmSparklySave->unlocked = true;
-    gSaveFileModified = true;
+    omm_save_file_do_save();
 }
 
-void omm_sparkly_start_timer(s32 mode) {
+void omm_sparkly_start_timer(s32 sparklyMode) {
     CHECK_MODE();
     sOmmSparklySave->timerStarted = true;
     sOmmSparklySave->timer = 0;
-    gSaveFileModified = true;
+    omm_save_file_do_save();
 }
 
-void omm_sparkly_collect_star(s32 mode, s32 index) {
+void omm_sparkly_collect_star(s32 sparklyMode, s32 starIndex) {
     CHECK_MODE();
     CHECK_INDEX_LAST();
-    sOmmSparklySave->stars[index] = true;
-    gSaveFileModified = true;
+    sOmmSparklySave->stars[starIndex] = true;
+    omm_save_file_set_last_course(gCurrSaveFileNum - 1, OMM_GAME_MODE, gCurrCourseNum - 1);
+    omm_save_file_do_save();
 }
 
-void omm_sparkly_collect_grand_star(s32 mode) {
+void omm_sparkly_collect_grand_star(s32 sparklyMode) {
     CHECK_MODE();
     sOmmSparklySave->grandStar = true;
-    gSaveFileModified = true;
+    omm_save_file_set_last_course(gCurrSaveFileNum - 1, OMM_GAME_MODE, gCurrCourseNum - 1);
+    omm_save_file_do_save();
 }
 
-void omm_sparkly_unlock_bowser_4(s32 mode) {
+void omm_sparkly_unlock_bowser_4(s32 sparklyMode) {
     CHECK_MODE();
     sOmmSparklySave->bowser4 = true;
-    gSaveFileModified = true;
+    omm_save_file_do_save();
 }
 
-void omm_sparkly_clear_mode(s32 mode) {
+void omm_sparkly_clear_mode(s32 sparklyMode) {
     CHECK_MODE();
-    omm_zero(sOmmSparklySave->stars, sizeof(sOmmSparklySave->stars));
+    mem_clr(sOmmSparklySave->stars, sizeof(sOmmSparklySave->stars));
     sOmmSparklySave->timerStarted = false;
     sOmmSparklySave->bowser4 = false;
     sOmmSparklySave->grandStar = false;
     sOmmSparklySave->timer = 0;
-    gSaveFileModified = true;
+    omm_save_file_do_save();
 }
 
 bool omm_sparkly_check_cheats(struct MarioState *m) {
@@ -370,7 +282,7 @@ bool omm_sparkly_check_cheats(struct MarioState *m) {
     // The option "Enable Cheats" is not counted as a cheat
     static const u8 sNoCheat[sizeof(Cheats) - sizeof(Cheats.EnableCheats)] = { 0 };
     const u8 *cheats = ((const u8 *) &Cheats) + sizeof(Cheats.EnableCheats);
-    if (!omm_same(cheats, sNoCheat, sizeof(sNoCheat))) {
+    if (!mem_eq(cheats, sNoCheat, sizeof(sNoCheat))) {
         return true;
     }
 
@@ -387,7 +299,7 @@ bool omm_sparkly_check_cheats(struct MarioState *m) {
 #if OMM_GAME_IS_SM64
     // Castle grounds cheese (thanks, Petch)
     if (gCurrLevelNum == LEVEL_GROUNDS && gCurrAreaIndex == 1 && m->pos[1] > 6000.f) {
-        if (m->action == ACT_OMM_POSSESSION && gOmmMario->capture.timer >= 20) {
+        if (omm_mario_is_capture(m) && gOmmMario->capture.timer >= 20) {
             omm_mario_unpossess_object(m, OMM_MARIO_UNPOSSESS_ACT_NONE, false, 0);
             return true;
         }
@@ -411,7 +323,7 @@ bool omm_sparkly_check_cheats(struct MarioState *m) {
 
 void omm_sparkly_turn_off_cheats() {
     if (!omm_sparkly_is_completed(gOmmSparklyMode)) {
-        omm_zero(&Cheats, sizeof(Cheats));
+        mem_clr(&Cheats, sizeof(Cheats));
         OMM_CHEATS_DISABLE;
     }
 }
@@ -421,27 +333,27 @@ void omm_sparkly_turn_off_cheats() {
 //
 
 OMM_ROUTINE_UPDATE(omm_sparkly_update_save_data) {
-    for (s32 mode = OMM_SPARKLY_MODE_NORMAL; mode != OMM_SPARKLY_MODE_COUNT; ++mode) {
+    for (s32 sparklyMode = OMM_SPARKLY_MODE_NORMAL; sparklyMode != OMM_SPARKLY_MODE_COUNT; ++sparklyMode) {
 
         // If not unlocked, unset everything
-        if (!omm_sparkly_is_unlocked(mode)) {
+        if (!omm_sparkly_is_unlocked(sparklyMode)) {
             sOmmSparklySave->timerStarted = false;
             sOmmSparklySave->bowser4 = false;
             sOmmSparklySave->grandStar = false;
-            omm_zero(sOmmSparklySave->stars, sizeof(sOmmSparklySave->stars));
+            mem_clr(sOmmSparklySave->stars, sizeof(sOmmSparklySave->stars));
         }
 
         // If timer not started, unset other flags
-        if (!omm_sparkly_is_timer_started(mode)) {
+        if (!omm_sparkly_is_timer_started(sparklyMode)) {
             sOmmSparklySave->bowser4 = false;
             sOmmSparklySave->grandStar = false;
             sOmmSparklySave->timer = 0;
-            omm_zero(sOmmSparklySave->stars, sizeof(sOmmSparklySave->stars));
+            mem_clr(sOmmSparklySave->stars, sizeof(sOmmSparklySave->stars));
         }
 
         // If not all stars are collected, unflag Bowser 4 and Grand Star
-        for (s32 i = 0; i != omm_sparkly_get_bowser_4_index(mode); ++i) {
-            if (!omm_sparkly_is_star_collected(mode, i)) {
+        for (s32 i = 0; i != omm_sparkly_get_bowser_4_index(sparklyMode); ++i) {
+            if (!omm_sparkly_is_star_collected(sparklyMode, i)) {
                 sOmmSparklySave->bowser4 = false;
                 sOmmSparklySave->grandStar = false;
                 break;
@@ -449,28 +361,28 @@ OMM_ROUTINE_UPDATE(omm_sparkly_update_save_data) {
         }
 
         // If Bowser 4 is not unlocked, unflag Grand Star
-        if (!omm_sparkly_is_bowser_4_unlocked(mode)) {
+        if (!omm_sparkly_is_bowser_4_unlocked(sparklyMode)) {
             sOmmSparklySave->grandStar = false;
         }
 
         // If the Grand Star is collected, set mode completed flag
-        if (omm_sparkly_is_grand_star_collected(mode)) {
+        if (omm_sparkly_is_grand_star_collected(sparklyMode)) {
             sOmmSparklySave->completed = true;
         }
 
         // Unlock current mode and next mode if completed flag is set, otherwise unset every flag of next mode (including completed)
-        if (omm_sparkly_is_completed(mode)) {
+        if (omm_sparkly_is_completed(sparklyMode)) {
             sOmmSparklySave->unlocked = true;
-            sOmmSparklySaveData[mode + 1].unlocked = true;
-        } else if (mode + 1 < OMM_SPARKLY_MODE_COUNT) {
-            omm_zero(&sOmmSparklySaveData[mode + 1], sizeof(OmmSparklySaveData));
+            sOmmSparklySaveData[sparklyMode + 1].unlocked = true;
+        } else if (sparklyMode + 1 < OMM_SPARKLY_MODE_COUNT) {
+            mem_clr(&sOmmSparklySaveData[sparklyMode + 1], sizeof(OmmSparklySaveData));
         }
     }
 
     // If Sparkly Stars mode is enabled, advance the timer
     if (OMM_SPARKLY_MODE_IS_ENABLED) {
-        s32 mode = gOmmSparklyMode;
-        if (!omm_sparkly_is_grand_star_collected(mode)) {
+        s32 sparklyMode = gOmmSparklyMode;
+        if (!omm_sparkly_is_grand_star_collected(sparklyMode)) {
             sOmmSparklySave->timer = min_s(sOmmSparklySave->timer + 1, TIMER_MAX);
         }
     }

@@ -43,7 +43,7 @@ typedef struct OmmPeachVibeGloomTearPoint {
 } Tpt;
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_peach_vibe_gloom_tear_gfx)];
+    Gfx gfx[array_length(omm_peach_vibe_gloom_tear_gfx)];
     Gfx tri[2 * OMM_PEACH_VIBE_GLOOM_TEAR_MAX_POINTS * OMM_PEACH_VIBE_GLOOM_TEAR_NUM_INTERPOLATED_POINTS * (OMM_PEACH_VIBE_GLOOM_TEAR_NUM_VERTICES_PER_POINT + 1) + 1];
     Vtx vtx[2 * OMM_PEACH_VIBE_GLOOM_TEAR_MAX_POINTS * OMM_PEACH_VIBE_GLOOM_TEAR_NUM_INTERPOLATED_POINTS * OMM_PEACH_VIBE_GLOOM_TEAR_NUM_VERTICES_PER_POINT];
     Tpt pts[2][OMM_PEACH_VIBE_GLOOM_TEAR_MAX_POINTS];
@@ -165,7 +165,7 @@ static void bhv_omm_peach_vibe_gloom_tear_update() {
 
         // Add a new point for both sides
         for (s32 side = 0; side != 2; ++side) {
-            omm_move(data->pts[side] + 1, data->pts[side], (OMM_PEACH_VIBE_GLOOM_TEAR_MAX_POINTS - 1) * sizeof(Tpt));
+            mem_mov(data->pts[side] + 1, data->pts[side], (OMM_PEACH_VIBE_GLOOM_TEAR_MAX_POINTS - 1) * sizeof(Tpt));
             f32 sr = (side == 0 ? +1.f : -1.f);
             data->pts[side][0].pos[0] = p[0] + du * u[0] + df * f[0] + dr * sr * r[0];
             data->pts[side][0].pos[1] = p[1] + du * u[1] + df * f[1] + dr * sr * r[1];
@@ -187,7 +187,7 @@ static void bhv_omm_peach_vibe_gloom_tear_update() {
     else {
         for (s32 side = 0; side != 2; ++side) {
             if (data->pts[side][0].active) {
-                omm_move(data->pts[side] + 1, data->pts[side], (OMM_PEACH_VIBE_GLOOM_TEAR_MAX_POINTS - 1) * sizeof(Tpt));
+                mem_mov(data->pts[side] + 1, data->pts[side], (OMM_PEACH_VIBE_GLOOM_TEAR_MAX_POINTS - 1) * sizeof(Tpt));
                 data->pts[side][0].active = false;
             }
         }

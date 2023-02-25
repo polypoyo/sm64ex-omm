@@ -57,8 +57,8 @@ static void bhv_omm_sparkly_star_update() {
                 o->oPosZ = gMarioState->pos[2];
                 o->oMoveAngleYaw = atan2s(o->oHomeZ - o->oPosZ, o->oHomeX - o->oPosX);
                 o->oStarSpawnDisFromHome = sqrtf(sqr_f(o->oHomeX - o->oPosX) + sqr_f(o->oHomeZ - o->oPosZ));
-                o->oVelY = (o->oHomeY - o->oPosY) / 30.0f;
-                o->oForwardVel = o->oStarSpawnDisFromHome / 30.0f;
+                o->oVelY = (o->oHomeY - o->oPosY) / 30.f;
+                o->oForwardVel = o->oStarSpawnDisFromHome / 30.f;
                 o->oStarSpawnUnkFC = o->oPosY;
                 cutscene_object(CUTSCENE_RED_COIN_STAR_SPAWN, o);
                 set_time_stop_flags(TIME_STOP_ENABLED | TIME_STOP_MARIO_AND_DOORS);
@@ -88,10 +88,10 @@ static void bhv_omm_sparkly_star_update() {
                     o->oStarSpawnUnkFC += o->oVelY;
                     o->oVelZ = o->oForwardVel * coss(o->oMoveAngleYaw);
                     o->oPosX += o->oVelX;
-                    o->oPosY = o->oStarSpawnUnkFC + sins((o->oTimer * 0x8000) / 30) * 400.0f;
+                    o->oPosY = o->oStarSpawnUnkFC + sins((o->oTimer * 0x8000) / 30) * 400.f;
                     o->oPosZ += o->oVelZ;
                     o->oFaceAngleYaw += 0x0800;
-                    play_sound(SOUND_ENV_STAR, o->oCameraToObject);
+                    obj_play_sound(o, SOUND_ENV_STAR);
                     if (o->oTimer >= 30) {
                         audio_play_star_jingle();
                         o->oForwardVel = 0;
@@ -109,9 +109,9 @@ static void bhv_omm_sparkly_star_update() {
                     o->oPosY += o->oVelY;
                     o->oPosZ += o->oVelZ;
                     o->oFaceAngleYaw += max_s(0, 0x0800 - o->oTimer * 0x10);
-                    play_sound(SOUND_ENV_STAR, o->oCameraToObject);
+                    obj_play_sound(o, SOUND_ENV_STAR);
                     if (o->oPosY < o->oHomeY) {
-                        play_sound(SOUND_GENERAL_STAR_APPEARS, o->oCameraToObject);
+                        obj_play_sound(o, SOUND_GENERAL_STAR_APPEARS);
                         o->oPosY = o->oHomeY;
                         o->oSubAction++;
                         o->oTimer = 0;
@@ -205,13 +205,13 @@ const BehaviorScript bhvOmmSparklyStar[] = {
 // Spawner
 //
 
-struct Object *omm_spawn_sparkly_star(struct Object *o, s32 mode, f32 x, f32 y, f32 z, bool isCondStar) {
+struct Object *omm_spawn_sparkly_star(struct Object *o, s32 sparklyMode, f32 x, f32 y, f32 z, bool isCondStar) {
     struct Object *star = spawn_object(o, MODEL_NONE, bhvOmmSparklyStar);
     obj_set_angle(star, 0, 0, 0);
     star->oAction = 2 * !isCondStar;
     star->oTimer = 0;
     star->oRoom = -1;
-    star->oSparklyStarMode = mode;
+    star->oSparklyStarMode = sparklyMode;
     star->oSparklyStarPosX = x;
     star->oSparklyStarPosY = y;
     star->oSparklyStarPosZ = z;

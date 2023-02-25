@@ -33,6 +33,7 @@
 #define BHV_TYPE_INTERACTIBLE               ((1 << 23) - 1)
 #define BHV_TYPE_COLLECTIBLE                (BHV_TYPE_COIN | BHV_TYPE_WATER_RING | BHV_TYPE_MUSHROOM_1UP | BHV_TYPE_STAR_OR_KEY | BHV_TYPE_CAP | BHV_TYPE_SECRET)
 #define BHV_TYPE_KNOCKABLE                  (BHV_TYPE_KNOCKABLE_0 | BHV_TYPE_KNOCKABLE_1)
+#define BHV_TYPE_ENEMY                      (BHV_TYPE_WEAK | BHV_TYPE_STRONG | BHV_TYPE_DESTRUCTIBLE | BHV_TYPE_BOSS | BHV_TYPE_BULLY)
 
 #define BHV_TYPE_STAR_MODEL                 (1 << 23) // Star or key model
 #define BHV_TYPE_PLAYER                     (1 << 24) // Player behavior

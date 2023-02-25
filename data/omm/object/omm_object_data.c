@@ -2,7 +2,6 @@
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
 
-struct Object gOmmObjFields[OBJECT_POOL_CAPACITY];
 struct OmmData *gOmmData = NULL;
 s32 *gOmmPeachVibeTypeRef = NULL;
 
@@ -13,7 +12,7 @@ static void omm_data_reset_mario_fields() {
     gOmmData->mario->state.coins = 0;
     gOmmData->mario->state.o2 = 0;
     gOmmData->mario->state.airCombo = 0;
-    gOmmData->mario->state.peakHeight = -11000.f;
+    gOmmData->mario->state.peakHeight = FLOOR_LOWER_LIMIT;
     gOmmData->mario->state.poleObject = NULL;
     gOmmData->mario->state.freeze.dmg = 0;
     gOmmData->mario->state.freeze.gfx = 0;
@@ -46,7 +45,7 @@ static void omm_data_reset_mario_fields() {
     // Wall-slide moves data
     gOmmData->mario->wallSlide.jumped = false;
     gOmmData->mario->wallSlide.angle = 0;
-    gOmmData->mario->wallSlide.height = +20000.f;
+    gOmmData->mario->wallSlide.height = CELL_HEIGHT_LIMIT;
 
     // Spin moves data
     gOmmData->mario->spin.yaw = 0;
@@ -70,6 +69,7 @@ static void omm_data_reset_mario_fields() {
     gOmmData->mario->capture.data = NULL;
     gOmmData->mario->capture.obj = NULL;
     gOmmData->mario->capture.prev = NULL;
+    gOmmData->mario->capture.bhv = NULL;
     gOmmData->mario->capture.animPos[0][0] = 0.f;
     gOmmData->mario->capture.animPos[0][1] = 0.f;
     gOmmData->mario->capture.animPos[0][2] = 0.f;
@@ -79,6 +79,7 @@ static void omm_data_reset_mario_fields() {
     gOmmData->mario->capture.animPos[2][0] = 0.f;
     gOmmData->mario->capture.animPos[2][1] = 0.f;
     gOmmData->mario->capture.animPos[2][2] = 0.f;
+    gOmmData->mario->capture.model = MODEL_NONE;
     gOmmData->mario->capture.timer = 0;
     gOmmData->mario->capture.lockTimer = 0;
     gOmmData->mario->capture.stickX = 0.f;
@@ -138,17 +139,21 @@ static void omm_data_update_mario_fields() {
     gOmmData->mario->state.previous.angle[2] = m->faceAngle[2];
 
     // Peach-only data
-    if (OMM_PLAYER_IS_PEACH) {
-        if (!omm_perry_get_object()) {
-            gOmmData->mario->peach.perry = NULL;
-        }
-    } else {
+    if (!OMM_PLAYER_IS_PEACH) {
         gOmmData->mario->peach.floated = false;
         gOmmData->mario->peach.floatTimer = 0;
         gOmmData->mario->peach.vibeType = OMM_PEACH_VIBE_TYPE_NONE;
         gOmmData->mario->peach.vibeGauge = 0;
         gOmmData->mario->peach.vibeTimer = OMM_PEACH_VIBE_COOLDOWN;
         gOmmData->mario->peach.joySpinYaw = 0;
+    }
+
+    // Perry data
+    if (OMM_PERRY_SWORD_ACTION) {
+        if (!omm_perry_get_object()) {
+            gOmmData->mario->peach.perry = NULL;
+        }
+    } else {
         gOmmData->mario->peach.perryCharge = 0;
         gOmmData->mario->peach.perryBlast = false;
         gOmmData->mario->peach.perry = NULL;
@@ -160,9 +165,10 @@ static void omm_data_update_mario_fields() {
     }
 
     // Capture data
-    if (m->action != ACT_OMM_POSSESSION) {
+    if (!omm_mario_is_capture(m)) {
         gOmmData->mario->capture.data = NULL;
         gOmmData->mario->capture.obj = NULL;
+        gOmmData->mario->capture.bhv = NULL;
         if (!(m->action & ACT_FLAG_AIR)) {
             gOmmData->mario->capture.prev = NULL;
         } else if (gOmmData->mario->capture.prev) {
@@ -183,19 +189,140 @@ static void omm_data_update_fields() {
     omm_data_update_object_fields();
 }
 
+#define read_single_stat(x) if (strstr(tokens[0], #x)) { sscanf(tokens[1], "%llu", &gOmmData->stats->x); return true; }
+#define read_double_stat(x) if (strstr(tokens[0], #x)) { sscanf(tokens[1], "%llu", &gOmmData->stats->x[0]); sscanf(tokens[2], "%llu", &gOmmData->stats->x[1]); return true; }
+static bool omm_data_read_stats(const char **tokens) {
+    if (strstr(tokens[0], "stats_") == tokens[0]) {
+        read_single_stat(starsCollected);
+        read_single_stat(sparklyStarsCollected);
+        read_single_stat(coinsCollected);
+        read_single_stat(capsCollected);
+        read_single_stat(mushrooms1upCollected);
+        read_single_stat(secretsCollected);
+        read_single_stat(exclamationBoxesBroken);
+        read_single_stat(enemiesDefeated);
+        read_single_stat(bowsersDefeated);
+        read_single_stat(aPresses);
+        read_single_stat(jumps);
+        read_single_stat(attacks);
+        read_single_stat(cappyThrows);
+        read_single_stat(cappyBounces);
+        read_single_stat(captures);
+        read_single_stat(hitsTaken);
+        read_single_stat(restarts);
+        read_single_stat(deaths);
+        read_double_stat(distanceTotal);
+        read_double_stat(distanceOnGround);
+        read_double_stat(distanceAirborne);
+        read_double_stat(distanceUnderwater);
+        read_double_stat(distanceWingCap);
+        read_double_stat(distanceMetalCap);
+        read_double_stat(distanceVanishCap);
+        read_double_stat(timeTotal);
+        read_double_stat(timeOnGround);
+        read_double_stat(timeAirborne);
+        read_double_stat(timeUnderwater);
+        read_double_stat(timeWingCap);
+        read_double_stat(timeMetalCap);
+        read_double_stat(timeVanishCap);
+    }
+    return false;
+}
+
+#define write(...) { *buffer += sprintf(*buffer, __VA_ARGS__); }
+#define write_single_stat(x) write("stats_" #x " %llu\n", gOmmData->stats->x)
+#define write_double_stat(x) write("stats_" #x " %llu %llu\n", gOmmData->stats->x[0], gOmmData->stats->x[1])
+static void omm_data_write_stats(char **buffer) {
+    write("[stats]\n");
+    write_single_stat(starsCollected);
+    write_single_stat(sparklyStarsCollected);
+    write_single_stat(coinsCollected);
+    write_single_stat(capsCollected);
+    write_single_stat(mushrooms1upCollected);
+    write_single_stat(secretsCollected);
+    write_single_stat(exclamationBoxesBroken);
+    write_single_stat(enemiesDefeated);
+    write_single_stat(bowsersDefeated);
+    write_single_stat(aPresses);
+    write_single_stat(jumps);
+    write_single_stat(attacks);
+    write_single_stat(cappyThrows);
+    write_single_stat(cappyBounces);
+    write_single_stat(captures);
+    write_single_stat(hitsTaken);
+    write_single_stat(restarts);
+    write_single_stat(deaths);
+    write_double_stat(distanceTotal);
+    write_double_stat(distanceOnGround);
+    write_double_stat(distanceAirborne);
+    write_double_stat(distanceUnderwater);
+    write_double_stat(distanceWingCap);
+    write_double_stat(distanceMetalCap);
+    write_double_stat(distanceVanishCap);
+    write_double_stat(timeTotal);
+    write_double_stat(timeOnGround);
+    write_double_stat(timeAirborne);
+    write_double_stat(timeUnderwater);
+    write_double_stat(timeWingCap);
+    write_double_stat(timeMetalCap);
+    write_double_stat(timeVanishCap);
+    write("\n");
+}
+
 OMM_ROUTINE_LEVEL_ENTRY(omm_data_reset_fields) {
     omm_data_reset_mario_fields();
     omm_data_reset_object_fields();
 }
 
 OMM_AT_STARTUP static void omm_data_init() {
-    gOmmData = omm_new(struct OmmData, 1);
+    gOmmData = mem_new(struct OmmData, 1);
     gOmmData->reset = omm_data_reset_fields;
     gOmmData->resetMario = omm_data_reset_mario_fields;
     gOmmData->resetObject = omm_data_reset_object_fields;
     gOmmData->update = omm_data_update_fields;
     gOmmData->updateMario = omm_data_update_mario_fields;
     gOmmData->updateObject = omm_data_update_object_fields;
+    gOmmData->readStats = omm_data_read_stats;
+    gOmmData->writeStats = omm_data_write_stats;
     gOmmData->reset();
     gOmmPeachVibeTypeRef = &gOmmData->mario->peach.vibeType;
+}
+
+OMM_ROUTINE_UPDATE(omm_data_stats_update) {
+    if (gMarioObject && !omm_is_game_paused()) {
+        struct MarioState *m = gMarioState;
+
+        // A presses
+        gOmmStats->aPresses += (gPlayer1Controller->buttonPressed & A_BUTTON) != 0;
+
+        // Actions
+        // Only checks Mario's action; in SMO, capture actions (jumps) don't count as Mario actions
+        static u32 sPrevAction = 0;
+        if (m->action != sPrevAction) {
+            gOmmStats->jumps += omm_mario_is_jumping(m);
+            gOmmStats->attacks += omm_mario_is_attacking(m);
+        }
+        sPrevAction = m->action;
+
+        // Timers
+        if (m->action == ACT_OMM_POSSESSION && gOmmCapture) {
+            gOmmStats->timeTotal[1]      += 1;
+            gOmmStats->timeOnGround[1]   += obj_is_on_ground(gOmmCapture);
+            gOmmStats->timeAirborne[1]   += !obj_is_on_ground(gOmmCapture);
+            gOmmStats->timeUnderwater[1] += obj_is_underwater(gOmmCapture, find_water_level(gOmmCapture->oPosX, gOmmCapture->oPosZ));
+            gOmmStats->timeWingCap[1]    += (m->flags & MARIO_WING_CAP) != 0;
+            gOmmStats->timeMetalCap[1]   += (m->flags & MARIO_METAL_CAP) != 0;
+            gOmmStats->timeVanishCap[1]  += (m->flags & MARIO_VANISH_CAP) != 0;
+        } else {
+            bool underwater = (m->action & (ACT_FLAG_SWIMMING | ACT_FLAG_METAL_WATER)) != 0;
+            bool airborne = (m->action & ACT_FLAG_AIR) != 0;
+            gOmmStats->timeTotal[0]      += 1;
+            gOmmStats->timeOnGround[0]   += !underwater && !airborne;
+            gOmmStats->timeAirborne[0]   += !underwater && airborne;
+            gOmmStats->timeUnderwater[0] += underwater;
+            gOmmStats->timeWingCap[0]    += (m->flags & MARIO_WING_CAP) != 0;
+            gOmmStats->timeMetalCap[0]   += (m->flags & MARIO_METAL_CAP) != 0;
+            gOmmStats->timeVanishCap[0]  += (m->flags & MARIO_VANISH_CAP) != 0;
+        }
+    }
 }

@@ -365,7 +365,7 @@ OMM_ROUTINE_UPDATE(omm_debug_update) {
             while (next != head) {
                 if (next->oIntangibleTimer == 0) {
                     struct Object *obj = next;
-                    if (obj == gMarioObject && m->action == ACT_OMM_POSSESSION) {
+                    if (obj == gMarioObject && omm_mario_is_capture(m)) {
                         obj = gOmmCapture;
                     }
                     s32 objIndex = (s32) (((uintptr_t) obj - (uintptr_t) gObjectPool) / sizeof(struct Object));

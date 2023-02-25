@@ -491,10 +491,10 @@ typedef struct {
         u8 a;
     } color;
     struct {
-        Gfx gfx[omm_static_array_length(omm_star_glow_gfx)];
+        Gfx gfx[array_length(omm_star_glow_gfx)];
     } glow;
     struct {
-        Gfx gfx[omm_static_array_length(omm_star_ray_0_gfx)];
+        Gfx gfx[array_length(omm_star_ray_0_gfx)];
         f32 scale;
         s16 angle;
         u8 alpha;
@@ -506,13 +506,13 @@ static OmmStarGeoData *omm_geo_star_get_data(struct Object *o) {
         OmmStarGeoData *data = omm_memory_new(gOmmMemoryPoolGeoData, sizeof(OmmStarGeoData), o);
 
         // Init display lists
-        omm_copy(data->glow.gfx, omm_star_glow_gfx, sizeof(omm_star_glow_gfx));
-        omm_copy(data->rays[0].gfx, omm_star_ray_0_gfx, sizeof(omm_star_ray_0_gfx));
-        omm_copy(data->rays[1].gfx, omm_star_ray_1_gfx, sizeof(omm_star_ray_1_gfx));
-        omm_copy(data->rays[2].gfx, omm_star_ray_2_gfx, sizeof(omm_star_ray_2_gfx));
-        omm_copy(data->rays[3].gfx, omm_star_ray_3_gfx, sizeof(omm_star_ray_3_gfx));
-        omm_copy(data->rays[4].gfx, omm_star_ray_4_gfx, sizeof(omm_star_ray_4_gfx));
-        omm_copy(data->rays[5].gfx, omm_star_ray_5_gfx, sizeof(omm_star_ray_5_gfx));
+        mem_cpy(data->glow.gfx, omm_star_glow_gfx, sizeof(omm_star_glow_gfx));
+        mem_cpy(data->rays[0].gfx, omm_star_ray_0_gfx, sizeof(omm_star_ray_0_gfx));
+        mem_cpy(data->rays[1].gfx, omm_star_ray_1_gfx, sizeof(omm_star_ray_1_gfx));
+        mem_cpy(data->rays[2].gfx, omm_star_ray_2_gfx, sizeof(omm_star_ray_2_gfx));
+        mem_cpy(data->rays[3].gfx, omm_star_ray_3_gfx, sizeof(omm_star_ray_3_gfx));
+        mem_cpy(data->rays[4].gfx, omm_star_ray_4_gfx, sizeof(omm_star_ray_4_gfx));
+        mem_cpy(data->rays[5].gfx, omm_star_ray_5_gfx, sizeof(omm_star_ray_5_gfx));
 
         // Init rays
         for (s32 i = 0; i != 6; ++i) {
@@ -564,7 +564,7 @@ static void omm_geo_star_compute_color(OmmStarGeoData *data, const char *texture
     }
     
     // Not found, compute new color and register it
-    omm_str_cat(filename, 256, "gfx/", texture, ".png");
+    str_cat_sa(filename, 256, "gfx/", texture, ".png");
     s32 w, h;
     u8 *p = fs_load_png(filename, &w, &h);
     if (p) {
@@ -580,7 +580,7 @@ static void omm_geo_star_compute_color(OmmStarGeoData *data, const char *texture
         data->color.g = (u8) (g / (w * h));
         data->color.b = (u8) (b / (w * h));
         stbi_image_free(p);
-        omm_map_add(sOmmStarTexColors, ptr, omm_dup(texture, strlen(texture) + 1), u32, (data->color.r << 16) | (data->color.g << 8) | (data->color.b << 0));
+        omm_map_add(sOmmStarTexColors, ptr, mem_dup(texture, strlen(texture) + 1), u32, (data->color.r << 16) | (data->color.g << 8) | (data->color.b << 0));
     }
 }
 
@@ -598,7 +598,7 @@ static Gfx *omm_geo_star_update_color(s32 callContext, struct GraphNode *node, U
 static Gfx *omm_geo_star_enable_effects(s32 callContext, struct GraphNode *node, UNUSED void *context) {
     if (callContext == GEO_CONTEXT_RENDER) {
         struct GraphNodeScale *scaleNode = (struct GraphNodeScale *) node->next;
-        scaleNode->scale = 1.f * !obj_get_first_with_behavior(bhvActSelector);
+        scaleNode->scale = 1.f * !obj_get_first_with_behavior(bhvOmmActSelectStar);
     }
     return NULL;
 }

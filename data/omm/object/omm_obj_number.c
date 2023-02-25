@@ -107,7 +107,7 @@ omm_number_define_gfx(2digits_x9b, 9b, 8);
 
 Gfx *omm_geo_number_switch_1digit(s32 callContext, struct GraphNode *node, UNUSED void *context) {
     if (gCurrGraphNodeObject && callContext == GEO_CONTEXT_RENDER) {
-        s32 number = gCurrGraphNodeObject->oBhvArgs2ndByte;
+        s32 number = gCurrGraphNodeObject->oBehParams2ndByte;
         struct GraphNodeSwitchCase *switchCase = (struct GraphNodeSwitchCase *) node;
         if (number >= 0 && number < 10) {
             switchCase->selectedCase = number;
@@ -120,7 +120,7 @@ Gfx *omm_geo_number_switch_1digit(s32 callContext, struct GraphNode *node, UNUSE
 
 Gfx *omm_geo_number_switch_2digits_left(s32 callContext, struct GraphNode *node, UNUSED void *context) {
     if (gCurrGraphNodeObject && callContext == GEO_CONTEXT_RENDER) {
-        s32 number = gCurrGraphNodeObject->oBhvArgs2ndByte;
+        s32 number = gCurrGraphNodeObject->oBehParams2ndByte;
         struct GraphNodeSwitchCase *switchCase = (struct GraphNodeSwitchCase *) node;
         if (number >= 10) {
             switchCase->selectedCase = number / 10;
@@ -133,7 +133,7 @@ Gfx *omm_geo_number_switch_2digits_left(s32 callContext, struct GraphNode *node,
 
 Gfx *omm_geo_number_switch_2digits_right(s32 callContext, struct GraphNode *node, UNUSED void *context) {
     if (gCurrGraphNodeObject && callContext == GEO_CONTEXT_RENDER) {
-        s32 number = gCurrGraphNodeObject->oBhvArgs2ndByte;
+        s32 number = gCurrGraphNodeObject->oBehParams2ndByte;
         struct GraphNodeSwitchCase *switchCase = (struct GraphNodeSwitchCase *) node;
         if (number >= 10) {
             switchCase->selectedCase = number % 10;
@@ -283,7 +283,7 @@ static void bhv_omm_blue_coins_number_loop() {
     struct Object *o = gCurrentObject;
     struct Object *p = m->marioObj->platform;
     if (p && p->behavior == bhvBlueCoinSwitch && p->oAction == BLUE_COIN_SWITCH_ACT_IDLE) {
-        o->oBhvArgs2ndByte = obj_get_count_with_behavior(bhvHiddenBlueCoin);
+        o->oBehParams2ndByte = obj_get_count_with_behavior(bhvHiddenBlueCoin);
         obj_set_pos(o, m->pos[0], m->pos[1] + 200, m->pos[2]);
         obj_set_angle(o, 0, 0, 0);
         obj_set_scale(o, 0.8f, 0.8f, 0.8f);
@@ -313,16 +313,19 @@ struct Object *omm_spawn_orange_number(struct Object *o, s32 n) {
 
 struct Object *omm_spawn_blue_coins_number(struct Object *o) {
     struct Object *number = obj_spawn_from_geo(o, omm_geo_number_b, bhvOmmBlueCoinsNumber);
-    number->oBhvArgs2ndByte = 0;
+    number->oBehParams2ndByte = 0;
     return number;
 }
 
 struct Object *omm_spawn_star_number(struct Object *o) {
-    struct Object *number = obj_spawn_from_geo(o, omm_geo_number, bhvOmmStarNumber);
-    number->oBhvArgs2ndByte = 0;
-    u8 total = omm_stars_get_bits_total(gCurrLevelNum);
-    for (u8 i = 0; i <= (u8) ((o->oBhvArgs >> 24) & 0x07); ++i) {
-        number->oBhvArgs2ndByte += ((total >> i) & 1);
+    u8 starIndex = (u8) (o->oBehParams >> 24);
+    if (starIndex < OMM_NUM_STARS_MAX_PER_COURSE) {
+        struct Object *number = obj_spawn_from_geo(o, omm_geo_number, bhvOmmStarNumber);
+        number->oBehParams2ndByte = 0;
+        u8 total = omm_stars_get_bits_total(gCurrLevelNum, OMM_GAME_MODE);
+        for (u8 i = 0; i <= starIndex; ++i) {
+            number->oBehParams2ndByte += ((total >> i) & 1);
+        }
+        return number;
     }
-    return number;
 }

@@ -67,7 +67,7 @@ static const s32 sOmmMipsEscapePaths[][8] = {
 static s32 bhv_omm_mips_get_nearest_waypoint(struct Object *o) {
     s32 nearestWaypoint = -1;
     f32 nearestDist = 1e10f;
-    for (s32 i = 0; i != omm_static_array_length(sOmmMipsWaypointPositions); ++i) {
+    for (s32 i = 0; i != array_length(sOmmMipsWaypointPositions); ++i) {
         f32 dist = vec3f_hdist(sOmmMipsWaypointPositions[i], &o->oPosX);
         if (dist < nearestDist) {
             nearestWaypoint = i;

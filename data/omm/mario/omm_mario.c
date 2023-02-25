@@ -125,7 +125,8 @@ bool omm_mario_check_and_perform_wall_slide(struct MarioState *m) {
 }
 
 bool omm_mario_is_idling(struct MarioState *m) {
-    return (m->action == ACT_IDLE) ||
+    return omm_mario_is_capture(m) ||
+           (m->action == ACT_IDLE) ||
            (m->action == ACT_START_SLEEPING) ||
            (m->action == ACT_SLEEPING) ||
            (m->action == ACT_WAKING_UP) ||
@@ -148,8 +149,48 @@ bool omm_mario_is_idling(struct MarioState *m) {
            (m->action == ACT_HOLDING_POLE) ||
            (m->action == ACT_TOP_OF_POLE) ||
            (m->action == ACT_LEDGE_GRAB) ||
-           (m->action == ACT_OMM_POSSESSION) ||
            (m->action == ACT_OMM_METAL_WATER_IDLE);
+}
+
+bool omm_mario_is_jumping(struct MarioState *m) {
+    return
+#if OMM_GAME_IS_R96X
+           (m->action == ACT_WARIO_TRIPLE_JUMP) ||
+           (m->action == ACT_OMM_METAL_WATER_WARIO_TRIPLE_JUMP) ||
+#endif
+           (m->action == ACT_JUMP) ||
+           (m->action == ACT_DOUBLE_JUMP) ||
+           (m->action == ACT_TRIPLE_JUMP) ||
+           (m->action == ACT_BACKFLIP) ||
+           (m->action == ACT_STEEP_JUMP) ||
+           (m->action == ACT_WALL_KICK_AIR) ||
+           (m->action == ACT_SIDE_FLIP) ||
+           (m->action == ACT_LONG_JUMP) ||
+           (m->action == ACT_WATER_JUMP) ||
+           (m->action == ACT_TOP_OF_POLE_JUMP) ||
+           (m->action == ACT_FLYING_TRIPLE_JUMP) ||
+           (m->action == ACT_RIDING_SHELL_JUMP) ||
+           (m->action == ACT_HOLD_JUMP) ||
+           (m->action == ACT_HOLD_WATER_JUMP) ||
+           (m->action == ACT_SPECIAL_TRIPLE_JUMP) ||
+           (m->action == ACT_BURNING_JUMP) ||
+           (m->action == ACT_FORWARD_ROLLOUT) || // it does count as a jump in SMO
+           (m->action == ACT_BACKWARD_ROLLOUT) || // it does count as a jump in SMO
+           (m->action == ACT_METAL_WATER_JUMP) ||
+           (m->action == ACT_HOLD_METAL_WATER_JUMP) ||
+           (m->action == ACT_OMM_GROUND_POUND_JUMP) ||
+           (m->action == ACT_OMM_SPIN_JUMP) ||
+           (m->action == ACT_OMM_WATER_GROUND_POUND_JUMP) ||
+           (m->action == ACT_OMM_METAL_WATER_JUMP) ||
+           (m->action == ACT_OMM_METAL_WATER_DOUBLE_JUMP) ||
+           (m->action == ACT_OMM_METAL_WATER_TRIPLE_JUMP) ||
+           (m->action == ACT_OMM_METAL_WATER_BACKFLIP) ||
+           (m->action == ACT_OMM_METAL_WATER_SIDE_FLIP) ||
+           (m->action == ACT_OMM_METAL_WATER_LONG_JUMP) ||
+           (m->action == ACT_OMM_METAL_WATER_WALL_KICK_AIR) ||
+           (m->action == ACT_OMM_METAL_WATER_GROUND_POUND_JUMP) ||
+           (m->action == ACT_OMM_METAL_WATER_SPIN_JUMP) ||
+           (m->action == ACT_OMM_METAL_WATER_HOLD_JUMP);
 }
 
 bool omm_mario_is_punching(struct MarioState *m) {
@@ -163,6 +204,38 @@ bool omm_mario_is_kicking(struct MarioState *m) {
     return (m->action == ACT_JUMP_KICK) ||
            (m->action == ACT_OMM_METAL_WATER_JUMP_KICK) ||
            (m->action == ACT_OMM_PEACH_ATTACK_AIR);
+}
+
+bool omm_mario_is_attacking(struct MarioState *m) {
+    return
+#if OMM_GAME_IS_R96X
+           (m->action == ACT_WARIO_CHARGE) ||
+           (m->action == ACT_WARIO_PILE_DRIVER) ||
+           (m->action == ACT_OMM_METAL_WATER_WARIO_CHARGE) ||
+#endif
+           (m->action == ACT_MOVE_PUNCHING) ||
+           (m->action == ACT_DIVE) ||
+           (m->action == ACT_GROUND_POUND) ||
+           (m->action == ACT_SLIDE_KICK) ||
+           (m->action == ACT_JUMP_KICK) ||
+           (m->action == ACT_WATER_PUNCH) ||
+           (m->action == ACT_PUNCHING) ||
+           (m->action == ACT_OMM_CAPPY_THROW_GROUND) ||
+           (m->action == ACT_OMM_CAPPY_THROW_AIRBORNE) ||
+           (m->action == ACT_OMM_SPIN_POUND) ||
+           (m->action == ACT_OMM_WATER_GROUND_POUND) ||
+           (m->action == ACT_OMM_CAPPY_THROW_WATER) ||
+           (m->action == ACT_OMM_METAL_WATER_PUNCHING) ||
+           (m->action == ACT_OMM_METAL_WATER_JUMP_KICK) ||
+           (m->action == ACT_OMM_METAL_WATER_DIVE) ||
+           (m->action == ACT_OMM_METAL_WATER_GROUND_POUND) ||
+           (m->action == ACT_OMM_METAL_WATER_CAPPY_THROW_GROUND) ||
+           (m->action == ACT_OMM_METAL_WATER_CAPPY_THROW_AIRBORNE) ||
+           (m->action == ACT_OMM_METAL_WATER_SPIN_POUND) ||
+           (m->action == ACT_OMM_PEACH_ATTACK_GROUND) ||
+           (m->action == ACT_OMM_PEACH_ATTACK_FAST) ||
+           (m->action == ACT_OMM_PEACH_ATTACK_AIR) ||
+           (m->action == ACT_OMM_PEACH_VIBE_JOY_ATTACK);
 }
 
 bool omm_mario_is_ground_pounding(struct MarioState *m) {
@@ -285,13 +358,13 @@ bool omm_mario_is_stuck_in_ground_after_fall(struct MarioState *m) {
 }
 
 bool omm_mario_is_star_dancing(struct MarioState *m) {
-    return (m->action == ACT_STAR_DANCE_EXIT) ||
+    return (omm_mario_is_capture(m) && gOmmMario->capture.timer == 0xFF) ||
+           (m->action == ACT_STAR_DANCE_EXIT) ||
            (m->action == ACT_STAR_DANCE_NO_EXIT) ||
            (m->action == ACT_STAR_DANCE_WATER) ||
            (m->action == ACT_FALL_AFTER_STAR_GRAB) ||
            (m->action == ACT_JUMBO_STAR_CUTSCENE) ||
-           (m->action == ACT_OMM_STAR_DANCE) ||
-           (m->action == ACT_OMM_POSSESSION && gOmmMario->capture.timer == 0xFF);
+           (m->action == ACT_OMM_STAR_DANCE);
 }
 
 bool omm_mario_is_ready_for_dialog(struct MarioState *m) {
@@ -308,6 +381,22 @@ bool omm_mario_is_ready_for_dialog(struct MarioState *m) {
            (m->action == ACT_WALKING);
 }
 
+bool omm_mario_is_ready_to_speak(struct MarioState *m) {
+    u32 actionGroup = (m->action & ACT_GROUP_MASK);
+    return omm_mario_is_capture(m) || 
+           (m->action == ACT_WAITING_FOR_DIALOG) || (
+           (m->action != ACT_FIRST_PERSON) &&
+           (m->action & ACT_FLAG_RIDING_SHELL) == 0 &&
+           (m->action & ACT_FLAG_INVULNERABLE) == 0 && (
+           (actionGroup == ACT_GROUP_STATIONARY) ||
+           (actionGroup == ACT_GROUP_MOVING)));
+}
+
+bool omm_mario_is_capture(struct MarioState *m) {
+    return (m->action == ACT_OMM_POSSESSION) ||
+           (m->action == ACT_OMM_POSSESSION_UNDERWATER);
+}
+
 bool omm_mario_should_walk(struct MarioState *m) {
     return OMM_PLAYER_IS_PEACH || (max_3_f(4.f, m->intendedMag, m->forwardVel) < 18.f);
 }
@@ -317,21 +406,15 @@ bool omm_mario_should_run(struct MarioState *m) {
 }
 
 bool omm_mario_has_wing_cap(struct MarioState *m) {
-    return OMM_POWER_UPS_IMPROVED &&
-           (m->flags & MARIO_WING_CAP) &&
-           (m->action != ACT_OMM_POSSESSION);
+    return OMM_POWER_UPS_IMPROVED && !omm_mario_is_capture(m) && (m->flags & MARIO_WING_CAP);
 }
 
 bool omm_mario_has_vanish_cap(struct MarioState *m) {
-    return OMM_POWER_UPS_IMPROVED &&
-           (m->flags & MARIO_VANISH_CAP) &&
-           (m->action != ACT_OMM_POSSESSION);
+    return OMM_POWER_UPS_IMPROVED && !omm_mario_is_capture(m) && (m->flags & MARIO_VANISH_CAP);
 }
 
 bool omm_mario_has_metal_cap(struct MarioState *m) {
-    return OMM_POWER_UPS_IMPROVED &&
-           (m->flags & MARIO_METAL_CAP) &&
-           (m->action != ACT_OMM_POSSESSION);
+    return OMM_POWER_UPS_IMPROVED && !omm_mario_is_capture(m) && (m->flags & MARIO_METAL_CAP);
 }
 
 bool omm_mario_is_dead(struct MarioState *m) {
@@ -390,7 +473,9 @@ bool omm_mario_check_dead(struct MarioState *m, s32 health) {
 }
 
 bool omm_mario_check_death_warp(struct MarioState *m, s32 warpOp) {
-    if (OMM_STARS_NON_STOP && !OMM_LEVEL_NO_WARP(gCurrLevelNum) && !gOmmSparkly->cheatDetected) {
+    if (warpOp == WARP_OP_STAR_EXIT) {
+        omm_speedrun_split(OMM_SPLIT_EXIT);
+    } else if (OMM_STARS_NON_STOP && !OMM_LEVEL_NO_WARP(gCurrLevelNum) && !gOmmSparkly->cheatDetected) {
         switch (warpOp) {
             case WARP_OP_DEATH: {
                 return omm_mario_check_dead(m, OMM_HEALTH_DEAD);
@@ -596,6 +681,15 @@ void omm_mario_update_grab(struct MarioState *m) {
             mario_grab_used_object(m);
             omm_mario_set_action(m, ACT_DIVE_PICKING_UP, 0, 0);
         }
+
+        // Underwater grab
+        else if (m->action & ACT_FLAG_SWIMMING) {
+            obj_anim_play(m->marioObj, MARIO_ANIM_WATER_PICK_UP_OBJ, 1.f);
+            omm_mario_set_action(m, ACT_WATER_PUNCH, 0, 0);
+            mario_grab_used_object(m);
+            m->marioBodyState->grabPos = GRAB_POS_LIGHT_OBJ;
+            m->actionState = 2;
+        }
         
         // Punch
         else {
@@ -680,7 +774,7 @@ void omm_mario_update_spin(struct MarioState *m) {
     }
 
     // Hidden spin shortcut (joystick button or mouse scroll click)
-    if (SDL_GameControllerGetButton(SDL_GameControllerOpen(0), SDL_CONTROLLER_BUTTON_LEFTSTICK) || (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_MIDDLE))) {
+    if (IS_SPIN_INPUT(m->controller->buttonDown)) {
         sSpinNumHitCheckpoints = OMM_MARIO_SPIN_MIN_HIT_CHECKPOINTS;
     }
 
@@ -737,7 +831,7 @@ void omm_mario_update_fall(struct MarioState *m) {
             // Play the WAAAOOOW sound after falling for a while
             if (!(m->action & ACT_FLAG_INVULNERABLE) && !(m->flags & MARIO_UNKNOWN_18)) {
                 if ((gOmmMario->state.peakHeight - m->pos[1]) > (OMM_MARIO_FALL_DAMAGE_HEIGHT - 400.f)) {
-                    play_sound(SOUND_MARIO_WAAAOOOW, m->marioObj->oCameraToObject);
+                    obj_play_sound(m->marioObj, SOUND_MARIO_WAAAOOOW);
                     m->flags |= MARIO_UNKNOWN_18;
                 }
             }
@@ -750,7 +844,7 @@ void omm_mario_update_fall(struct MarioState *m) {
 
                 // Interrupts Mario's action if he lands on a non-slippery surface
                 if (((gOmmMario->state.peakHeight - m->pos[1]) > OMM_MARIO_FALL_DAMAGE_HEIGHT) &&
-                    (m->vel[1] < -50.0f) &&
+                    (m->vel[1] < -50) &&
                     !omm_mario_is_dead(m) &&
                     !mario_floor_is_slippery(m) &&
                     !omm_mario_has_metal_cap(m) &&
@@ -762,7 +856,7 @@ void omm_mario_update_fall(struct MarioState *m) {
 
                     // Stuck in ground
                     if (omm_mario_is_stuck_in_ground_after_fall(m)) {
-                        play_sound(SOUND_MARIO_OOOF2, m->marioObj->oCameraToObject);
+                        obj_play_sound(m->marioObj, SOUND_MARIO_OOOF2);
                         m->particleFlags |= PARTICLE_MIST_CIRCLE;
 
                         // Head stuck
@@ -787,8 +881,10 @@ void omm_mario_update_fall(struct MarioState *m) {
             gOmmMario->state.peakHeight = m->pos[1];
             omm_sound_stop_character_sound_n64(SOUND_MARIO_WAAAOOOW, m->marioObj->oCameraToObject);
         }
+    }
 
-        // Update classic peak height
+    // Update classic peak height
+    if (OMM_MOVESET_ODYSSEY || m->vel[1] >= 0) {
         m->peakHeight = m->pos[1];
     }
 }
@@ -845,6 +941,16 @@ void omm_mario_update_action(struct MarioState *m) {
         m->framesSinceA = 0xFF;
     }
 
+    // If dead, drop held object
+    if (m->health <= OMM_HEALTH_DEAD) {
+        mario_stop_riding_and_holding(m);
+    }
+
+    // If capture, set the corresponding action
+    if (omm_mario_is_capture(m)) {
+        m->action = (m->pos[1] < m->waterLevel ? ACT_OMM_POSSESSION_UNDERWATER : ACT_OMM_POSSESSION);
+    }
+
     // Instant squish: Mario takes damage from some attacks even if not fully squished
     if (m->action == ACT_SQUISHED && m->ceil && m->ceil->object) {
         f32 heightDiff = m->ceilHeight - m->floorHeight;
@@ -868,6 +974,25 @@ void omm_mario_update_action(struct MarioState *m) {
         omm_mario_set_action(m, ACT_WATER_IDLE, 0, 0);
     }
 
+    // Camera fix after an exit cutscene
+    static bool sWasExitCutscene = false;
+    if (m->action == ACT_EXIT_AIRBORNE ||
+        m->action == ACT_EXIT_LAND_SAVE_DIALOG ||
+        m->action == ACT_DEATH_EXIT ||
+        m->action == ACT_UNUSED_DEATH_EXIT ||
+        m->action == ACT_FALLING_DEATH_EXIT ||
+        m->action == ACT_SPECIAL_EXIT_AIRBORNE ||
+        m->action == ACT_SPECIAL_DEATH_EXIT ||
+        m->action == ACT_FALLING_EXIT_AIRBORNE) {
+        sWasExitCutscene = true;
+    } else if (sWasExitCutscene && (
+        m->action == ACT_IDLE ||
+        m->action == ACT_WALKING)) {
+        gCamera->cutscene = 0;
+        sModeTransition.framesLeft = 0;
+        sWasExitCutscene = false;
+    }
+
     // Instant cap power-up: unlocked after collecting all stars in a course
     // Hold L and press a D-pad direction to wear a cap
     if (OMM_CHEAT_CAP_MODIFIER || (
@@ -875,10 +1000,10 @@ void omm_mario_update_action(struct MarioState *m) {
         gCurrLevelNum != LEVEL_BOWSER_1 &&
         gCurrLevelNum != LEVEL_BOWSER_2 &&
         gCurrLevelNum != LEVEL_BOWSER_3 &&
-        save_file_get_star_flags(gCurrSaveFileNum - 1, gCurrCourseNum - 1) == omm_stars_get_bits_total(gCurrLevelNum))) {
+        omm_save_file_get_star_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE, gCurrCourseNum - 1) == omm_stars_get_bits_total(gCurrLevelNum, OMM_GAME_MODE))) {
         if (gPlayer1Controller->buttonDown & L_TRIG) {
             const BehaviorScript *capBhv = NULL;
-            switch (gPlayer1Controller->buttonPressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
+            switch (JPAD_INPUT(gPlayer1Controller->buttonPressed) & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
                 case U_JPAD: capBhv = bhvWingCap; break;
                 case L_JPAD: capBhv = bhvVanishCap; break;
                 case R_JPAD: capBhv = bhvMetalCap; break;
@@ -932,7 +1057,7 @@ static void omm_mario_update_inputs(struct MarioState *m) {
     }
     if (OMM_CHEAT_INVINCIBLE) {
         m->invincTimer = max_s(m->invincTimer, 1);
-        if (m->action == ACT_OMM_POSSESSION) {
+        if (omm_mario_is_capture(m)) {
             gOmmObject->state.invincTimer = max_s(gOmmObject->state.invincTimer, 1);
         }
     }
@@ -982,7 +1107,7 @@ void bhv_mario_update() {
 
     // Update old Cheats flags
 #if OMM_GAME_IS_RF14
-    omm_zero(&Cheats, sizeof(Cheats));
+    mem_clr(&Cheats, sizeof(Cheats));
     Cheats.EnableCheats = gOmmCheatEnable;
     Cheats.Responsive = OMM_CHEAT_SUPER_RESPONSIVE;
     Cheats.WalkOn.Lava = OMM_CHEAT_WALK_ON_LAVA;
@@ -1024,7 +1149,7 @@ void bhv_mario_update() {
 
     // Interactions
     mario_handle_special_floors(m);
-    if (m->action != ACT_OMM_POSSESSION) {
+    if (!omm_mario_is_capture(m)) {
         omm_mario_preprocess_interactions(m);
         mario_process_interactions(m);
 
@@ -1117,10 +1242,10 @@ void bhv_mario_update() {
     // Wind gfx/sfx
     if (m->floor->type == SURFACE_HORIZONTAL_WIND) {
         spawn_wind_particles(0, (m->floor->force << 8));
-        play_sound(SOUND_ENV_WIND2, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_ENV_WIND2);
     } else if (m->floor->type == SURFACE_VERTICAL_WIND) {
         spawn_wind_particles(1, 0);
-        play_sound(SOUND_ENV_WIND2, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_ENV_WIND2);
     }
 
     // Misc
@@ -1128,7 +1253,7 @@ void bhv_mario_update() {
     play_infinite_stairs_music();
 #endif
     m->numLives = max_s(m->numLives, 1);
-    m->numStars = save_file_get_total_star_count(gCurrSaveFileNum - 1, COURSE_MIN - 1, COURSE_MAX - 1);
+    m->numStars = omm_save_file_get_total_star_count(gCurrSaveFileNum - 1, OMM_GAME_MODE, COURSE_MIN - 1, COURSE_MAX - 1);
 
     // Update Mario object
     obj_set_pos(gMarioObject, m->pos[0], m->pos[1], m->pos[2]);
@@ -1207,22 +1332,10 @@ void bhv_mario_update() {
     geo_preprocess_object_graph_node(gMarioObject);
 
     // Spawn particles
-    if (m->particleFlags & PARTICLE_DUST                ) spawn_particle(ACTIVE_PARTICLE_DUST,                 MODEL_MIST,                 bhvMistParticleSpawner);
-    if (m->particleFlags & PARTICLE_VERTICAL_STAR       ) spawn_particle(ACTIVE_PARTICLE_V_STAR,               MODEL_NONE,                 bhvVertStarParticleSpawner);
-    if (m->particleFlags & PARTICLE_HORIZONTAL_STAR     ) spawn_particle(ACTIVE_PARTICLE_H_STAR,               MODEL_NONE,                 bhvHorStarParticleSpawner);
-    if (m->particleFlags & PARTICLE_SPARKLES            ) spawn_particle(ACTIVE_PARTICLE_SPARKLES,             MODEL_SPARKLES,             bhvSparkleParticleSpawner);
-    if (m->particleFlags & PARTICLE_BUBBLE              ) spawn_particle(ACTIVE_PARTICLE_BUBBLE,               MODEL_BUBBLE,               bhvBubbleParticleSpawner);
-    if (m->particleFlags & PARTICLE_WATER_SPLASH        ) spawn_particle(ACTIVE_PARTICLE_WATER_SPLASH,         MODEL_WATER_SPLASH,         bhvWaterSplash);
-    if (m->particleFlags & PARTICLE_IDLE_WATER_WAVE     ) spawn_particle(ACTIVE_PARTICLE_IDLE_WATER_WAVE,      MODEL_IDLE_WATER_WAVE,      bhvIdleWaterWave);
-    if (m->particleFlags & PARTICLE_PLUNGE_BUBBLE       ) spawn_particle(ACTIVE_PARTICLE_PLUNGE_BUBBLE,        MODEL_WHITE_PARTICLE_SMALL, bhvPlungeBubble);
-    if (m->particleFlags & PARTICLE_WAVE_TRAIL          ) spawn_particle(ACTIVE_PARTICLE_WAVE_TRAIL,           MODEL_WAVE_TRAIL,           bhvWaveTrail);
-    if (m->particleFlags & PARTICLE_FIRE                ) spawn_particle(ACTIVE_PARTICLE_FIRE,                 MODEL_RED_FLAME,            bhvFireParticleSpawner);
-    if (m->particleFlags & PARTICLE_SHALLOW_WATER_WAVE  ) spawn_particle(ACTIVE_PARTICLE_SHALLOW_WATER_WAVE,   MODEL_NONE,                 bhvShallowWaterWave);
-    if (m->particleFlags & PARTICLE_SHALLOW_WATER_SPLASH) spawn_particle(ACTIVE_PARTICLE_SHALLOW_WATER_SPLASH, MODEL_NONE,                 bhvShallowWaterSplash);
-    if (m->particleFlags & PARTICLE_LEAF                ) spawn_particle(ACTIVE_PARTICLE_LEAF,                 MODEL_NONE,                 bhvLeafParticleSpawner);
-    if (m->particleFlags & PARTICLE_SNOW                ) spawn_particle(ACTIVE_PARTICLE_SNOW,                 MODEL_NONE,                 bhvSnowParticleSpawner);
-    if (m->particleFlags & PARTICLE_BREATH              ) spawn_particle(ACTIVE_PARTICLE_BREATH,               MODEL_NONE,                 bhvBreathParticleSpawner);
-    if (m->particleFlags & PARTICLE_DIRT                ) spawn_particle(ACTIVE_PARTICLE_DIRT,                 MODEL_NONE,                 bhvDirtParticleSpawner);
-    if (m->particleFlags & PARTICLE_MIST_CIRCLE         ) spawn_particle(ACTIVE_PARTICLE_MIST_CIRCLE,          MODEL_NONE,                 bhvMistCircParticleSpawner);
-    if (m->particleFlags & PARTICLE_TRIANGLE            ) spawn_particle(ACTIVE_PARTICLE_TRIANGLE,             MODEL_NONE,                 bhvTriangleParticleSpawner);
+    for (u32 i = 0; i != 32; ++i) {
+        u32 particle = (1u << i);
+        if (m->particleFlags & particle) {
+            obj_spawn_particle_preset(m->marioObj, particle, true);
+        }
+    }
 }

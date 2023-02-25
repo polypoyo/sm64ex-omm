@@ -3,6 +3,7 @@
 #undef OMM_ALL_HEADERS
 #if OMM_GAME_IS_SM64
 #include "levels/ttm/header.h"
+#include "level_commands.h"
 #define OMM_TTM_SLIDE_OFFSET_Y 14000
 
 //
@@ -3136,8 +3137,8 @@ const LevelScript omm_level_ttm_area_2[] = {
 };
 
 LEVEL_CMD_BRANCH(
-    level_script_find(level_ttm_entry, omm_static_array_of(LevelScript) { AREA(2, ttm_geo_000B5C) }, 2),
-    level_script_find(level_ttm_entry, omm_static_array_of(LevelScript) { FREE_LEVEL_POOL() }, 1),
+    level_script_find(level_ttm_entry, array_of(LevelScript) { AREA(2, ttm_geo_000B5C) }, 2),
+    level_script_find(level_ttm_entry, array_of(LevelScript) { FREE_LEVEL_POOL() }, 1),
     omm_level_ttm_area_2
 );
 

@@ -100,7 +100,7 @@ static void geo_layout_cmd_node_root(void) {
     if (sGraphNodeMemoryPool) {
         node->views = alloc_only_pool_alloc(sGraphNodeMemoryPool, sizeof(struct GraphNode *));
     } else {
-        node->views = omm_new(struct GraphNode *, 1);
+        node->views = mem_new(struct GraphNode *, 1);
     }
     node->numViews = 1;
     geo_layout_register_scene_graph_node(gNode);
@@ -427,11 +427,12 @@ struct GraphNode *geo_layout_to_graph_node(struct AllocOnlyPool *pool, const Geo
     while (sGeoLayoutCommand) {
         sGeoLayoutCmdTable[*sGeoLayoutCommand]();
     }
-#if OMM_CODE_DYNOS
+
+    // Reference the geo layout
     if (sGraphNode) {
         sGraphNode->georef = (const void *) geoLayout;
+        sGraphNode->noBillboard = false;
     }
-#endif
 
     // Add the created graph node to the cache list
     if (!pool) {

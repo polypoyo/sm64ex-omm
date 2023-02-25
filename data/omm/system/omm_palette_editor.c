@@ -1,6 +1,7 @@
 #define OMM_ALL_HEADERS
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
+#include "level_commands.h"
 #define MARIO_BASE_SCALE 2.f
 
 #if WINDOWS_BUILD
@@ -14,18 +15,18 @@
 #define close_clipboard()
 #endif
 
-#define OMM_PE_SAVE_AND_EXIT            (gPlayer1Controller->buttonPressed & START_BUTTON)
-#define OMM_PE_TOGGLE_INPUT_MODE        (gPlayer1Controller->buttonPressed & A_BUTTON)
-#define OMM_PE_SWITCH_CHARACTER         (gPlayer1Controller->buttonPressed & Y_BUTTON)
-#define OMM_PE_ENABLE_BRIGHTNESS_MODE   (gPlayer1Controller->buttonDown    & Z_TRIG)
-#define OMM_PE_PREV_PALETTE             (gPlayer1Controller->buttonPressed & L_JPAD)
-#define OMM_PE_NEXT_PALETTE             (gPlayer1Controller->buttonPressed & R_JPAD)
-#define OMM_PE_PREV_COLOR               (gPlayer1Controller->buttonPressed & U_JPAD)
-#define OMM_PE_NEXT_COLOR               (gPlayer1Controller->buttonPressed & D_JPAD)
-#define OMM_PE_NEXT_SKYBOX              (gPlayer1Controller->buttonPressed & B_BUTTON)
-#define OMM_PE_TOGGLE_CAP               (gPlayer1Controller->buttonPressed & X_BUTTON)
-#define OMM_PE_ZOOM_IN                  (gPlayer1Controller->buttonDown    & R_TRIG)
-#define OMM_PE_ZOOM_OUT                 (gPlayer1Controller->buttonDown    & L_TRIG)
+#define OMM_PE_SAVE_AND_EXIT            (JPAD_INPUT(gPlayer1Controller->buttonPressed) & START_BUTTON)
+#define OMM_PE_TOGGLE_INPUT_MODE        (JPAD_INPUT(gPlayer1Controller->buttonPressed) & A_BUTTON    )
+#define OMM_PE_SWITCH_CHARACTER         (JPAD_INPUT(gPlayer1Controller->buttonPressed) & Y_BUTTON    )
+#define OMM_PE_ENABLE_BRIGHTNESS_MODE   (JPAD_INPUT(gPlayer1Controller->buttonDown   ) & Z_TRIG      )
+#define OMM_PE_PREV_PALETTE             (JPAD_INPUT(gPlayer1Controller->buttonPressed) & L_JPAD      )
+#define OMM_PE_NEXT_PALETTE             (JPAD_INPUT(gPlayer1Controller->buttonPressed) & R_JPAD      )
+#define OMM_PE_PREV_COLOR               (JPAD_INPUT(gPlayer1Controller->buttonPressed) & U_JPAD      )
+#define OMM_PE_NEXT_COLOR               (JPAD_INPUT(gPlayer1Controller->buttonPressed) & D_JPAD      )
+#define OMM_PE_NEXT_SKYBOX              (JPAD_INPUT(gPlayer1Controller->buttonPressed) & B_BUTTON    )
+#define OMM_PE_TOGGLE_CAP               (JPAD_INPUT(gPlayer1Controller->buttonPressed) & X_BUTTON    )
+#define OMM_PE_ZOOM_IN                  (JPAD_INPUT(gPlayer1Controller->buttonDown   ) & R_TRIG      )
+#define OMM_PE_ZOOM_OUT                 (JPAD_INPUT(gPlayer1Controller->buttonDown   ) & L_TRIG      )
 
 #define OMM_PE_DISPLAY_X                (GFX_DIMENSIONS_FROM_LEFT_EDGE(1))
 #define OMM_PE_DISPLAY_Y                (1)
@@ -219,10 +220,10 @@ static Gfx *omm_geo_palette_editor_switch_background(s32 callContext, struct Gra
 
 static Gfx *omm_geo_palette_editor_render(s32 callContext, UNUSED struct GraphNode *node, UNUSED void *context) {
     if (callContext == GEO_CONTEXT_RENDER && gOmmPaletteEditorState == OMM_PALETTE_EDITOR_STATE_OPEN) {
-        omm_render_texrect(OMM_PE_DISPLAY_X, OMM_PE_DISPLAY_Y, OMM_PE_DISPLAY_W, OMM_PE_DISPLAY_H, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, 0x00, 0x00, 0x00, 0x80, OMM_TEXTURE_WHITE, false);
+        omm_render_texrect(OMM_PE_DISPLAY_X, OMM_PE_DISPLAY_Y, OMM_PE_DISPLAY_W, OMM_PE_DISPLAY_H, 32, 32, 0x00, 0x00, 0x00, 0x80, OMM_TEXTURE_MISC_WHITE, false);
 
         // Player
-        u8 *textPlayer = omm_text_convert(OMM_TEXT_PLAYER, false);
+        u8 *textPlayer = omm_text_convert(OMM_TEXT_PE_PLAYER, false);
         u8 *textPlayerName = omm_text_convert(omm_player_properties_get_name(pe->peach), false);
         u32 textPlayerColor = omm_player_properties_get_color(pe->peach);
         omm_render_string(OMM_PE_TEXT_X, OMM_PE_TEXT_Y, 0xFF, 0xFF, 0xFF, 0xFF, textPlayer, true);
@@ -230,48 +231,48 @@ static Gfx *omm_geo_palette_editor_render(s32 callContext, UNUSED struct GraphNo
 
         // Palette
         const char *palette_str = omm_mario_colors_choices(pe->peach)[omm_mario_colors_count() - 4 + pe->palette];
-        u8 *textPalette = omm_text_convert(OMM_TEXT_PALETTE, false);
+        u8 *textPalette = omm_text_convert(OMM_TEXT_PE_PALETTE, false);
         u8 *textPaletteName = omm_text_convert(palette_str, false);
         omm_render_string(OMM_PE_TEXT_X, OMM_PE_TEXT_Y - OMM_PE_TEXT_H, 0xFF, 0xFF, 0xFF, 0xFF, textPalette, true);
         omm_render_string(OMM_PE_TEXT_X2, OMM_PE_TEXT_Y - OMM_PE_TEXT_H, 0xFF, 0xFF, 0xFF, 0xFF, textPaletteName, true);
 
         // Color
-        u8 *textColor = omm_text_convert(OMM_TEXT_COLOR, false);
+        u8 *textColor = omm_text_convert(OMM_TEXT_PE_COLOR, false);
         u8 *textColorName = omm_text_convert(omm_mario_colors_get_light_name(pe->peach, pe->color), false);
         omm_render_string(OMM_PE_TEXT_X, OMM_PE_TEXT_Y - 2 * OMM_PE_TEXT_H, 0xFF, 0xFF, 0xFF, 0xFF, textColor, true);
         omm_render_string(OMM_PE_TEXT_X2, OMM_PE_TEXT_Y - 2 * OMM_PE_TEXT_H, 0xFF, 0xFF, 0xFF, 0xFF, textColorName, true);
 
         // Value
-        u8 *textValue = omm_text_convert(OMM_TEXT_VALUE, false);
+        u8 *textValue = omm_text_convert(OMM_TEXT_PE_VALUE, false);
         omm_render_string(OMM_PE_TEXT_X, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H, 0xFF, 0xFF, 0xFF, 0xFF, textValue, true);
-        omm_render_texrect(OMM_PE_COLOR_BOX_X, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H + OMM_PE_COLOR_BOX_Y, OMM_PE_COLOR_BOX_W, OMM_PE_COLOR_BOX_H, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, 0xFF, 0xFF, 0xFF, 0xFF, OMM_TEXTURE_WHITE, false);
+        omm_render_texrect(OMM_PE_COLOR_BOX_X, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H + OMM_PE_COLOR_BOX_Y, OMM_PE_COLOR_BOX_W, OMM_PE_COLOR_BOX_H, 32, 32, 0xFF, 0xFF, 0xFF, 0xFF, OMM_TEXTURE_MISC_WHITE, false);
         if (pe->input != -1) {
             char value_str[16]; u32 color = omm_palette_editor_get_input_color();
-            omm_render_texrect(OMM_PE_TEXT_X2 - 2, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H - 3, 46, 14, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, 0x00, 0x00, 0x00, 0xFF, OMM_TEXTURE_WHITE, false);
-            omm_render_texrect(OMM_PE_TEXT_X2 - 1, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H - 2, 44, 12, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, 0xE0, 0xE0, 0xE0, 0xFF, OMM_TEXTURE_WHITE, false);
+            omm_render_texrect(OMM_PE_TEXT_X2 - 2, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H - 3, 46, 14, 32, 32, 0x00, 0x00, 0x00, 0xFF, OMM_TEXTURE_MISC_WHITE, false);
+            omm_render_texrect(OMM_PE_TEXT_X2 - 1, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H - 2, 44, 12, 32, 32, 0xE0, 0xE0, 0xE0, 0xFF, OMM_TEXTURE_MISC_WHITE, false);
             switch (omm_palette_editor_get_input_length()) {
-                case 0: snprintf(value_str, 16, " "); break;
-                case 1: snprintf(value_str, 16, "%01X", color); break;
-                case 2: snprintf(value_str, 16, "%02X", color); break;
-                case 3: snprintf(value_str, 16, "%03X", color); break;
-                case 4: snprintf(value_str, 16, "%04X", color); break;
-                case 5: snprintf(value_str, 16, "%05X", color); break;
-                case 6: snprintf(value_str, 16, "%06X", color); break;
+                case 0: str_fmt(value_str, 16, "%c", ' '); break;
+                case 1: str_fmt(value_str, 16, "%01X", color); break;
+                case 2: str_fmt(value_str, 16, "%02X", color); break;
+                case 3: str_fmt(value_str, 16, "%03X", color); break;
+                case 4: str_fmt(value_str, 16, "%04X", color); break;
+                case 5: str_fmt(value_str, 16, "%05X", color); break;
+                case 6: str_fmt(value_str, 16, "%06X", color); break;
             }
             u8 *textValueHex = omm_text_convert(value_str, false);
             omm_render_string(OMM_PE_TEXT_X2, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H, 0x00, 0x00, 0x00, 0xFF, textValueHex, false);
-            omm_render_texrect(OMM_PE_COLOR_BOX_X + 1, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H + 1 + OMM_PE_COLOR_BOX_Y, OMM_PE_COLOR_BOX_W - 2, OMM_PE_COLOR_BOX_H - 2, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, (color >> 16) & 0xFF, (color >> 8) & 0xFF, (color >> 0) & 0xFF, 0xFF, OMM_TEXTURE_WHITE, false);
+            omm_render_texrect(OMM_PE_COLOR_BOX_X + 1, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H + 1 + OMM_PE_COLOR_BOX_Y, OMM_PE_COLOR_BOX_W - 2, OMM_PE_COLOR_BOX_H - 2, 32, 32, (color >> 16) & 0xFF, (color >> 8) & 0xFF, (color >> 0) & 0xFF, 0xFF, OMM_TEXTURE_MISC_WHITE, false);
         } else {
-            omm_sprintf(value_str, 256, "%06X", *pe->p);
+            str_fmt_sa(value_str, 256, "%06X", *pe->p);
             u8 *textValueHex = omm_text_convert(value_str, false);
             omm_render_string(OMM_PE_TEXT_X2, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H, 0xFF, 0xFF, 0xFF, 0xFF, textValueHex, true);
-            omm_render_texrect(OMM_PE_COLOR_BOX_X + 1, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H + 1 + OMM_PE_COLOR_BOX_Y, OMM_PE_COLOR_BOX_W - 2, OMM_PE_COLOR_BOX_H - 2, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, pe->r * 0xFF, pe->g * 0xFF, pe->b * 0xFF, 0xFF, OMM_TEXTURE_WHITE, false);
+            omm_render_texrect(OMM_PE_COLOR_BOX_X + 1, OMM_PE_TEXT_Y - 3 * OMM_PE_TEXT_H + 1 + OMM_PE_COLOR_BOX_Y, OMM_PE_COLOR_BOX_W - 2, OMM_PE_COLOR_BOX_H - 2, 32, 32, pe->r * 0xFF, pe->g * 0xFF, pe->b * 0xFF, 0xFF, OMM_TEXTURE_MISC_WHITE, false);
         }
 
         // Color map
         f32 lum = 0.2126f * pe->r + 0.7152f * pe->g + 0.0722f * pe->b;
         u8 pickerColor = 0xFF * (lum < 0.8f);
-        omm_render_texrect(OMM_PE_COLOR_MAP_X, OMM_PE_COLOR_MAP_Y, OMM_PE_COLOR_MAP_W, OMM_PE_COLOR_MAP_H, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, 0xFF, 0xFF, 0xFF, 0xFF, OMM_TEXTURE_WHITE, false);
+        omm_render_texrect(OMM_PE_COLOR_MAP_X, OMM_PE_COLOR_MAP_Y, OMM_PE_COLOR_MAP_W, OMM_PE_COLOR_MAP_H, 32, 32, 0xFF, 0xFF, 0xFF, 0xFF, OMM_TEXTURE_MISC_WHITE, false);
         if (pe->bright) {
             static Vtx vtx[4];
             s32 x0 = OMM_PE_COLOR_MAP_X + 1, x1 = OMM_PE_COLOR_MAP_X + OMM_PE_COLOR_MAP_W;
@@ -283,15 +284,15 @@ static Gfx *omm_geo_palette_editor_render(s32 callContext, UNUSED struct GraphNo
             gSPClearGeometryMode(gDisplayListHead++, G_LIGHTING | G_CULL_BOTH);
             gDPSetCombineLERP(gDisplayListHead++, TEXEL0, 0, SHADE, 0, TEXEL0, 0, SHADE, 0, TEXEL0, 0, SHADE, 0, TEXEL0, 0, SHADE, 0);
             gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-            gDPLoadTextureBlock(gDisplayListHead++, OMM_TEXTURE_COLOR_MAP, G_IM_FMT_RGBA, G_IM_SIZ_32b, 1024, 256, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, G_TX_NOLOD, G_TX_NOLOD);
+            gDPLoadTextureBlock(gDisplayListHead++, OMM_TEXTURE_MISC_COLOR_MAP, G_IM_FMT_RGBA, G_IM_SIZ_32b, 1024, 256, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, G_TX_NOLOD, G_TX_NOLOD);
             gSPVertex(gDisplayListHead++, vtx, 4, 0);
             gSP2Triangles(gDisplayListHead++, 0, 1, 2, 0, 2, 1, 3, 0);
             gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
             gDPSetCombineLERP(gDisplayListHead++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
-            omm_render_texrect(OMM_PE_COLOR_PICKER_X(pe->w), OMM_PE_COLOR_PICKER_Y(1 - pe->v), OMM_PE_COLOR_PICKER_W, OMM_PE_COLOR_PICKER_H, G_IM_FMT_RGBA, G_IM_SIZ_32b, 128, 128, pickerColor, pickerColor, pickerColor, 0xFF, OMM_TEXTURE_COLOR_PICKER, false);
+            omm_render_texrect(OMM_PE_COLOR_PICKER_X(pe->w), OMM_PE_COLOR_PICKER_Y(1 - pe->v), OMM_PE_COLOR_PICKER_W, OMM_PE_COLOR_PICKER_H, 128, 128, pickerColor, pickerColor, pickerColor, 0xFF, OMM_TEXTURE_MISC_COLOR_PICKER, false);
         } else {
-            omm_render_texrect(OMM_PE_COLOR_MAP_X + 1, OMM_PE_COLOR_MAP_Y + 1, OMM_PE_COLOR_MAP_W - 2, OMM_PE_COLOR_MAP_H - 2, G_IM_FMT_RGBA, G_IM_SIZ_32b, 1024, 256, pe->w * 0xFF, pe->w * 0xFF, pe->w * 0xFF, 0xFF, OMM_TEXTURE_COLOR_MAP, false);
-            omm_render_texrect(OMM_PE_COLOR_PICKER_X(pe->u), OMM_PE_COLOR_PICKER_Y(1 - pe->v), OMM_PE_COLOR_PICKER_W, OMM_PE_COLOR_PICKER_H, G_IM_FMT_RGBA, G_IM_SIZ_32b, 128, 128, pickerColor, pickerColor, pickerColor, 0xFF, OMM_TEXTURE_COLOR_PICKER, false);
+            omm_render_texrect(OMM_PE_COLOR_MAP_X + 1, OMM_PE_COLOR_MAP_Y + 1, OMM_PE_COLOR_MAP_W - 2, OMM_PE_COLOR_MAP_H - 2, 1024, 256, pe->w * 0xFF, pe->w * 0xFF, pe->w * 0xFF, 0xFF, OMM_TEXTURE_MISC_COLOR_MAP, false);
+            omm_render_texrect(OMM_PE_COLOR_PICKER_X(pe->u), OMM_PE_COLOR_PICKER_Y(1 - pe->v), OMM_PE_COLOR_PICKER_W, OMM_PE_COLOR_PICKER_H, 128, 128, pickerColor, pickerColor, pickerColor, 0xFF, OMM_TEXTURE_MISC_COLOR_PICKER, false);
         }
     }
     return NULL;
@@ -380,7 +381,7 @@ const LevelScript omm_level_palette_editor[] = {
     AREA(1, omm_geo_palette_editor),
         OBJECT(MODEL_MARIO, 0, 0, 0, 0, 0, 0, 0, bhvStaticObject),
         TERRAIN(main_menu_seg7_collision),
-        SET_MENU_MUSIC(OMM_PALETTE_EDITOR_MUSIC),
+        SET_MENU_MUSIC(OMM_SEQ_PALETTE_EDITOR),
     END_AREA(),
     FREE_LEVEL_POOL(),
     LOAD_AREA(1),
@@ -442,7 +443,7 @@ OMM_ROUTINE_UPDATE(omm_palette_editor_update) {
                     { 47, 0x10 },             // clipboard data
                 };
                 u32 keyPressed = controller_get_raw_key();
-                for (s32 i = 0; i != omm_static_array_length(keyToNumber); ++i) {
+                for (s32 i = 0; i != array_length(keyToNumber); ++i) {
                     if (keyToNumber[i][0] == keyPressed) {
                         if (keyToNumber[i][1] < 0x10) {
                             omm_palette_editor_update_input(keyToNumber[i][1]);
@@ -461,7 +462,7 @@ OMM_ROUTINE_UPDATE(omm_palette_editor_update) {
 
                 // Switch character by pressing Y
                 if (OMM_PE_SWITCH_CHARACTER) {
-                    pe->peach = !pe->peach;
+                    pe->peach = OMM_SPARKLY_IS_PEACH_UNLOCKED * !pe->peach;
                     omm_palette_editor_set_current();
                 }
 
@@ -577,9 +578,9 @@ OMM_ROUTINE_UPDATE(omm_palette_editor_update) {
 
                 // Mario/Peach
                 if (pe->peach) {
-                    mario->oGraphNode = geo_layout_to_graph_node(NULL, omm_geo_peach);
+                    mario->oGraphNode = gLoadedGraphNodes[MODEL_PEACH_OMM] = geo_layout_to_graph_node(NULL, omm_geo_peach);
                 } else {
-                    mario->oGraphNode = geo_layout_to_graph_node(NULL, mario_geo);
+                    mario->oGraphNode = gLoadedGraphNodes[MODEL_MARIO] = geo_layout_to_graph_node(NULL, mario_geo);
                 }
                 m->marioObj = gMarioObject = NULL;
                 geo_preprocess_object_graph_node(mario);
@@ -595,7 +596,6 @@ OMM_ROUTINE_UPDATE(omm_palette_editor_update) {
     }
 }
 
-
 //
 // Public
 //
@@ -610,5 +610,5 @@ void omm_palette_editor_close() {
     play_sound(SOUND_MENU_STAR_SOUND, gGlobalSoundArgs);
     play_transition(WARP_TRANSITION_FADE_INTO_COLOR, 30, 0x00, 0x00, 0x00);
     gOmmPaletteEditorState = OMM_PALETTE_EDITOR_STATE_CLOSING;
-    gSaveFileModified = true;
+    omm_save_file_do_save();
 }

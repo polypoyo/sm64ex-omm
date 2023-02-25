@@ -80,16 +80,16 @@ s32 omm_cappy_bullet_bill_update(struct Object *o) {
             obj_scale(o, gOmmObject->bullet_bill.scale * s);
         }
     }
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Movement
     perform_object_step(o, POBJ_STEP_FLAGS);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Wall collision
     if (o->oWall) {
@@ -98,7 +98,7 @@ s32 omm_cappy_bullet_bill_update(struct Object *o) {
         gOmmObject->state.actionState = 1;
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 6);
     }
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -110,5 +110,5 @@ s32 omm_cappy_bullet_bill_update(struct Object *o) {
     gOmmObject->cappy.scale     = 4.f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

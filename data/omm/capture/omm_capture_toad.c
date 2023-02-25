@@ -14,7 +14,7 @@ static const u32 sCappyToadParams[][4] = {
 //
 
 bool omm_cappy_toad_init(struct Object *o) {
-    if (o->oBhvArgs2ndByte) return false;
+    if (o->oBehParams2ndByte) return false;
     gOmmObject->state.actionState = (o->oToadMessageRecentlyTalked ? 3 : 0);
     gOmmObject->state.actionTimer = (o->oToadMessageRecentlyTalked ? 0 : 15);
     gOmmObject->toad.dialogId = o->oToadMessageDialogId;
@@ -22,8 +22,8 @@ bool omm_cappy_toad_init(struct Object *o) {
     o->oOpacity = 255;
 
     // Toad dialog and star
-    u32 saveFlags = save_file_get_flags();
-    u32 starCount = save_file_get_total_star_count(gCurrSaveFileNum - 1, COURSE_MIN - 1, COURSE_MAX - 1);
+    u32 saveFlags = omm_save_file_get_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE);
+    u32 starCount = omm_save_file_get_total_star_count(gCurrSaveFileNum - 1, OMM_GAME_MODE, COURSE_MIN - 1, COURSE_MAX - 1);
     for (s8 i = 0; i != 3; ++i) {
         if ((u32) gOmmObject->toad.dialogId == sCappyToadParams[i][2]) {
             if (starCount >= sCappyToadParams[i][0]) {
@@ -121,16 +121,16 @@ s32 omm_cappy_toad_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
 
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -174,5 +174,5 @@ s32 omm_cappy_toad_update(struct Object *o) {
     }
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

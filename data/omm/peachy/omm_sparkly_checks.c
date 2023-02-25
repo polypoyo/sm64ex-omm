@@ -89,9 +89,9 @@ bool omm_sparkly_check_game_state(struct MarioState *m) {
     // Spawn Sparkly Stars blocks for available modes
     // Break it to enable the corresponding Sparkly Stars mode
     if (gCurrLevelNum == OMM_SPARKLY_BLOCK_LEVEL && gCurrAreaIndex == OMM_SPARKLY_BLOCK_AREA) {
-        for (s32 i = -1, mode = OMM_SPARKLY_MODE_NORMAL; mode != OMM_SPARKLY_MODE_COUNT; ++mode) {
-            if (omm_sparkly_is_available(mode) && (++i != -1) && omm_sparkly_is_unlocked(mode) && !omm_sparkly_is_selected(mode)) {
-                struct Object *block = obj_get_first_with_behavior(OMM_SPARKLY_BLOCK_BHV[mode]);
+        for (s32 i = -1, sparklyMode = OMM_SPARKLY_MODE_NORMAL; sparklyMode != OMM_SPARKLY_MODE_COUNT; ++sparklyMode) {
+            if (omm_sparkly_is_available(sparklyMode) && (++i != -1) && omm_sparkly_is_unlocked(sparklyMode) && !omm_sparkly_is_selected(sparklyMode)) {
+                struct Object *block = obj_get_first_with_behavior(OMM_SPARKLY_BLOCK_BHV[sparklyMode]);
 
                 // If the block is not already spawned, spawn it
                 if (!block) {
@@ -99,7 +99,7 @@ bool omm_sparkly_check_game_state(struct MarioState *m) {
                     f32 x = OMM_SPARKLY_BLOCK_X + 360.f * d * sins(OMM_SPARKLY_BLOCK_ANGLE);
                     f32 y = OMM_SPARKLY_BLOCK_Y + 300.f;
                     f32 z = OMM_SPARKLY_BLOCK_Z + 360.f * d * coss(OMM_SPARKLY_BLOCK_ANGLE);
-                    block = omm_spawn_sparkly_star_block(m->marioObj, mode, x, y, z);
+                    block = omm_spawn_sparkly_star_block(m->marioObj, sparklyMode, x, y, z);
                 }
                 
                 // If the block has been hit, change the current Sparkly Star mode
@@ -107,7 +107,7 @@ bool omm_sparkly_check_game_state(struct MarioState *m) {
                     gOmmSparkly->starBlock = true;
                     obj_deactivate_all_with_behavior(bhvOmmSparklyStar);
                     obj_deactivate_all_with_behavior(bhvOmmSparklyStarHint);
-                    omm_sparkly_set_mode(mode);
+                    omm_sparkly_set_mode(sparklyMode);
                     omm_sparkly_context_reset();
                     omm_sparkly_turn_off_cheats();
                     block->oAction = 3;
@@ -128,10 +128,10 @@ bool omm_sparkly_check_game_state(struct MarioState *m) {
         obj_deactivate_all_with_behavior(bhvOmmSparklyStarSparkle);
         omm_sparkly_state_set(OMM_SPARKLY_STATE_INVALID, 0);
         omm_sparkly_context_reset_data();
-        gOmmSparklyCheats[0] = 0;
-        gOmmSparklyCheats[1] = 0;
-        gOmmSparklyCheats[2] = 0;
-        gOmmSparklyCheats[3] = 0;
+        gOmmSparklyCheats->currMsg = 0;
+        gOmmSparklyCheats->introId = 0;
+        gOmmSparklyCheats->messageId = 0;
+        gOmmSparklyCheats->endingId = 0;
         gOmmSparkly->starBlock = false;
         gOmmSparkly->cheatDetected = false;
         return true;
@@ -161,8 +161,12 @@ bool omm_sparkly_check_star_block(struct MarioState *m) {
         }
 #if OMM_GAME_IS_SM64
         if (gCurrLevelNum == LEVEL_GROUNDS) {
-            if (!gOmmSparkly->gamePaused && !gOmmSparkly->transition && gOmmSparkly->marioUpdated && !omm_sparkly_get_collected_count(gOmmSparklyMode) &&
-                omm_mario_is_ready_for_dialog(m)) {
+            if (!gOmmSparkly->gamePaused &&
+                !gOmmSparkly->transition &&
+                 gOmmSparkly->marioUpdated &&
+                !omm_sparkly_get_collected_count(gOmmSparklyMode) &&
+                 omm_mario_is_ready_for_dialog(m)
+            ) {
                 struct Object *sign = obj_get_first_with_behavior(bhvOmmSparklyStarHint);
                 if (sign) {
                     m->marioObj->oMarioReadingSignDYaw  = (s16) (0x8000 - m->faceAngle[1]);
@@ -188,10 +192,14 @@ bool omm_sparkly_check_anti_cheat(struct MarioState *m) {
 
     // Anti-cheat message
     // Read the messages and return
-    if (gOmmSparklyCheats[0] >= 1) {
+    if (gOmmSparklyCheats->currMsg >= 1) {
         if (m->action != ACT_READING_AUTOMATIC_DIALOG) {
-            omm_mario_set_action(m, ACT_READING_AUTOMATIC_DIALOG, gOmmSparklyCheats[gOmmSparklyCheats[0]], 0);
-            gOmmSparklyCheats[0] = ((gOmmSparklyCheats[0] + 1) % 4);
+            switch (gOmmSparklyCheats->currMsg) {
+                case 1: omm_mario_set_action(m, ACT_READING_AUTOMATIC_DIALOG, gOmmSparklyCheats->introId, 0); break;
+                case 2: omm_mario_set_action(m, ACT_READING_AUTOMATIC_DIALOG, gOmmSparklyCheats->messageId, 0); break;
+                case 3: omm_mario_set_action(m, ACT_READING_AUTOMATIC_DIALOG, gOmmSparklyCheats->endingId, 0); break;
+            }
+            gOmmSparklyCheats->currMsg = ((gOmmSparklyCheats->currMsg + 1) % 4);
         }
         return true;
     }
@@ -209,6 +217,7 @@ bool omm_sparkly_check_anti_cheat(struct MarioState *m) {
             m->capTimer = 0;
             m->flags &= ~(MARIO_WING_CAP | MARIO_METAL_CAP | MARIO_VANISH_CAP);
             if (OMM_MOVESET_ODYSSEY) {
+                gOmmStats->hitsTaken += (m->health > OMM_HEALTH_ODYSSEY_DEAD);
                 m->health = OMM_HEALTH_ODYSSEY_DEAD;
             } else {
                 m->healCounter = 0;
@@ -230,15 +239,20 @@ bool omm_sparkly_check_anti_cheat(struct MarioState *m) {
         }
 
         // When warped back to Castle, trigger a random Bowser anti-cheat dialog
-        if (!omm_mario_is_dead(m) && gCurrCourseNum == COURSE_NONE && !omm_sparkly_is_bowser_4_battle() &&
-            !gOmmSparkly->gamePaused && !gOmmSparkly->transition && gOmmSparkly->marioUpdated &&
-            omm_mario_is_ready_for_dialog(m)) {
+        if (!omm_mario_is_dead(m) &&
+             gCurrCourseNum == COURSE_NONE &&
+            !omm_sparkly_is_bowser_4_battle() &&
+            !gOmmSparkly->gamePaused &&
+            !gOmmSparkly->transition &&
+             gOmmSparkly->marioUpdated &&
+             omm_mario_is_ready_for_dialog(m)
+        ) {
             play_sound(SOUND_OBJ_BOWSER_INTRO_LAUGH, gGlobalSoundArgs);
             play_sequence(SEQ_PLAYER_ENV, SEQ_EVENT_KOOPA_MESSAGE, 0);
-            gOmmSparklyCheats[0] = 1;
-            gOmmSparklyCheats[1] = OMM_DIALOG_SPARKLY_ANTI_CHEAT_INTRO;
-            gOmmSparklyCheats[2] = OMM_DIALOG_SPARKLY_ANTI_CHEAT_0 + (random_u16() % 8);
-            gOmmSparklyCheats[3] = OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_0 + (random_u16() % 3);
+            gOmmSparklyCheats->currMsg = 1;
+            gOmmSparklyCheats->introId = OMM_DIALOG_SPARKLY_ANTI_CHEAT_INTRO;
+            gOmmSparklyCheats->messageId = OMM_DIALOG_SPARKLY_ANTI_CHEAT_0 + (random_u16() % 8);
+            gOmmSparklyCheats->endingId = OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_0 + (random_u16() % 3);
             gOmmSparkly->cheatDetected = false;
             sDeathState = false;
         }

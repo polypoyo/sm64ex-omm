@@ -7,6 +7,7 @@
 #define OMM_GAME_TYPE                                   OMM_GAME_SMSR
 #define OMM_GAME_SAVE                                   OMM_GAME_SMSR
 #define OMM_GAME_MODE                                   0
+#define OMM_GAME_MENU                                   "smsr"
 
 // Better camera
 #define BETTER_CAM_IS_PUPPY_CAM                         1
@@ -15,6 +16,10 @@
 #define BETTER_CAM_YAW                                  0
 #define BETTER_CAM_RAYCAST_ARGS                         __EXPAND(, UNUSED s32 flags)
 #define BETTER_CAM_MOUSE_CAM                            (BETTER_CAM_IS_ENABLED && configCameraMouse)
+#define CAMERA_X_THIRD_PERSON_VIEW                      (configCameraInvertX ? -1 : +1)
+#define CAMERA_Y_THIRD_PERSON_VIEW                      (configCameraInvertY ? -1 : +1)
+#define CAMERA_X_FIRST_PERSON_VIEW                      (configCameraInvertX ? +1 : -1)
+#define CAMERA_Y_FIRST_PERSON_VIEW                      (configCameraInvertY ? -1 : +1)
 #define gMouseXPos                                      gMouseX
 #define gMouseYPos                                      gMouseY
 #define gOldMouseXPos                                   gMouseX
@@ -36,7 +41,9 @@
 
 // Mario animation
 #define MarioAnimationsStruct                           struct DmaHandlerList
+#define MarioAnimDmaTableStruct                         struct DmaTable
 #define gMarioAnimations                                gMarioState->animList
+#define gMarioAnimDmaTable                              gMarioAnimations->dmaTable
 #define gMarioCurrAnimAddr                              gMarioAnimations->currentAddr
 #define gMarioTargetAnim                                gMarioAnimations->bufTarget
 #define gMarioAnimsData                                 gMarioAnimsBuf
@@ -76,9 +83,6 @@
 #define SOUND_OBJ_WHOMP_SLAM                            SOUND_OBJ_WHOMP
 
 // Object fields
-#define oBhvArgs                                        oBehParams
-#define oBhvArgs2ndByte                                 oBehParams2ndByte
-#define oBhvArgsUnused                                  oUnk1A8
 #define oSnowmansBodyScale                              oSnowmansBottomScale
 #define oBitsPlatformBowserObject                       oBitsPlatformBowser
 #define oBowserCameraState                              oBowserCamAct
@@ -94,15 +98,17 @@
 #define oBowserShockwaveScale                           oBowserShockWaveScale
 
 // Tables, dialogs and menus
-#define gCourseNameTable                                ((const u8 **) seg2_course_name_table)
-#define gActNameTable                                   ((const u8 **) seg2_act_name_table)
-#define gDialogTable                                    ((struct DialogEntry **) seg2_dialog_table)
+#define gCourseNameTable(...)                           ((const u8 **) seg2_course_name_table)
+#define gActNameTable(...)                              ((const u8 **) seg2_act_name_table)
+#define gDialogTable(...)                               ((struct DialogEntry **) seg2_dialog_table)
 #define gDialogBoxState                                 gMenuState
-#define gDialogBoxAngle                                 gDialogBoxAngle
 #define gDialogLineIndex                                gMenuLineNum
 #define gDialogTextPos                                  gDialogPageStartStrIndex
 #define gDialogTextAlpha                                gMenuTextAlpha
+#define gDialogColorFadeTimer                           gMenuTextColorTransTimer
+#define gLastDialogResponse                             gDialogWithChoice
 #define gLastDialogPageStrPos                           gNextDialogPageStartStrIndex
+#define gPauseScreenMode                                gMenuOptSelectIndex
 #define DIALOG_STATE_OPENING                            MENU_STATE_DIALOG_OPENING
 #define DIALOG_STATE_VERTICAL                           MENU_STATE_DIALOG_OPEN
 #define DIALOG_STATE_HORIZONTAL                         MENU_STATE_DIALOG_SCROLLING
@@ -125,6 +131,12 @@
 #define level_script_star_select                        level_main_menu_entry_2
 #define level_script_cake_ending                        level_ending_entry
 
+// Geo layouts
+#define amp_geo                                         dAmpGeo
+#define bowser2_geo                                     bowser_geo_no_shadow
+#define geo_intro_backdrop                              geo_intro_regular_backdrop
+#define MODEL_BOWSER2                                   MODEL_BOWSER_NO_SHADOW
+
 // Misc
 #define check_surface_collisions_for_camera()           (gCheckingSurfaceCollisionsForCamera)
 #define enable_surface_collisions_for_camera()          { gCheckingSurfaceCollisionsForCamera = 1; }
@@ -139,20 +151,33 @@
 #define clear_framebuffer(...)                          clear_framebuffer(__VA_ARGS__)
 #define INPUT_BOUNCE                                    INPUT_STOMPED
 #define MAX_REFEREMCED_WALLS                            MAX_REFERENCED_WALLS
-#define MODEL_BOWSER2                                   MODEL_BOWSER_NO_SHADOW
 
 // OMM
-#define OMM_STAR_COLORS                                 0, 1, 4, 11, 9, 5, 3, 8, 13, 2, 10, 14, 12, 7, 6, 15, 16, 17, 18, 19
-#define OMM_LEVEL_ENTRY_WARP(level)                     (level == LEVEL_JRB ? 0x01 : 0x0A)
+#define OMM_STAR_COLORS                                 0, 1, 4, 11, 9, 5, 3, 8, 13, 2, 10, 14, 12, 7, 6, 15, 16, 17, 18, 19,
+#define OMM_STAR_COLOR_OFFSET(...)                      0
+#define OMM_STAR_COLOR_COUNT                            20
+#define OMM_LEVEL_ENTRY_WARP(levelNum)                  ((levelNum) == LEVEL_JRB ? 0x01 : 0x0A)
 #define OMM_LEVEL_EXIT_DISTANCE                         500
 #define OMM_LEVEL_SLIDE                                 LEVEL_SA
+#define OMM_LEVEL_ENTRY_POINT                           LEVEL_GROUNDS
 #define OMM_LEVEL_RETURN_TO_CASTLE                      LEVEL_GROUNDS, 1, 0x80, 0
 #define OMM_LEVEL_END                                   LEVEL_ENDING
+#define OMM_SEQ_MAIN_MENU                               0x21
+#define OMM_SEQ_FILE_SELECT                             0x31
+#define OMM_SEQ_STAR_SELECT                             0x2D
+#define OMM_SEQ_PALETTE_EDITOR                          0x33
+#define OMM_STATS_BOARD_LEVEL                           LEVEL_GROUNDS
+#define OMM_STATS_BOARD_AREA                            1
+#define OMM_STATS_BOARD_X                               -4000
+#define OMM_STATS_BOARD_Y                               -614
+#define OMM_STATS_BOARD_Z                               -3500
+#define OMM_STATS_BOARD_ANGLE                           0xC000
 #define OMM_CAMERA_LOOK_UP_WARP_STARS                   120
 #define OMM_CAMERA_IS_BOWSER_FIGHT                      (gCurrLevelNum == LEVEL_BOWSER_3)
 #define OMM_NUM_PLAYABLE_CHARACTERS                     2
-#define OMM_NUM_SAVE_FILES                              1
-#define OMM_PALETTE_EDITOR_MUSIC                        0x33
+#define OMM_NUM_SAVE_MODES                              1
+#define OMM_NUM_STARS_MAX_PER_COURSE                    7
+#define OMM_NUM_ACTS_MAX_PER_COURSE                     (OMM_NUM_STARS_MAX_PER_COURSE - 1)
 #define OMM_TEXT_FORMAT(id, str)                        str
 #define STAR                                            "STAR"
 #define Star                                            "Star"
@@ -167,6 +192,12 @@
 #define OMM_SPARKLY_BLOCK_Y                             720
 #define OMM_SPARKLY_BLOCK_Z                             -2340
 #define OMM_SPARKLY_BLOCK_ANGLE                         0x0000
+
+// Extra text
+#define OMM_TEXT_FS_PLAY                                "SELECT FILE", NULL, NULL, NULL
+#define OMM_TEXT_FS_COPY                                "COPY FILE", NULL, NULL, NULL
+#define OMM_TEXT_FS_ERASE                               "ERASE FILE", "SPARKLY STARS", NULL, NULL
+#define OMM_TEXT_FS_SCORE                               "SCORES", "SPARKLY STARS", NULL, NULL
 
 // Files
 #define FILE_MACRO_PRESETS_H                            "macro_preset_names.h"

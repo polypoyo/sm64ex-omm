@@ -60,7 +60,7 @@ void omm_perry_update_graphics(struct MarioState *m, Mat4 transform, Vec3f trans
                 handRot[1] += relerp_0_1_s(m->marioObj->oAnimInfo.animFrame, 18, 58, 0x0000, 0x3000);
                 handRot[2] += relerp_0_1_s(m->marioObj->oAnimInfo.animFrame, 18, 58, 0x0000, 0x2000);
                 perryScale  = clamp_f(m->actionTimer / 5.f, 0.01f, 1.f);
-                perryFlags  = OBJ_INT_PERRY_SWORD;
+                perryFlags  = OBJ_INT_PERRY_SWORD | OBJ_INT_PERRY_CHARGE;
             } break;
 
             // Charge (air)
@@ -71,7 +71,7 @@ void omm_perry_update_graphics(struct MarioState *m, Mat4 transform, Vec3f trans
                 handRot[1] += relerp_0_1_s(m->marioObj->oAnimInfo.animFrame, 0, 10, 0x0000, 0x1800);
                 handRot[2] += relerp_0_1_s(m->marioObj->oAnimInfo.animFrame, 0, 10, 0x0000, 0x0000);
                 perryScale  = clamp_f(m->actionTimer / 5.f, 0.01f, 1.f);
-                perryFlags  = OBJ_INT_PERRY_SWORD;
+                perryFlags  = OBJ_INT_PERRY_SWORD | OBJ_INT_PERRY_CHARGE;
             } break;
 
             // Attack (ground)
@@ -104,17 +104,29 @@ void omm_perry_update_graphics(struct MarioState *m, Mat4 transform, Vec3f trans
 
         // Set attributes
         if (perryFlags & OBJ_INT_PERRY_SWORD) {
-            handVec[0] += 16;
-            handVec[1] += 32 * coss(handRot[0]);
-            handVec[2] += 32 * sins(handRot[0]);
+            f32 handRotMult = 1.f;
+            if (OMM_PLAYER_IS_PEACH) {
+                handVec[0] += 16;
+                handVec[1] += 32 * coss(handRot[0]);
+                handVec[2] += 32 * sins(handRot[0]);
+            } else if (perryFlags & OBJ_INT_PERRY_CHARGE) {
+                handVec[0] += 32;
+                handVec[1] += 32 * coss(handRot[0]) - 24;
+                handVec[2] += 64 * sins(handRot[0]);
+            } else {
+                handVec[0] *= 1.5f;
+                handVec[1] *= 1.5f;
+                handVec[2] *= 1.5f;
+                handRotMult = 0.25f;
+            }
             Mat4 matrix, identity;
             mtxf_identity(identity);
             mtxf_rotate_xyz_and_translate(matrix, handVec, handRot);
             mtxf_mul(matrix, matrix, transform);
             get_pos_from_transform_mtx(&o->oPosX, matrix, identity);
-            o->oPerryRightHandRot(0) = handRot[0] - rotation[0];
-            o->oPerryRightHandRot(1) = handRot[1] - rotation[1];
-            o->oPerryRightHandRot(2) = handRot[2] - rotation[2];
+            o->oPerryRightHandRot(0) = (handRot[0] - rotation[0]) * handRotMult;
+            o->oPerryRightHandRot(1) = (handRot[1] - rotation[1]) * handRotMult;
+            o->oPerryRightHandRot(2) = (handRot[2] - rotation[2]) * handRotMult;
         } else {
             vec3f_normalize(armVec);
             vec3f_mul(armVec, 8.f * m->marioObj->oScaleX);
@@ -124,8 +136,9 @@ void omm_perry_update_graphics(struct MarioState *m, Mat4 transform, Vec3f trans
         obj_set_angle(o, armRot[0], armRot[1], armRot[2]);
         obj_scale_xyz(o, perryScale * m->marioObj->oScaleX, perryScale * m->marioObj->oScaleY, perryScale * m->marioObj->oScaleZ);
         obj_update_gfx(o);
+        u8 marioOpacity = ((m->marioBodyState->modelState & 0x500) == 0x100 ? (m->marioBodyState->modelState & 0xFF) : 0xFF);
         o->oAction = !(perryFlags & OBJ_INT_PERRY_SWORD);
-        o->oOpacity = (perryScale != 0.f) * ((m->marioBodyState->modelState & 0x100) ? (m->marioBodyState->modelState & 0xFF) : 0xFF) * !(m->marioObj->oNodeFlags & GRAPH_RENDER_INVISIBLE);
+        o->oOpacity = marioOpacity * (perryScale != 0.f) * !(m->marioObj->oNodeFlags & GRAPH_RENDER_INVISIBLE);
         o->oPerryFlags = perryFlags;
     }
 }

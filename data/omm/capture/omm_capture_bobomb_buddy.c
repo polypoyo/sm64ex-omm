@@ -40,7 +40,7 @@ s32 omm_cappy_bobomb_buddy_update(struct Object *o) {
 
         // Check cannon
         if (gOmmObject->state.actionState == 0 && omm_mario_lock(gMarioState, -1)) {
-            if (cur_obj_nearest_object_with_behavior(bhvCannonClosed)) {
+            if (obj_get_nearest_with_behavior(o, bhvCannonClosed)) {
                 gOmmObject->state.actionState = 1;
             } else {
                 gOmmObject->state.actionState = 5;
@@ -64,8 +64,8 @@ s32 omm_cappy_bobomb_buddy_update(struct Object *o) {
 
         // Start cannon opening cutscene
         else if (gOmmObject->state.actionState == 3) {
-            if (obj_cutscene_start(CUTSCENE_PREPARE_CANNON, cur_obj_nearest_object_with_behavior(bhvCannonClosed))) {
-                save_file_set_cannon_unlocked();
+            if (obj_cutscene_start(CUTSCENE_PREPARE_CANNON, obj_get_nearest_with_behavior(o, bhvCannonClosed))) {
+                omm_save_file_set_cannon_unlocked(gCurrSaveFileNum - 1, OMM_GAME_MODE, gCurrCourseNum - 1);
                 gOmmObject->state.actionState = 4;
             }
         }
@@ -102,7 +102,7 @@ s32 omm_cappy_bobomb_buddy_update(struct Object *o) {
     } else {
         gOmmObject->state.actionTimer--;
     }
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -113,5 +113,5 @@ s32 omm_cappy_bobomb_buddy_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.2f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

@@ -91,7 +91,7 @@ static struct Surface *omm_surface_create(s16 *vBuffer, s16 vCount, s16 *vTransl
     if (mag < 0.1f) return NULL;
 
     // Create surface
-    omm_array_grow(sOmmLoadedSurfaces, ptr, omm_new(struct Surface, 1), gSurfacesAllocated + 1);
+    omm_array_grow(sOmmLoadedSurfaces, ptr, mem_new(struct Surface, 1), gSurfacesAllocated + 1);
     struct Surface *surface = omm_array_get(sOmmLoadedSurfaces, ptr, gSurfacesAllocated++);
     surface->type           = 0;
     surface->force          = 0;
@@ -214,10 +214,10 @@ static void omm_surface_process_data(s16 areaIndex, s16 *data, struct Object *o,
 
                     // Store the vertex buffer in the look-up table
                     if (!params) {
-                        Col *col = omm_new(Col, 1);
+                        Col *col = mem_new(Col, 1);
                         col->start = data;
                         col->count = vCount;
-                        col->verts = omm_dup(vBuffer, vCount * 4 * sizeof(s16));
+                        col->verts = mem_dup(vBuffer, vCount * 4 * sizeof(s16));
                         omm_hmap_insert(sOmmCollisionCache, (uintptr_t) o->collisionData, col);
                     }
 
@@ -331,8 +331,8 @@ u32 get_area_terrain_size(s16 *data) {
     static const s16 sCmdColEndByteSequence[] = { COL_CMD_END_BYTE_SEQUENCE };
     for (s16 *head = data;; head++) {
         if (*head == COL_CMD_END) {
-            if (omm_same(head + 1, sCmdColEndByteSequence, omm_static_array_length(sCmdColEndByteSequence))) {
-                return (u32) ((head - data) + 1 + omm_static_array_length(sCmdColEndByteSequence));
+            if (mem_eq(head + 1, sCmdColEndByteSequence, array_length(sCmdColEndByteSequence))) {
+                return (u32) ((head - data) + 1 + array_length(sCmdColEndByteSequence));
             }
         }
     }
@@ -387,7 +387,7 @@ static void omm_fix_object_collision_data(struct Object *o) {
         { thwomp_seg5_collision_0500B7D0, omm_thwomp_collision },
         { thwomp_seg5_collision_0500B92C, omm_thwomp_collision },
     };
-    for (s32 i = 0; i != omm_static_array_length(sFixedCollisions); ++i) {
+    for (s32 i = 0; i != array_length(sFixedCollisions); ++i) {
         if (o->collisionData == sFixedCollisions[i][OMM_MOVESET_CLASSIC]) {
             o->collisionData = (void *) sFixedCollisions[i][OMM_MOVESET_ODYSSEY];
             return;
@@ -400,8 +400,8 @@ OMM_ROUTINE_LEVEL_ENTRY(omm_clear_collision_buffers) {
     omm_hmap_for_each(sOmmCollisionCache, _, v) {
         Col *col = (Col *) *v;
         if (col) {
-            omm_free(col->verts);
-            omm_free(col);
+            mem_del(col->verts);
+            mem_del(col);
         }
     }
     omm_hmap_delete(sOmmCollisionCache);
@@ -470,10 +470,10 @@ static Gfx *omm_debug_surfaces_get_display_list() {
     static Vtx    *sOmmDebugRenderSurfacesVertices    = NULL;
 
     // Init
-    omm_free(sOmmDebugRenderSurfacesDisplayList);
-    omm_free(sOmmDebugRenderSurfacesVertices);
-    sOmmDebugRenderSurfacesDisplayList = omm_new(Gfx, 4 + gSurfacesAllocated * 10);
-    sOmmDebugRenderSurfacesVertices = omm_new(Vtx, gSurfacesAllocated * 6);
+    mem_del(sOmmDebugRenderSurfacesDisplayList);
+    mem_del(sOmmDebugRenderSurfacesVertices);
+    sOmmDebugRenderSurfacesDisplayList = mem_new(Gfx, 4 + gSurfacesAllocated * 10);
+    sOmmDebugRenderSurfacesVertices = mem_new(Vtx, gSurfacesAllocated * 6);
     Gfx *gfx = sOmmDebugRenderSurfacesDisplayList;
     Vtx *vtx = sOmmDebugRenderSurfacesVertices;
 

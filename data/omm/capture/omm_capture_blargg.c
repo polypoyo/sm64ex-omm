@@ -60,11 +60,11 @@ s32 omm_cappy_blargg_update(struct Object *o) {
     }
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -80,11 +80,11 @@ s32 omm_cappy_blargg_update(struct Object *o) {
 
         // Throw fire ball
         case 1: {
-            obj_anim_play(o, 1, 1.f);
+            obj_anim_play(o, 1, 1.5f);
             if (obj_anim_is_past_frame(o, 12)) {
                 obj_play_sound(o, SOUND_OBJ_FLAME_BLOWN | 0xFF00);
                 omm_spawn_blargg_fire_ball(o);
-            } else if (obj_anim_is_at_end(o)) {
+            } else if (obj_anim_is_near_end(o)) {
                 gOmmObject->state.actionState = 0;
                 omm_mario_unlock(gMarioState);
             }
@@ -99,5 +99,5 @@ s32 omm_cappy_blargg_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.f * (gOmmObject->state.actionState != 1);
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

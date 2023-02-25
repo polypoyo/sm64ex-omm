@@ -6,29 +6,29 @@
 
 #define DECLARE_KBINDS(option)                  extern u32 option[MAX_BINDS]
 #define DECLARE_TOGGLE(option)                  extern bool option
-#define DECLARE_TOGGLE_SC(option)               extern bool option; DECLARE_KBINDS(option##Shortcuts)
-#define DECLARE_CHOICE(option)                  extern u32 option
-#define DECLARE_CHOICE_SC(option)               extern u32 option; DECLARE_KBINDS(option##Shortcuts)
+#define DECLARE_CHOICE(option)                  extern u32 option; extern const u32 option##Count
 #define DECLARE_SCROLL(option)                  extern u32 option
+#define DECLARE_TOGGLE_SC(option)               DECLARE_TOGGLE(option); DECLARE_KBINDS(option##Shortcuts)
+#define DECLARE_CHOICE_SC(option)               DECLARE_CHOICE(option); DECLARE_KBINDS(option##Shortcuts)
 
 #define DEFINE_KBINDS(option, v0, v1, v2)       u32 option[MAX_BINDS] = { v0, v1, v2 }
 #define DEFINE_TOGGLE(option, v)                bool option = v
-#define DEFINE_TOGGLE_SC(option, v)             bool option = v; DEFINE_KBINDS(option##Shortcuts, VK_INVALID, VK_INVALID, VK_INVALID)
-#define DEFINE_CHOICE(option, v)                u32 option = v
-#define DEFINE_CHOICE_SC(option, v)             u32 option = v; DEFINE_KBINDS(option##Shortcuts, VK_INVALID, VK_INVALID, VK_INVALID)
+#define DEFINE_CHOICE(option, v, count)         u32 option = v; const u32 option##Count = count
 #define DEFINE_SCROLL(option, v)                u32 option = v
+#define DEFINE_TOGGLE_SC(option, v)             DEFINE_TOGGLE(option, v); DEFINE_KBINDS(option##Shortcuts, VK_INVALID, VK_INVALID, VK_INVALID)
+#define DEFINE_CHOICE_SC(option, v, count)      DEFINE_CHOICE(option, v, count); DEFINE_KBINDS(option##Shortcuts, VK_INVALID, VK_INVALID, VK_INVALID)
 
 #define READ_KBINDS(option)                     if (strcmp(token.args[0], #option) == 0) { sscanf(token.args[1], "%X", &option[0]); sscanf(token.args[2], "%X", &option[1]); sscanf(token.args[3], "%X", &option[2]); continue; }
 #define READ_TOGGLE(option)                     if (strcmp(token.args[0], #option) == 0) { option = (token.args[1][0] == '1'); continue; }
-#define READ_TOGGLE_SC(option)                  if (strcmp(token.args[0], #option) == 0) { option = (token.args[1][0] == '1'); continue; } READ_KBINDS(option##Shortcuts)
-#define READ_CHOICE(option)                     if (strcmp(token.args[0], #option) == 0) { sscanf(token.args[1], "%u", &option); continue; }
-#define READ_CHOICE_SC(option)                  if (strcmp(token.args[0], #option) == 0) { sscanf(token.args[1], "%u", &option); continue; } READ_KBINDS(option##Shortcuts)
+#define READ_CHOICE(option)                     if (strcmp(token.args[0], #option) == 0) { if (sscanf(token.args[1], "%u", &option)) { option *= (option < option##Count); } continue; }
+#define READ_TOGGLE_SC(option)                  READ_TOGGLE(option); READ_KBINDS(option##Shortcuts)
+#define READ_CHOICE_SC(option)                  READ_CHOICE(option); READ_KBINDS(option##Shortcuts)
 
 #define WRITE_KBINDS(option)                    write("%s = %04hX %04hX %04hX\n", #option, (u16) option[0], (u16) option[1], (u16) option[2])
 #define WRITE_TOGGLE(option)                    write("%s = %u\n", #option, (option ? 1 : 0))
-#define WRITE_TOGGLE_SC(option)                 write("%s = %u\n", #option, (option ? 1 : 0)); WRITE_KBINDS(option##Shortcuts)
 #define WRITE_CHOICE(option)                    write("%s = %u\n", #option, option)
-#define WRITE_CHOICE_SC(option)                 write("%s = %u\n", #option, option); WRITE_KBINDS(option##Shortcuts)
+#define WRITE_TOGGLE_SC(option)                 WRITE_TOGGLE(option); WRITE_KBINDS(option##Shortcuts)
+#define WRITE_CHOICE_SC(option)                 WRITE_CHOICE(option); WRITE_KBINDS(option##Shortcuts)
 
 typedef struct { const u8 *label; void *subMenu; } OmmOptMenu;
 extern OmmOptMenu gOmmOptMenu;
@@ -39,10 +39,11 @@ extern OmmOptMenu gOmmOptCheats;
 #if !OMM_CODE_DYNOS
 extern OmmOptMenu gOmmOptWarpToLevel;
 extern OmmOptMenu gOmmOptReturnToMainMenu;
+extern OmmOptMenu gOmmOptModels;
+extern bool **gOmmOptModelsEnabled;
 #endif
 
 enum OmmFps { OMM_FPS_30, OMM_FPS_60, OMM_FPS_AUTO, OMM_FPS_INF };
-DECLARE_TOGGLE(gOmmOneHealthMode);
 DECLARE_CHOICE(gOmmFrameRate);
 DECLARE_TOGGLE(gOmmShowFPS);
 DECLARE_CHOICE(gOmmPreloadTextures);
@@ -51,6 +52,7 @@ DECLARE_KBINDS(gOmmControlsButtonB);
 DECLARE_KBINDS(gOmmControlsButtonX);
 DECLARE_KBINDS(gOmmControlsButtonY);
 DECLARE_KBINDS(gOmmControlsButtonStart);
+DECLARE_KBINDS(gOmmControlsButtonSpin);
 DECLARE_KBINDS(gOmmControlsTriggerL);
 DECLARE_KBINDS(gOmmControlsTriggerR);
 DECLARE_KBINDS(gOmmControlsTriggerZ);
@@ -98,6 +100,7 @@ DECLARE_TOGGLE(gOmmCheatMarioTeleportsToCappy);
 DECLARE_TOGGLE(gOmmCheatCappyCanCollectStars);
 DECLARE_TOGGLE(gOmmCheatPlayAsCappy);
 DECLARE_TOGGLE(gOmmCheatPeachEndlessVibeGauge);
+DECLARE_TOGGLE(gOmmCheatShadowMario);
 DECLARE_CHOICE(gOmmExtrasMarioColors);
 DECLARE_CHOICE(gOmmExtrasPeachColors);
 DECLARE_TOGGLE_SC(gOmmExtrasSMOAnimations);
@@ -118,38 +121,7 @@ DECLARE_TOGGLE_SC(gOmmDebugMario);
 DECLARE_TOGGLE_SC(gOmmDebugCappy);
 #endif
 #if OMM_CODE_DEV
-DECLARE_TOGGLE_SC(gOmmDevGameSpeedEnable);
-DECLARE_CHOICE_SC(gOmmDevGameSpeedModifier);
-DECLARE_TOGGLE_SC(gOmmDevSaveState);
-DECLARE_TOGGLE_SC(gOmmDevLoadState);
-DECLARE_SCROLL(gOmmDevMainStarsBob);
-DECLARE_SCROLL(gOmmDevMainStarsWf);
-DECLARE_SCROLL(gOmmDevMainStarsJrb);
-DECLARE_SCROLL(gOmmDevMainStarsCcm);
-DECLARE_SCROLL(gOmmDevMainStarsBbh);
-DECLARE_SCROLL(gOmmDevMainStarsHmc);
-DECLARE_SCROLL(gOmmDevMainStarsLll);
-DECLARE_SCROLL(gOmmDevMainStarsSsl);
-DECLARE_SCROLL(gOmmDevMainStarsDdd);
-DECLARE_SCROLL(gOmmDevMainStarsSl);
-DECLARE_SCROLL(gOmmDevMainStarsWdw);
-DECLARE_SCROLL(gOmmDevMainStarsTtm);
-DECLARE_SCROLL(gOmmDevMainStarsThi);
-DECLARE_SCROLL(gOmmDevMainStarsTtc);
-DECLARE_SCROLL(gOmmDevMainStarsRr);
-DECLARE_SCROLL(gOmmDevMainStarsBitdw);
-DECLARE_SCROLL(gOmmDevMainStarsBitfs);
-DECLARE_SCROLL(gOmmDevMainStarsBits);
-DECLARE_SCROLL(gOmmDevMainStarsTotwc);
-DECLARE_SCROLL(gOmmDevMainStarsCotmc);
-DECLARE_SCROLL(gOmmDevMainStarsVcutm);
-DECLARE_SCROLL(gOmmDevMainStarsPss);
-DECLARE_SCROLL(gOmmDevMainStarsWmotr);
-DECLARE_SCROLL(gOmmDevMainStarsSa);
-DECLARE_SCROLL(gOmmDevMainStarsCastle);
-DECLARE_SCROLL(gOmmDevSparklyStarsNormal);
-DECLARE_SCROLL(gOmmDevSparklyStarsHard);
-DECLARE_SCROLL(gOmmDevSparklyStarsLunatic);
+#include "data/omm/dev/omm_dev_opt_declare.inl"
 #endif
 
 #if OMM_GAME_IS_SM74

@@ -30,6 +30,7 @@ static void keyboard_bindkeys(void) {
     keyboard_add_binds(X_BUTTON, gOmmControlsButtonX);
     keyboard_add_binds(Y_BUTTON, gOmmControlsButtonY);
     keyboard_add_binds(START_BUTTON, gOmmControlsButtonStart);
+    keyboard_add_binds(JPAD_MASK, gOmmControlsButtonSpin);
     keyboard_add_binds(L_TRIG, gOmmControlsTriggerL);
     keyboard_add_binds(R_TRIG, gOmmControlsTriggerR);
     keyboard_add_binds(Z_TRIG, gOmmControlsTriggerZ);

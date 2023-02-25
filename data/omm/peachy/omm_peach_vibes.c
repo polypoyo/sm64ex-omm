@@ -196,7 +196,7 @@ static void omm_peach_vibe_update_gauge(struct MarioState *m) {
 static s32 omm_peach_vibe_handle_inputs() {
     if (gOmmPeach->vibeTimer > OMM_PEACH_VIBE_COOLDOWN) {
         if (gPlayer1Controller->buttonPressed & Y_BUTTON) {
-            switch (gPlayer1Controller->buttonDown & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
+            switch (JPAD_INPUT(gPlayer1Controller->buttonDown) & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
                 case U_JPAD: return (gOmmPeach->vibeGauge < OMM_PEACH_VIBE_GAUGE_LIMIT) * OMM_PEACH_VIBE_TYPE_JOY;
                 case D_JPAD: return (gOmmPeach->vibeGauge < OMM_PEACH_VIBE_GAUGE_LIMIT) * OMM_PEACH_VIBE_TYPE_CALM;
                 case L_JPAD: return (gOmmPeach->vibeGauge < OMM_PEACH_VIBE_GAUGE_LIMIT) * OMM_PEACH_VIBE_TYPE_GLOOM;
@@ -419,7 +419,7 @@ static void omm_peach_vibe_update_sequences(s32 seqPlayer, s32 *seqList) {
 OMM_ROUTINE_PRE_RENDER(omm_peach_vibe_update_music) {
     if (OMM_PLAYER_IS_PEACH) {
         omm_peach_vibe_update_sequences(SEQ_PLAYER_LEVEL, NULL);
-        omm_peach_vibe_update_sequences(SEQ_PLAYER_ENV, omm_static_array_of(s32) { SEQ_EVENT_PIRANHA_PLANT, SEQ_EVENT_MERRY_GO_ROUND, SEQ_EVENT_BOSS, SEQ_EVENT_ENDLESS_STAIRS, -1 });
+        omm_peach_vibe_update_sequences(SEQ_PLAYER_ENV, array_of(s32) { SEQ_EVENT_PIRANHA_PLANT, SEQ_EVENT_MERRY_GO_ROUND, SEQ_EVENT_BOSS, SEQ_EVENT_ENDLESS_STAIRS, -1 });
     }
 }
 

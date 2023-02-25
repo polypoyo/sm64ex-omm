@@ -22,11 +22,7 @@ bool obj_check_model(struct Object *o, s32 modelId) {
 }
 
 bool obj_has_graph_node(struct Object *o, struct GraphNode *node) {
-    return
-#if OMM_CODE_DYNOS
-           (o->oGraphNode && node && o->oGraphNode->georef == node->georef) ||
-#endif
-           (o->oGraphNode == node);
+    return (o->oGraphNode && node && o->oGraphNode->georef == node->georef) || (o->oGraphNode == node);
 }
 
 bool obj_is_surface(struct Object *o) {
@@ -43,7 +39,7 @@ bool obj_is_on_ground(struct Object *o) {
 // Return true only if the bottom Goomba is completely submerged
 bool obj_is_underwater(struct Object *o, f32 waterLevel) {
     if (omm_obj_is_goomba(o)) {
-        if (gMarioState->action == ACT_OMM_POSSESSION && gOmmCapture == o) {
+        if (omm_mario_is_capture(gMarioState) && gOmmCapture == o) {
             return (o->oPosY + (omm_capture_get_hitbox_height(o)) - (omm_capture_get_hitbox_down_offset(o))) < waterLevel;        
         }
         return (o->oPosY + o->hitboxHeight - o->hitboxDownOffset) < waterLevel;
@@ -348,9 +344,8 @@ void obj_make_step_sound_and_particle(struct Object *o, f32 *dist, f32 distMin, 
             omm_spawn_fire_smoke(o, 0);
         }
         if (particles & OBJ_PARTICLE_FLAME) {
-            for (s32 i = 0; i != 2; ++i) {
-                spawn_object(o, MODEL_RED_FLAME, bhvKoopaShellFlame);
-            }
+            spawn_object(o, MODEL_RED_FLAME, bhvKoopaShellFlame);
+            spawn_object(o, MODEL_RED_FLAME, bhvKoopaShellFlame);
         }
 
         // Sound effect
@@ -400,7 +395,7 @@ s32 obj_get_coin_type(struct Object *o) {
 
 void obj_spawn_star(struct Object *o, f32 xFrom, f32 yFrom, f32 zFrom, f32 xTo, f32 yTo, f32 zTo, s32 starIndex, bool noExit) {
     struct Object *star = spawn_object_abs_with_rot(o, 0, MODEL_STAR, bhvStarSpawnCoordinates, xFrom, yFrom, zFrom, 0, 0, 0);
-    star->oBhvArgs = ((starIndex & 0x1F) << 24);
+    star->oBehParams = ((starIndex & 0x1F) << 24);
     star->oHomeX = xTo;
     star->oHomeY = yTo;
     star->oHomeZ = zTo;
@@ -420,7 +415,7 @@ void obj_spawn_white_puff_at(f32 x, f32 y, f32 z, s32 soundBits) {
             particle->oPosX = x;
             particle->oPosY = y;
             particle->oPosZ = z;
-            particle->oBhvArgs2ndByte = 2;
+            particle->oBehParams2ndByte = 2;
             particle->oMoveAngleYaw = random_u16();
             particle->oGravity = -4.f;
             particle->oDragStrength = 30.f;
@@ -477,6 +472,38 @@ void obj_spawn_particles(struct Object *o, s32 count, s32 model, f32 yOffset, f3
         particle->oVelY = yVelBase + yVelRange * random_float();
         f32 scale = scaleBase + scaleRange * random_float();
         obj_scale_xyz(particle, scale, scale, scale);
+    }
+}
+
+void obj_spawn_particle_preset(struct Object *o, u32 particle, bool setActiveParticle) {
+    static const struct { u32 particle; u32 active; s32 model; const BehaviorScript *behavior; } sObjParticlePresets[] = {
+        { PARTICLE_DUST,                 ACTIVE_PARTICLE_DUST,                 MODEL_MIST,                 bhvMistParticleSpawner     },
+        { PARTICLE_VERTICAL_STAR,        ACTIVE_PARTICLE_V_STAR,               MODEL_NONE,                 bhvVertStarParticleSpawner },
+        { PARTICLE_HORIZONTAL_STAR,      ACTIVE_PARTICLE_H_STAR,               MODEL_NONE,                 bhvHorStarParticleSpawner  },
+        { PARTICLE_SPARKLES,             ACTIVE_PARTICLE_SPARKLES,             MODEL_SPARKLES,             bhvSparkleParticleSpawner  },
+        { PARTICLE_BUBBLE,               ACTIVE_PARTICLE_BUBBLE,               MODEL_BUBBLE,               bhvBubbleParticleSpawner   },
+        { PARTICLE_WATER_SPLASH,         ACTIVE_PARTICLE_WATER_SPLASH,         MODEL_WATER_SPLASH,         bhvWaterSplash             },
+        { PARTICLE_IDLE_WATER_WAVE,      ACTIVE_PARTICLE_IDLE_WATER_WAVE,      MODEL_IDLE_WATER_WAVE,      bhvIdleWaterWave           },
+        { PARTICLE_PLUNGE_BUBBLE,        ACTIVE_PARTICLE_PLUNGE_BUBBLE,        MODEL_WHITE_PARTICLE_SMALL, bhvPlungeBubble            },
+        { PARTICLE_WAVE_TRAIL,           ACTIVE_PARTICLE_WAVE_TRAIL,           MODEL_WAVE_TRAIL,           bhvWaveTrail               },
+        { PARTICLE_FIRE,                 ACTIVE_PARTICLE_FIRE,                 MODEL_RED_FLAME,            bhvFireParticleSpawner     },
+        { PARTICLE_SHALLOW_WATER_WAVE,   ACTIVE_PARTICLE_SHALLOW_WATER_WAVE,   MODEL_NONE,                 bhvShallowWaterWave        },
+        { PARTICLE_SHALLOW_WATER_SPLASH, ACTIVE_PARTICLE_SHALLOW_WATER_SPLASH, MODEL_NONE,                 bhvShallowWaterSplash      },
+        { PARTICLE_LEAF,                 ACTIVE_PARTICLE_LEAF,                 MODEL_NONE,                 bhvLeafParticleSpawner     },
+        { PARTICLE_SNOW,                 ACTIVE_PARTICLE_SNOW,                 MODEL_NONE,                 bhvSnowParticleSpawner     },
+        { PARTICLE_BREATH,               ACTIVE_PARTICLE_BREATH,               MODEL_NONE,                 bhvBreathParticleSpawner   },
+        { PARTICLE_DIRT,                 ACTIVE_PARTICLE_DIRT,                 MODEL_NONE,                 bhvDirtParticleSpawner     },
+        { PARTICLE_MIST_CIRCLE,          ACTIVE_PARTICLE_MIST_CIRCLE,          MODEL_NONE,                 bhvMistCircParticleSpawner },
+        { PARTICLE_TRIANGLE,             ACTIVE_PARTICLE_TRIANGLE,             MODEL_NONE,                 bhvTriangleParticleSpawner },
+    };
+    if (!setActiveParticle || !(o->oActiveParticleFlags & particle)) {
+        for (s32 i = 0; i != array_length(sObjParticlePresets); ++i) {
+            if (sObjParticlePresets[i].particle == particle) {
+                o->oActiveParticleFlags |= (sObjParticlePresets[i].active * setActiveParticle);
+                spawn_object(o, sObjParticlePresets[i].model, sObjParticlePresets[i].behavior);
+                return;
+            }
+        }
     }
 }
 
@@ -586,8 +613,8 @@ static void obj_destroy_spawn_star(struct Object *o, s32 soundBits, f32 xFrom, f
 }
 
 static void obj_destroy_whomp_king(struct Object *o, UNUSED s32 unused) {
-    play_sound(SOUND_OBJ2_WHOMP_SOUND_SHORT, o->oCameraToObject);
-    play_sound(SOUND_OBJ_KING_WHOMP_DEATH, o->oCameraToObject);
+    obj_play_sound(o, SOUND_OBJ2_WHOMP_SOUND_SHORT);
+    obj_play_sound(o, SOUND_OBJ_KING_WHOMP_DEATH);
     o->oHealth = 0;
     o->oAction = 8;
 }
@@ -605,6 +632,7 @@ static void obj_destroy_eyerock_hand(struct Object *o, s32 soundBits, u8 r, u8 g
 #define destroy_preset(bhv, cond, func, ...)    \
     if ((o->behavior == bhv) && (cond)) {       \
         func(o, __VA_ARGS__);                   \
+        o->oFlags |= OBJ_FLAG_0100;             \
         return;                                 \
     }
 
@@ -629,7 +657,7 @@ void obj_destroy(struct Object *o) {
     destroy_preset(bhvBulletBill, 1, obj_destroy_bullet_bill, 0);
     destroy_preset(bhvHauntedChair, 1, obj_destroy_white_puff, 0, SOUND_OBJ_DEFAULT_DEATH);
     destroy_preset(bhvJrbSlidingBox, 1, obj_destroy_break_particles, 0, SOUND_GENERAL_WALL_EXPLOSION, 0x50, 0x40, 0x00);
-    destroy_preset(bhvMrI, o->oBhvArgs2ndByte, obj_destroy_spawn_star, SOUND_OBJ_MRI_DEATH, o->oPosX, o->oPosY + 100.f, o->oPosZ, 1370, 2000, -320, (o->oBhvArgs >> 24), false);
+    destroy_preset(bhvMrI, o->oBehParams2ndByte, obj_destroy_spawn_star, SOUND_OBJ_MRI_DEATH, o->oPosX, o->oPosY + 100.f, o->oPosZ, 1370, 2000, -320, (o->oBehParams >> 24), false);
     destroy_preset(bhvMrI, 1, obj_destroy_white_puff, -1, SOUND_OBJ_MRI_DEATH);
     destroy_preset(bhvSpiny, 1, obj_destroy_white_puff, 0, SOUND_OBJ_DEFAULT_DEATH);
     destroy_preset(bhvSmallWhomp, 1, obj_destroy_break_particles, 5, SOUND_OBJ_THWOMP, 0xE0, 0xE0, 0xE0);
@@ -668,8 +696,10 @@ void obj_destroy(struct Object *o) {
     // Default (white puff)
     if (o->oDeathSound) {
         obj_destroy_white_puff(o, o->oNumLootCoins, o->oDeathSound);
+        o->oFlags |= OBJ_FLAG_0100;
     } else {
         obj_destroy_white_puff(o, o->oNumLootCoins, SOUND_OBJ_DEFAULT_DEATH);
+        o->oFlags |= OBJ_FLAG_0100;
     }
 }
 
@@ -678,7 +708,7 @@ void obj_create_respawner(struct Object *o, s32 model, const BehaviorScript *beh
     respawner->oPosX = o->oHomeX;
     respawner->oPosY = o->oHomeY;
     respawner->oPosZ = o->oHomeZ;
-    respawner->oBhvArgs = o->oBhvArgs;
+    respawner->oBehParams = o->oBehParams;
     respawner->oRespawnerModelToRespawn = model;
     respawner->oRespawnerMinSpawnDist = minSpawnDist;
     respawner->oRespawnerBehaviorToRespawn = behavior;
@@ -804,7 +834,7 @@ bool obj_set_knockback(struct Object *o, struct Object *from, s32 knockbackType,
             o->oForwardVel = fvel;
             o->oAction |= ((knockbackType + 1) << 16);
             o->activeFlags |= ACTIVE_FLAG_KNOCKED_BACK;
-            play_sound(SOUND_ACTION_BOUNCE_OFF_OBJECT, o->oCameraToObject);
+            obj_play_sound(o, SOUND_ACTION_BOUNCE_OFF_OBJECT);
             return true;
         }
     } else {
@@ -845,7 +875,7 @@ struct Object *obj_get_red_coin_star() {
     }
 
     // Actual red coin star
-    for_each_until_null(const BehaviorScript *, bhv, omm_static_array_of(const BehaviorScript *) { bhvStar, bhvStarSpawnCoordinates, NULL }) {
+    for_each_until_null(const BehaviorScript *, bhv, array_of(const BehaviorScript *) { bhvStar, bhvStarSpawnCoordinates, NULL }) {
         for_each_object_with_behavior(star, *bhv) {
             if (star->activeFlags & ACTIVE_FLAG_RED_COIN_STAR) {
                 return star;
@@ -862,6 +892,12 @@ static struct {
     Vec3f vel;
     s32 duration;
 } sOmmDoor[2];
+s32 sUpdateDoorTimer = 0;
+
+#if OMM_CODE_DEV
+u8 *gOmmDoorData = (u8 *) &sOmmDoor;
+const s32 gOmmDoorSize = sizeof(sOmmDoor);
+#endif
 
 static void open_door(struct Object *o, struct Object *door1, struct Object *door2, s32 duration) {
     if (o == gOmmCapture) {
@@ -918,7 +954,6 @@ void obj_open_door(struct Object *o, struct Object *door) {
 }
 
 bool obj_update_door(struct Object *o) {
-    static s32 sUpdateDoorTimer = 0;
     if (sOmmDoor[0].duration == 0) {
         sUpdateDoorTimer = 0;
         return false;
@@ -965,8 +1000,8 @@ bool obj_update_door(struct Object *o) {
     return true;
 }
 
-static s16 sObjDialogId = -1;
-static s32 sObjDialogState = 0;
+s16 sObjDialogId = -1;
+s32 sObjDialogState = 0;
 
 bool obj_dialog_start(s16 dialogId) {
     if (sObjDialogState != 0 || dialogId < 0) {
@@ -1003,9 +1038,9 @@ bool obj_dialog_update() {
     return false;
 }
 
-static u8 sObjCutsceneId = 0;
-static s32 sObjCutsceneState = 0;
-static struct Object *sObjCutsceneObj = NULL;
+u8 sObjCutsceneId = 0;
+s32 sObjCutsceneState = 0;
+struct Object *sObjCutsceneObj = NULL;
 
 bool obj_cutscene_start(u8 cutsceneId, struct Object *o) {
     if (sObjCutsceneState || !cutsceneId || !o) {

@@ -26,11 +26,11 @@ static void *fs_packtype_dir_mount(const char *realpath) {
 }
 
 static void fs_packtype_dir_unmount(void *pack) {
-    omm_free(pack);
+    mem_del(pack);
 }
 
 static s32 fs_packtype_dir_walk(void *pack, const char *base, walk_fn_t walkfn, void *user, const bool recur) {
-    omm_cat_paths(path, SYS_MAX_PATH, (const char *) pack, base);
+    str_cat_paths_sa(path, SYS_MAX_PATH, (const char *) pack, base);
     if (fs_sys_dir_exists(path)) {
         struct walkdata_s walkdata = { strlen((const char *) pack) + 1, walkfn, user };
         if (fs_sys_walk(path, packdir_walkfn, &walkdata, recur)) {
@@ -42,20 +42,20 @@ static s32 fs_packtype_dir_walk(void *pack, const char *base, walk_fn_t walkfn, 
 }
 
 static bool fs_packtype_dir_is_file(void *pack, const char *fname) {
-    omm_cat_paths(path, SYS_MAX_PATH, (const char *) pack, fname);
+    str_cat_paths_sa(path, SYS_MAX_PATH, (const char *) pack, fname);
     return fs_sys_file_exists(path);
 }
 
 static bool fs_packtype_dir_is_dir(void *pack, const char *fname) {
-    omm_cat_paths(path, SYS_MAX_PATH, (const char *) pack, fname);
+    str_cat_paths_sa(path, SYS_MAX_PATH, (const char *) pack, fname);
     return fs_sys_dir_exists(path);
 }
 
 static fs_file_t *fs_packtype_dir_open(void *pack, const char *vpath) {
-    omm_cat_paths(path, SYS_MAX_PATH, (const char *) pack, vpath);
+    str_cat_paths_sa(path, SYS_MAX_PATH, (const char *) pack, vpath);
     FILE *f = fopen(path, "rb");
     if (f) {
-        fs_file_t *fsfile = omm_new(fs_file_t, 1);
+        fs_file_t *fsfile = mem_new(fs_file_t, 1);
         if (OMM_LIKELY(fsfile)) {
             fsfile->parent = NULL;
             fsfile->handle = f;
@@ -68,7 +68,7 @@ static fs_file_t *fs_packtype_dir_open(void *pack, const char *vpath) {
 
 static void fs_packtype_dir_close(UNUSED void *pack, fs_file_t *file) {
     fclose((FILE *) file->handle);
-    omm_free(file);
+    mem_del(file);
 }
 
 static s64 fs_packtype_dir_read(UNUSED void *pack, fs_file_t *file, void *buf, const u64 size) {

@@ -44,8 +44,7 @@ static void bhv_omm_hold_update() {
                         // Attack the object
                         case HOLD_ACT_ATTACKED: {
                             o->oInteractStatus = (ATTACK_KICK_OR_TRIP | INT_STATUS_INTERACTED | INT_STATUS_WAS_ATTACKED);
-                            gCurBhvCommand = ((const BehaviorScript *) o->oBhvCommand) - 2;
-                            o->curBhvCommand = ((const BehaviorScript *) o->oBhvCommand);
+                            o->curBhvCommand = ((const BehaviorScript *) o->oBhvCommand) - 2;
                             o->bhvStackIndex = (u32) o->oBhvStackIndex;
                             o->oIntangibleTimer = 0;
                             o->oHeldState = HELD_FREE;
@@ -67,8 +66,7 @@ static void bhv_omm_hold_update() {
                         
                         // Return to the object behavior, but set a specific action
                         default: {
-                            gCurBhvCommand = ((const BehaviorScript *) o->oBhvCommand) - 2;
-                            o->curBhvCommand = ((const BehaviorScript *) o->oBhvCommand);
+                            o->curBhvCommand = ((const BehaviorScript *) o->oBhvCommand) - 2;
                             o->bhvStackIndex = (u32) o->oBhvStackIndex;
                             o->oAction = h->nextAction;
                             o->oIntangibleTimer = 0;
@@ -96,8 +94,7 @@ static void bhv_omm_hold_update() {
                 if (o->oPosY <= o->oFloorHeight) {
                     obj_set_forward_and_y_vel(o, o->oForwardVel / 2.f, abs_f(velY) / 2.f);
                     if (o->oVelY < 4.f || o->oForwardVel < 1.f) {
-                        gCurBhvCommand = ((const BehaviorScript *) o->oBhvCommand) - 2;
-                        o->curBhvCommand = ((const BehaviorScript *) o->oBhvCommand);
+                        o->curBhvCommand = ((const BehaviorScript *) o->oBhvCommand) - 2;
                         o->bhvStackIndex = (u32) o->oBhvStackIndex;
                         o->oIntangibleTimer = 0;
                         o->oHeldState = HELD_FREE;
@@ -121,11 +118,13 @@ static const BehaviorScript bhvOmmHold[] = {
 //
 
 bool omm_obj_is_holdable(struct Object *o) {
-    const OmmBhvDataHoldable *h = omm_behavior_data_get_holdable(o->behavior);
-    for (s32 i = 0; h && i != h->actionsCount; ++i) {
-        if (h->actions[i] == HOLD_ALL_ACTIONS ||
-            h->actions[i] == o->oAction) {
-            return true;
+    if (o) {
+        const OmmBhvDataHoldable *h = omm_behavior_data_get_holdable(o->behavior);
+        for (s32 i = 0; h && i != h->actionsCount; ++i) {
+            if (h->actions[i] == HOLD_ALL_ACTIONS ||
+                h->actions[i] == o->oAction) {
+                return true;
+            }
         }
     }
     return false;

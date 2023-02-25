@@ -57,7 +57,7 @@ s32 omm_cappy_snufit_update(struct Object *o) {
 
     // Inputs
     if (!omm_mario_is_locked(gMarioState)) {
-        pobj_move(o, false, false, gOmmObject->state.actionState != 0);
+        pobj_move(o, false, false, false);
         if (pobj_jump(o, 0, 1) == POBJ_RESULT_JUMP_START) {
             obj_play_sound(o, SOUND_OBJ_GOOMBA_ALERT);
         }
@@ -88,11 +88,11 @@ s32 omm_cappy_snufit_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.80f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -104,5 +104,5 @@ s32 omm_cappy_snufit_update(struct Object *o) {
     gOmmObject->cappy.scale     = 0.8f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

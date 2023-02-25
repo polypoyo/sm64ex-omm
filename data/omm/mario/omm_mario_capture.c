@@ -1,46 +1,44 @@
 #define OMM_ALL_HEADERS
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
+static struct Object sObjectBeforePossession[1];
+static struct Object sPossessedObjectPrevFrame[1];
 
 //
 // Object copy
 //
 
-#define copy_object_field(field) omm_copy(&dst->field, &src->field, sizeof(src->field))
-static void copy_object_data(struct Object *o, bool revert) {
-    static struct Object sObjectCopy;
-    struct Object *src = (revert ? &sObjectCopy : o);
-    struct Object *dst = (revert ? o : &sObjectCopy);
+#define copy_object_field(dst, src, field) \
+    mem_cpy(&((dst)->field), &((src)->field), sizeof((src)->field))
 
-    // Save position and angle
-    Vec3f pos = { o->oPosX, o->oPosY, o->oPosZ };
-    Vec3s angle = { o->oFaceAnglePitch, o->oFaceAngleYaw, o->oFaceAngleRoll };
+#define save_object_pos_and_angle(o) \
+    Vec3f oPos = { (o)->oPosX, (o)->oPosY, (o)->oPosZ }; \
+    Vec3s oAngle = { (o)->oFaceAnglePitch, (o)->oFaceAngleYaw, (o)->oFaceAngleRoll };
 
-    // Copy data
-    copy_object_field(behavior);
-    copy_object_field(curBhvCommand);
-    copy_object_field(bhvStackIndex);
-    copy_object_field(bhvStack);
-    copy_object_field(bhvDelayTimer);
-    copy_object_field(respawnInfoType);
-    copy_object_field(hitboxRadius);
-    copy_object_field(hitboxHeight);
-    copy_object_field(hurtboxRadius);
-    copy_object_field(hurtboxHeight);
-    copy_object_field(hitboxDownOffset);
-    copy_object_field(oGfxScale);
-    copy_object_field(rawData);
+#define set_object_pos_and_angle(o) \
+    obj_set_pos(o, oPos[0], oPos[1], oPos[2]); \
+    obj_set_home(o, oPos[0], oPos[1], oPos[2]); \
+    obj_set_angle(o, oAngle[0], oAngle[1], oAngle[2]); \
+    obj_set_vel(o, 0, 0, 0);
+
+static void copy_object_data(struct Object *dst, struct Object *src) {
+    copy_object_field(dst, src, behavior);
+    copy_object_field(dst, src, curBhvCommand);
+    copy_object_field(dst, src, bhvStackIndex);
+    copy_object_field(dst, src, bhvStack);
+    copy_object_field(dst, src, bhvDelayTimer);
+    copy_object_field(dst, src, respawnInfoType);
+    copy_object_field(dst, src, hitboxRadius);
+    copy_object_field(dst, src, hitboxHeight);
+    copy_object_field(dst, src, hurtboxRadius);
+    copy_object_field(dst, src, hurtboxHeight);
+    copy_object_field(dst, src, hitboxDownOffset);
+    copy_object_field(dst, src, oGfxScale);
+    copy_object_field(dst, src, rawData);
 #if IS_64_BIT
-    copy_object_field(ptrData);
+    copy_object_field(dst, src, ptrData);
 #endif
-
-    // Restore saved data
-    obj_set_pos(o, pos[0], pos[1], pos[2]);
-    obj_set_home(o, pos[0], pos[1], pos[2]);
-    obj_set_angle(o, angle[0], angle[1], angle[2]);
-    obj_set_vel(o, 0.f, 0.f, 0.f);
 }
-#undef copy_object_field
 
 //
 // Star grab during a possession
@@ -66,7 +64,7 @@ static void omm_act_possession_update_star_dance(struct MarioState *m) {
         disable_background_sound();
         audio_play_course_clear();
         f32 radius = omm_capture_get_hitbox_radius(o);
-        f32 height = omm_capture_get_top(o) + 40.f * o->oScaleY * (gOmmObject->cappy.scale / 100.f);
+        f32 height = omm_capture_get_top(o) + 40.f * o->oScaleY * gOmmObject->cappy.scale;
         celebStar = omm_spawn_star_celebration(m->marioObj, radius, height);
         set_time_stop_flags(TIME_STOP_ENABLED | TIME_STOP_MARIO_AND_DOORS);
         m->marioObj->activeFlags |= ACTIVE_FLAG_INITIATED_TIME_STOP;
@@ -80,7 +78,7 @@ static void omm_act_possession_update_star_dance(struct MarioState *m) {
 #if OMM_GAME_IS_SMSR
 #define gLastCompletedStarNum (gLastCompletedStarNum * (starBehavior != bhvCustomSMSRStarReplica))
 #endif
-        omm_render_effect_you_got_a_star_begin(OMM_TEXT_YOU_GOT_A_STAR, omm_level_get_name(gCurrLevelNum, false, false), omm_level_get_act_name(gCurrLevelNum, gLastCompletedStarNum, false, false));
+        omm_render_effect_you_got_a_star_begin(OMM_TEXT_YOU_GOT_A_STAR, omm_level_get_course_name(gCurrLevelNum, OMM_GAME_MODE, false, false), omm_level_get_act_name(gCurrLevelNum, gLastCompletedStarNum, OMM_GAME_MODE, false, false));
     }
     
     // Here we go!
@@ -110,7 +108,7 @@ static void omm_act_possession_update_star_dance(struct MarioState *m) {
 //
 
 bool omm_mario_lock(struct MarioState *m, s32 duration) {
-    if (m->action != ACT_OMM_POSSESSION) {
+    if (!omm_mario_is_capture(m)) {
         return false;
     }
     gOmmMario->capture.lockTimer = duration;
@@ -118,7 +116,7 @@ bool omm_mario_lock(struct MarioState *m, s32 duration) {
 }
 
 bool omm_mario_lock_star_grab(struct MarioState *m) {
-    if (m->action != ACT_OMM_POSSESSION) {
+    if (!omm_mario_is_capture(m)) {
         return false;
     }
     gOmmMario->capture.lockTimer = -1;
@@ -128,7 +126,7 @@ bool omm_mario_lock_star_grab(struct MarioState *m) {
 }
 
 bool omm_mario_unlock(struct MarioState *m) {
-    if (m->action != ACT_OMM_POSSESSION) {
+    if (!omm_mario_is_capture(m)) {
         return false;
     }
     gOmmMario->capture.lockTimer = 0;
@@ -136,7 +134,7 @@ bool omm_mario_unlock(struct MarioState *m) {
 }
 
 bool omm_mario_is_locked(struct MarioState *m) {
-    if (m->action != ACT_OMM_POSSESSION) {
+    if (!omm_mario_is_capture(m)) {
         gOmmMario->capture.lockTimer = 0;
         return false;
     }
@@ -267,13 +265,33 @@ s32 omm_act_possession(struct MarioState *m) {
         obj_anim_play(m->marioObj, anim(t), 1.f);
         m->particleFlags |= PARTICLE_SPARKLES;
         gOmmMario->capture.timer++;
+        gOmmObject->state.invincTimer = 15;
 
     } else {
+
+        // Check if the possessed object is still valid
+        struct Object *o = gOmmCapture;
+        if (!o || !o->activeFlags || o->behavior != gOmmMario->capture.bhv || o->curBhvCommand < bhvOmmPossessedObject || o->curBhvCommand >= bhvOmmPossessedObject + 5) {
+            o = gOmmCapture = spawn_object(m->marioObj, gOmmMario->capture.model, gOmmMario->capture.bhv);
+            obj_update(o); // Init the newly created object
+            copy_object_data(o, sPossessedObjectPrevFrame);
+            o->curBhvCommand = bhvOmmPossessedObject;
+            o->bhvStackIndex = 0;
+            o->oRoom = -1;
+            o->oFlags = 0;
+            o->oIntangibleTimer = 0;
+            o->oNodeFlags |= GRAPH_RENDER_ACTIVE;
+            o->oNodeFlags &= ~GRAPH_RENDER_INVISIBLE;
+            o->oPosX = m->pos[0];
+            o->oPosY = m->pos[1];
+            o->oPosZ = m->pos[2];
+        } else {
+            copy_object_data(sPossessedObjectPrevFrame, o);
+        }
 
         // Spawn Cappy if not spawned
         if (!obj_get_first_with_behavior(bhvOmmPossessedObjectCap)) {
             spawn_object(m->marioObj, omm_player_graphics_get_selected_normal_cap(), bhvOmmPossessedObjectCap)->oFlags = 0;
-            gOmmObject->state.invincTimer = 15;
         }
 
         // If Mario is locked, don't check [Z] press and zero-init inputs
@@ -305,7 +323,6 @@ s32 omm_act_possession(struct MarioState *m) {
         }
 
         // Set possessed object position to Mario's position
-        struct Object *o = gOmmCapture;
         o->oPosX = m->pos[0];
         o->oPosY = m->pos[1];
         o->oPosZ = m->pos[2];
@@ -428,7 +445,7 @@ bool omm_mario_possess_object(struct MarioState *m, struct Object *o, u32 posses
     }
 
     // Mario is already possessing an object, duh
-    if (m->action == ACT_OMM_POSSESSION) {
+    if (omm_mario_is_capture(m)) {
         return false;
     }
 
@@ -446,14 +463,17 @@ bool omm_mario_possess_object(struct MarioState *m, struct Object *o, u32 posses
     }
 
     // OK
-    copy_object_data(o, false);
+    copy_object_data(sObjectBeforePossession, o);
     o->curBhvCommand = bhvOmmPossessedObject;
+    o->bhvStackIndex = 0;
     o->oRoom = -1;
     o->oFlags = 0;
     o->oIntangibleTimer = 0;
     o->oNodeFlags |= GRAPH_RENDER_ACTIVE;
     o->oNodeFlags &= ~GRAPH_RENDER_INVISIBLE;
     gOmmMario->capture.obj = o;
+    gOmmMario->capture.bhv = o->behavior;
+    gOmmMario->capture.model = obj_get_model_id(o);
     gOmmMario->capture.timer = 0;
     gOmmMario->capture.lockTimer = 0;
     struct Object *cap = obj_get_first_with_behavior(bhvOmmPossessedObjectCap);
@@ -482,6 +502,7 @@ bool omm_mario_possess_object(struct MarioState *m, struct Object *o, u32 posses
     omm_capture_reset_camera();
     mario_stop_riding_and_holding(m);
     omm_mario_set_action(m, ACT_OMM_POSSESSION, 0, Z_TRIG);
+    gOmmStats->captures++;
     return true;
 }
 
@@ -596,7 +617,9 @@ bool omm_mario_unpossess_object(struct MarioState *m, u8 unpossessAct, bool isBa
     if (cap) obj_mark_for_deletion(cap);
 
     // End object possession
-    copy_object_data(o, true);
+    save_object_pos_and_angle(o);
+    copy_object_data(o, sObjectBeforePossession);
+    set_object_pos_and_angle(o);
     omm_capture_end(o);
     o->oRoom = -1;
     o->oIntangibleTimer = objIntangibleFrames;

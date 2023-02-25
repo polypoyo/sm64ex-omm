@@ -198,6 +198,6 @@ struct Object *omm_spawn_bowser_flame(struct Object *o, f32 x, f32 y, f32 z, s32
     flame->oAction = 0;
     flame->oAnimState = random_u16() % 4;
     flame->oBowserFireDuration = duration;
-    play_sound(SOUND_AIR_BOWSER_SPIT_FIRE, o->oCameraToObject);
+    obj_play_sound(o, SOUND_AIR_BOWSER_SPIT_FIRE);
     return flame;
 }

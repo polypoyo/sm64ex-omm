@@ -1,22 +1,28 @@
 #define OMM_ALL_HEADERS
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
+#include <time.h>
+
+OMM_INLINE struct tm *omm_get_current_time() {
+    time_t t = time(NULL);
+    return localtime(&t);
+}
 
 //
 // Warp Pipes
 //
 
 struct WarpPipeInfo {
-    u8 level;
-    u8 area;
-    u8 warpId;
+    s32 levelNum;
+    s32 areaIndex;
+    s32 warpId;
     Vec3f pipePos;
     Vec3s pipeAngle;
     bool exitOnly;
 };
 
-struct WarpPipeInfo _WarpPipeInfo(u8 level, u8 area, u8 warpId, f32 pipePosX, f32 pipePosY, f32 pipePosZ, s16 pipeAngleP, s16 pipeAngleY, s16 pipeAngleR, bool exitOnly) {
-    struct WarpPipeInfo wpi = { level, area, warpId, { pipePosX, pipePosY, pipePosZ }, { pipeAngleP, pipeAngleY, pipeAngleR }, exitOnly };
+struct WarpPipeInfo _WarpPipeInfo(s32 levelNum, s32 areaIndex, s32 warpId, f32 pipePosX, f32 pipePosY, f32 pipePosZ, s16 pipeAngleP, s16 pipeAngleY, s16 pipeAngleR, bool exitOnly) {
+    struct WarpPipeInfo wpi = { levelNum, areaIndex, warpId, { pipePosX, pipePosY, pipePosZ }, { pipeAngleP, pipeAngleY, pipeAngleR }, exitOnly };
     return wpi;
 }
 
@@ -25,7 +31,7 @@ static struct SpawnInfo *get_warp_pipe_spawn_info(struct WarpPipeInfo *wpi) {
     omm_array_for_each(sWarpPipeSpawnInfo, p) {
         struct SpawnInfo *spawnInfo = (struct SpawnInfo *) p->as_ptr;
         if (spawnInfo->behaviorArg   == ((u32) (wpi->warpId << 16u) | (u32) (wpi->exitOnly << 8u)) &&
-            spawnInfo->areaIndex     == wpi->area &&
+            spawnInfo->areaIndex     == wpi->areaIndex &&
             spawnInfo->startPos[0]   == wpi->pipePos[0] &&
             spawnInfo->startPos[1]   == wpi->pipePos[1] &&
             spawnInfo->startPos[2]   == wpi->pipePos[2] &&
@@ -36,15 +42,15 @@ static struct SpawnInfo *get_warp_pipe_spawn_info(struct WarpPipeInfo *wpi) {
         }
     }
     
-    struct SpawnInfo *spawnInfo = omm_new(struct SpawnInfo, 1);
+    struct SpawnInfo *spawnInfo = mem_new(struct SpawnInfo, 1);
     spawnInfo->startPos[0]      = wpi->pipePos[0];
     spawnInfo->startPos[1]      = wpi->pipePos[1];
     spawnInfo->startPos[2]      = wpi->pipePos[2];
     spawnInfo->startAngle[0]    = wpi->pipeAngle[0];
     spawnInfo->startAngle[1]    = wpi->pipeAngle[1];
     spawnInfo->startAngle[2]    = wpi->pipeAngle[2];
-    spawnInfo->areaIndex        = wpi->area;
-    spawnInfo->activeAreaIndex  = wpi->area;
+    spawnInfo->areaIndex        = wpi->areaIndex;
+    spawnInfo->activeAreaIndex  = wpi->areaIndex;
     spawnInfo->behaviorArg      = ((u32) (wpi->warpId << 16u) | (u32) (wpi->exitOnly << 8u));
     spawnInfo->behaviorScript   = (void *) bhvWarpPipe;
     spawnInfo->mModel           = geo_layout_to_graph_node(NULL, warp_pipe_geo);
@@ -54,17 +60,17 @@ static struct SpawnInfo *get_warp_pipe_spawn_info(struct WarpPipeInfo *wpi) {
 
 static struct Object *load_warp_pipe_spawn_info(struct WarpPipeInfo *wpi) {
     struct SpawnInfo *spawnInfo = get_warp_pipe_spawn_info(wpi);
-    for (struct SpawnInfo *p = gAreas[wpi->area].objectSpawnInfos; p;) {
+    for (struct SpawnInfo *p = gAreas[wpi->areaIndex].objectSpawnInfos; p;) {
         if (p == spawnInfo) {
             return NULL;
         }
         p = p->next;
     }
 
-    spawnInfo->next = gAreas[wpi->area].objectSpawnInfos;
-    gAreas[wpi->area].objectSpawnInfos = spawnInfo;
-    if (wpi->area == gCurrAreaIndex) {
-        struct Object *pipe    = obj_spawn_from_geo(gMarioObject, warp_pipe_geo, bhvWarpPipe);
+    spawnInfo->next = gAreas[wpi->areaIndex].objectSpawnInfos;
+    gAreas[wpi->areaIndex].objectSpawnInfos = spawnInfo;
+    if (wpi->areaIndex == gCurrAreaIndex) {
+        struct Object *pipe    = obj_spawn_from_geo(gMarioObject, wpi->levelNum != LEVEL_PSS ? warp_pipe_geo : NULL, bhvWarpPipe); // TODO: unhide PSS pipe when nebula done
         pipe->oPosX            = spawnInfo->startPos[0];
         pipe->oPosY            = spawnInfo->startPos[1];
         pipe->oPosZ            = spawnInfo->startPos[2];
@@ -74,7 +80,7 @@ static struct Object *load_warp_pipe_spawn_info(struct WarpPipeInfo *wpi) {
         pipe->oMoveAnglePitch  = spawnInfo->startAngle[0];
         pipe->oMoveAngleYaw    = spawnInfo->startAngle[1];
         pipe->oMoveAngleRoll   = spawnInfo->startAngle[2];
-        pipe->oBhvArgs         = spawnInfo->behaviorArg;
+        pipe->oBehParams       = spawnInfo->behaviorArg;
         pipe->oIntangibleTimer = 0;
         pipe->oInteractStatus  = 0;
         return pipe;
@@ -86,18 +92,18 @@ static struct ObjectWarpNode *get_warp_pipe_warp_node(struct WarpPipeInfo *wpiFr
     static OmmArray sWarpPipeWarpNodes = omm_array_zero;
     omm_array_for_each(sWarpPipeWarpNodes, p) {
         struct ObjectWarpNode *warpNode = (struct ObjectWarpNode *) p->as_ptr;
-        if (warpNode->node.id        == wpiFrom->warpId &&
-            warpNode->node.destLevel == wpiTo->level    &&
-            warpNode->node.destArea  == wpiTo->area     &&
+        if (warpNode->node.id        == wpiFrom->warpId  &&
+            warpNode->node.destLevel == wpiTo->levelNum  &&
+            warpNode->node.destArea  == wpiTo->areaIndex &&
             warpNode->node.destNode  == wpiTo->warpId) {
             return warpNode;
         }
     }
 
-    struct ObjectWarpNode *warpNode = omm_new(struct ObjectWarpNode, 1);
+    struct ObjectWarpNode *warpNode = mem_new(struct ObjectWarpNode, 1);
     warpNode->node.id        = wpiFrom->warpId;
-    warpNode->node.destLevel = wpiTo->level;
-    warpNode->node.destArea  = wpiTo->area;
+    warpNode->node.destLevel = wpiTo->levelNum;
+    warpNode->node.destArea  = wpiTo->areaIndex;
     warpNode->node.destNode  = wpiTo->warpId;
     warpNode->object         = pipe;
     omm_array_add(sWarpPipeWarpNodes, ptr, warpNode);
@@ -106,22 +112,22 @@ static struct ObjectWarpNode *get_warp_pipe_warp_node(struct WarpPipeInfo *wpiFr
 
 static void load_warp_pipe_warp_node(struct WarpPipeInfo *wpiFrom, struct WarpPipeInfo *wpiTo, struct Object *pipe) {
     struct ObjectWarpNode *warpNode = get_warp_pipe_warp_node(wpiFrom, wpiTo, pipe);
-    for (struct ObjectWarpNode *p = gAreas[wpiFrom->area].warpNodes; p;) {
+    for (struct ObjectWarpNode *p = gAreas[wpiFrom->areaIndex].warpNodes; p;) {
         if (p == warpNode) {
             return;
         }
         p = p->next;
     }
 
-    warpNode->next = gAreas[wpiFrom->area].warpNodes;
-    gAreas[wpiFrom->area].warpNodes = warpNode;
+    warpNode->next = gAreas[wpiFrom->areaIndex].warpNodes;
+    gAreas[wpiFrom->areaIndex].warpNodes = warpNode;
 }
 
 static void load_warp_pipe(struct WarpPipeInfo wpi1, struct WarpPipeInfo wpi2) {
-    if (gCurrLevelNum == wpi1.level) {
+    if (gCurrLevelNum == wpi1.levelNum) {
         struct Object *pipe1 = load_warp_pipe_spawn_info(&wpi1);
         load_warp_pipe_warp_node(&wpi1, &wpi2, pipe1);
-        if (gCurrLevelNum == wpi2.level) {
+        if (gCurrLevelNum == wpi2.levelNum) {
             struct Object *pipe2 = load_warp_pipe_spawn_info(&wpi2);
             load_warp_pipe_warp_node(&wpi2, &wpi1, pipe2);
         }
@@ -161,17 +167,19 @@ static void omm_update_warp_pipes(struct MarioState *m) {
         _WarpPipeInfo(LEVEL_THI, 3, 0x35,     0,  2560,     0, 0x0000, 0x0000, 0x0000, false)
     );
     }
+    if (m->numStars >= 120) {
     load_warp_pipe(
         _WarpPipeInfo(LEVEL_PSS, 1, 0x3F, -7688, -4800,  6040, 0xC000, 0x4000, 0x0000, false),
         _WarpPipeInfo(0x1A,      4, 0x0A,     0,     0,     0, 0x0000, 0x0000, 0x0000,  true)
     );
+    }
 #endif
 
     // Update
     sWarpPipeTimer = (sWarpPipeTimer + 1) * (m->action != ACT_EMERGE_FROM_PIPE);
     for_each_object_with_behavior(warpPipe, bhvWarpPipe) {
         warpPipe->oScaleX = 1.f;
-        warpPipe->oScaleY = max_f(0.f, 1.f - ((warpPipe->oBhvArgs >> 8u) & 1) * (sWarpPipeTimer / 20.f));
+        warpPipe->oScaleY = max_f(0.f, 1.f - ((warpPipe->oBehParams >> 8u) & 1) * (sWarpPipeTimer / 20.f));
         warpPipe->oScaleZ = 1.f;
         warpPipe->hitboxRadius = warpPipe->hitboxRadius * (warpPipe->oScaleY == 1.f);
         warpPipe->hitboxHeight = warpPipe->hitboxHeight * (warpPipe->oScaleY == 1.f);
@@ -187,11 +195,11 @@ static void omm_update_warp_pipes(struct MarioState *m) {
 static s32 gPrevCourseNum = -1;
 static bool sOmmWorldFrozen = false;
 static bool sOmmWorldFlooded = false;
-static bool sOmmWorldShadow = false;
+static bool sOmmWorldDark = false;
 
 #define omm_world_behavior_set_dormant(bhv, value)                          { for_each_object_with_behavior(obj, bhv) { obj_set_dormant(obj, value); } }
 #define omm_world_behavior_set_dormant_cond(bhv, cond, value)               { for_each_object_with_behavior(obj, bhv) { if (cond) { obj_set_dormant(obj, value); } } }
-#define omm_world_behavior_set_dormant_params(bhv, params, value)           { for_each_object_with_behavior(obj, bhv) { if (obj->oBhvArgs == params) { obj_set_dormant(obj, value); } } }
+#define omm_world_behavior_set_dormant_params(bhv, params, value)           { for_each_object_with_behavior(obj, bhv) { if (obj->oBehParams == params) { obj_set_dormant(obj, value); } } }
 #define omm_world_non_stop_behavior_set_dormant(bhv, value)                 { if (OMM_STARS_NON_STOP_NOT_ENDING_CUTSCENE) { omm_world_behavior_set_dormant(bhv, value); } }
 #define omm_world_non_stop_behavior_set_dormant_cond(bhv, cond, value)      { if (OMM_STARS_NON_STOP_NOT_ENDING_CUTSCENE) { omm_world_behavior_set_dormant_cond(bhv, cond, value); } }
 #define omm_world_non_stop_behavior_set_dormant_params(bhv, params, value)  { if (OMM_STARS_NON_STOP_NOT_ENDING_CUTSCENE) { omm_world_behavior_set_dormant_params(bhv, params, value); } }
@@ -225,8 +233,8 @@ static void omm_update_worlds(struct MarioState *m) {
         case COURSE_CCM: {
             struct Object *box = obj_get_first_with_behavior_and_field_f32(bhvPushableMetalBox, 0x06, 3968.f);
             if (box && !obj_is_dormant(box)) {
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_EXCLAMATION_BOX, bhvExclamationBox,  3800, 3800, -2900, 0, 0xC000, 0)->oBhvArgs2ndByte = 0x02;
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_EXCLAMATION_BOX, bhvExclamationBox, -4200, 1720, -4300, 0, 0xE93E, 0)->oBhvArgs2ndByte = 0x02;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_EXCLAMATION_BOX, bhvExclamationBox,  3800, 3800, -2900, 0, 0xC000, 0)->oBehParams2ndByte = 0x02;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_EXCLAMATION_BOX, bhvExclamationBox, -4200, 1720, -4300, 0, 0xE93E, 0)->oBehParams2ndByte = 0x02;
                 obj_set_dormant(box, true);
             }
         } break;
@@ -287,7 +295,7 @@ static void omm_update_worlds(struct MarioState *m) {
             if (box && !obj_is_dormant(box)) {
                 spawn_object_abs_with_rot(m->marioObj, 0, MODEL_HMC_ROLLING_ROCK, bhvCustomSMSRToxicWastePlatform, 4679, -1100, -6850, 0x200, 0, -0x300);
                 spawn_object_abs_with_rot(m->marioObj, 0, MODEL_HMC_ROLLING_ROCK, bhvCustomSMSRToxicWastePlatform, 4679, -1050, -7200, -0x400, 0, 0x580);
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_EXCLAMATION_BOX, bhvExclamationBox, 4679, -600, -7200, 0, 0, 0)->oBhvArgs2ndByte = 0x0E;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_EXCLAMATION_BOX, bhvExclamationBox, 4679, -600, -7200, 0, 0, 0)->oBehParams2ndByte = 0x0E;
                 obj_set_dormant(box, true);
             }
         } break;
@@ -307,14 +315,14 @@ static void omm_update_worlds(struct MarioState *m) {
         case COURSE_LLL: {
             struct Object *box3coins = obj_get_first_with_behavior_and_field_s32(bhvExclamationBox, 0x2F, 0x05);
             if (box3coins && !obj_is_dormant(box3coins)) {
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_EXCLAMATION_BOX, bhvExclamationBox, -2136,  993, -2347, 0, 0x0000, 0)->oBhvArgs2ndByte = 0x06;
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,  -5391, -979,  3167, 0, 0x0000, 0)->oBhvArgs2ndByte = COIN_FORMATION_FLAG_RING;
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,  -6900,  570,  1400, 0, 0x0000, 0)->oBhvArgs2ndByte = COIN_FORMATION_FLAG_RING;
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,   4444, 5480, -4444, 0, 0x0000, 0)->oBhvArgs2ndByte = COIN_FORMATION_FLAG_RING;
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,   -380,  570,  4200, 0, 0x0000, 0)->oBhvArgs2ndByte = COIN_FORMATION_FLAG_RING;
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,   4600,  270,  4060, 0, 0x0000, 0)->oBhvArgs2ndByte = 0;
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,  -6090,  625, -6300, 0, 0x4000, 0)->oBhvArgs2ndByte = 0;
-                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,  -2730, 1000, -6400, 0, 0x0000, 0)->oBhvArgs2ndByte = COIN_FORMATION_FLAG_FLYING;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_EXCLAMATION_BOX, bhvExclamationBox, -2136,  993, -2347, 0, 0x0000, 0)->oBehParams2ndByte = 0x06;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,  -5391, -979,  3167, 0, 0x0000, 0)->oBehParams2ndByte = COIN_FORMATION_FLAG_RING;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,  -6900,  570,  1400, 0, 0x0000, 0)->oBehParams2ndByte = COIN_FORMATION_FLAG_RING;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,   4444, 5480, -4444, 0, 0x0000, 0)->oBehParams2ndByte = COIN_FORMATION_FLAG_RING;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,   -380,  570,  4200, 0, 0x0000, 0)->oBehParams2ndByte = COIN_FORMATION_FLAG_RING;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,   4600,  270,  4060, 0, 0x0000, 0)->oBehParams2ndByte = 0;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,  -6090,  625, -6300, 0, 0x4000, 0)->oBehParams2ndByte = 0;
+                spawn_object_abs_with_rot(m->marioObj, 0, MODEL_NONE,            bhvCoinFormation,  -2730, 1000, -6400, 0, 0x0000, 0)->oBehParams2ndByte = COIN_FORMATION_FLAG_FLYING;
                 obj_set_dormant(box3coins, true);
             }
         } break;
@@ -377,8 +385,6 @@ static void omm_update_worlds(struct MarioState *m) {
                 omm_world_behavior_set_dormant(bhvWarpPipe, true);
                 omm_world_behavior_set_dormant(bhvGoomba, true);
                 omm_world_behavior_set_dormant(bhvGoombaTripletSpawner, true);
-                omm_world_behavior_set_dormant(bhvBobombBuddy, true);
-                omm_world_behavior_set_dormant(bhvBobombBuddyOpensCannon, true);
                 sOmmWorldFlooded = true;
             } else {
                 bool sunken = (gCurrAreaIndex == 1 && m->action != ACT_EMERGE_FROM_PIPE && !obj_is_dormant(obj_get_first_with_behavior(bhvInSunkenShip))) ||
@@ -470,11 +476,11 @@ static void omm_update_worlds(struct MarioState *m) {
         } break;
 
         // Bowser in the Sky
-        // Shadow variant, from exiting BBH or BITDW, then entering BITS (120+ stars only):
+        // Dark variant, from exiting BBH or BITDW, then entering BITS (120+ stars only):
         // - The level is engulfed by darkness: only objects are visible, everything else is pure black
         case COURSE_BITS: {
             if (gCurrLevelNum == LEVEL_BITS && m->numStars >= 120 && (gPrevCourseNum == COURSE_BBH || gPrevCourseNum == COURSE_BITDW)) {
-                sOmmWorldShadow = true;
+                sOmmWorldDark = true;
             }
         } break;
 
@@ -501,8 +507,30 @@ static void omm_update_worlds(struct MarioState *m) {
                         obj_set_pos(sign, 4100, 307, 280);
                         obj_set_angle(sign, 0, 0xC000, 0);
                         obj_drop_to_floor(sign);
-                        sign->oBhvArgs = (OMM_DIALOG_LEVEL_VARIANTS << 16);
-                        sign->oBhvArgs2ndByte = OMM_DIALOG_LEVEL_VARIANTS;
+                        sign->oBehParams = (OMM_DIALOG_LEVEL_VARIANTS << 16);
+                        sign->oBehParams2ndByte = OMM_DIALOG_LEVEL_VARIANTS;
+                    }
+                } break;
+
+                // Basement
+                // Darken the basement between 0:00 and 0:05
+                // - During that time, Mips and Toads go to sleep
+                // - It gets even darker if the flames are cleared
+                case AREA_CASTLE_BASEMENT: {
+                    struct tm *t = omm_get_current_time();
+                    bool darken = (m->numStars >= 120 && t->tm_hour == 0 && t->tm_min >= 0 && t->tm_min < 5);
+                    omm_world_behavior_set_dormant(bhvMips, darken);
+                    omm_world_behavior_set_dormant(bhvToadMessage, darken);
+                    if (darken) {
+                        struct Object *gfxPaletteModifier = obj_get_first_with_behavior(bhvOmmGfxPaletteModifier);
+                        if (!gfxPaletteModifier) gfxPaletteModifier = spawn_object(m->marioObj, MODEL_NONE, bhvOmmGfxPaletteModifier);
+                        s32 remainingFlames = obj_get_count_with_behavior(bhvFlame);
+                        f32 intensityModifier = 0.04f * remainingFlames;
+                        gfxPaletteModifier->oVelX = intensityModifier;
+                        gfxPaletteModifier->oVelY = intensityModifier;
+                        gfxPaletteModifier->oVelZ = intensityModifier;
+                    } else {
+                        obj_deactivate_all_with_behavior(bhvOmmGfxPaletteModifier);
                     }
                 } break;
 
@@ -541,6 +569,11 @@ static void omm_update_worlds(struct MarioState *m) {
         } break;
 
 #endif
+    }
+
+    // Stats board
+    if (gCurrLevelNum == OMM_STATS_BOARD_LEVEL && gCurrAreaIndex == OMM_STATS_BOARD_AREA && !obj_get_first_with_behavior(bhvOmmStatsBoard)) {
+        omm_spawn_stats_board(m->marioObj, OMM_STATS_BOARD_X, OMM_STATS_BOARD_Y, OMM_STATS_BOARD_Z, OMM_STATS_BOARD_ANGLE);
     }
 
     // Set recovery hearts dormant in Sparkly Stars Lunatic mode
@@ -589,7 +622,7 @@ void omm_world_update(struct MarioState *m) {
     }
     sOmmWorldFrozen = false;
     sOmmWorldFlooded = false;
-    sOmmWorldShadow = false;
+    sOmmWorldDark = false;
     if (!omm_is_ending_cutscene()) {
         omm_update_warp_pipes(m);
         omm_update_worlds(m);
@@ -610,6 +643,6 @@ bool omm_world_is_flooded() {
     return sOmmWorldFlooded;
 }
 
-bool omm_world_is_shadow() {
-    return sOmmWorldShadow;
+bool omm_world_is_dark() {
+    return sOmmWorldDark;
 }

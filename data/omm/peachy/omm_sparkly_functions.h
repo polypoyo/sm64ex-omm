@@ -11,32 +11,32 @@
 #define OMM_SPARKLY_MODE_IS_LUNATIC     (gOmmSparklyMode == OMM_SPARKLY_MODE_LUNATIC)
 #define OMM_SPARKLY_LUNATIC_HEALTH      (OMM_SPARKLY_MODE_IS_LUNATIC && !omm_sparkly_is_completed(OMM_SPARKLY_MODE_LUNATIC))
 
-s32  omm_sparkly_get_index(s32 mode, s32 level, s32 area);
-u8  *omm_sparkly_get_level_name(s32 mode, s32 index);
-u8  *omm_sparkly_get_star_name(s32 mode, s32 index);
-s32  omm_sparkly_get_collected_count(s32 mode);
-s32  omm_sparkly_get_bowser_4_index(s32 mode);
+s32  omm_sparkly_get_index(s32 sparklyMode, s32 levelNum, s32 areaIndex);
+u8  *omm_sparkly_get_level_name(s32 sparklyMode, s32 starIndex);
+u8  *omm_sparkly_get_star_name(s32 sparklyMode, s32 starIndex);
+s32  omm_sparkly_get_collected_count(s32 sparklyMode);
+s32  omm_sparkly_get_bowser_4_index(s32 sparklyMode);
 
-bool omm_sparkly_is_available(s32 mode);
-bool omm_sparkly_is_unlocked(s32 mode);
-bool omm_sparkly_is_selectible(s32 mode);
-bool omm_sparkly_is_selected(s32 mode);
-bool omm_sparkly_is_completed(s32 mode);
-bool omm_sparkly_is_timer_started(s32 mode);
-bool omm_sparkly_is_star_collected(s32 mode, s32 index);
-bool omm_sparkly_is_grand_star_collected(s32 mode);
-bool omm_sparkly_is_bowser_4_unlocked(s32 mode);
+bool omm_sparkly_is_available(s32 sparklyMode);
+bool omm_sparkly_is_unlocked(s32 sparklyMode);
+bool omm_sparkly_is_selectible(s32 sparklyMode);
+bool omm_sparkly_is_selected(s32 sparklyMode);
+bool omm_sparkly_is_completed(s32 sparklyMode);
+bool omm_sparkly_is_timer_started(s32 sparklyMode);
+bool omm_sparkly_is_star_collected(s32 sparklyMode, s32 starIndex);
+bool omm_sparkly_is_grand_star_collected(s32 sparklyMode);
+bool omm_sparkly_is_bowser_4_unlocked(s32 sparklyMode);
 bool omm_sparkly_is_bowser_4_battle();
-s32  omm_sparkly_get_timer(s32 mode);
+s32  omm_sparkly_get_timer(s32 sparklyMode);
 
 void omm_sparkly_disable();
-void omm_sparkly_set_mode(s32 mode);
-void omm_sparkly_unlock_mode(s32 mode);
-void omm_sparkly_start_timer(s32 mode);
-void omm_sparkly_collect_star(s32 mode, s32 index);
-void omm_sparkly_collect_grand_star(s32 mode);
-void omm_sparkly_unlock_bowser_4(s32 mode);
-void omm_sparkly_clear_mode(s32 mode);
+void omm_sparkly_set_mode(s32 sparklyMode);
+void omm_sparkly_unlock_mode(s32 sparklyMode);
+void omm_sparkly_start_timer(s32 sparklyMode);
+void omm_sparkly_collect_star(s32 sparklyMode, s32 starIndex);
+void omm_sparkly_collect_grand_star(s32 sparklyMode);
+void omm_sparkly_unlock_bowser_4(s32 sparklyMode);
+void omm_sparkly_clear_mode(s32 sparklyMode);
 bool omm_sparkly_read(const char **tokens);
 void omm_sparkly_write(char **buffer);
 bool omm_sparkly_check_cheats(struct MarioState *m);

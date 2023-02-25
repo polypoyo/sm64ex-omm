@@ -22,7 +22,7 @@ s32 omm_audio_resample(u8 **output, const u8 *input, s32 inputLength, f32 output
     const s16 *inputBuffer = (const s16 *) input;
     s32 inputSamples = inputLength / sizeof(s16);
     s32 outputSamples = inputSamples * outputScale;
-    s16 *temp = omm_new(s16, outputSamples);
+    s16 *temp = mem_new(s16, outputSamples);
     f32 invOutputScale = 1.f / outputScale;
 
     // Resampling
@@ -34,7 +34,7 @@ s32 omm_audio_resample(u8 **output, const u8 *input, s32 inputLength, f32 output
     }
 
     // Copy temp to output
-    omm_free(*output);
+    mem_del(*output);
     *output = (u8 *) temp;
     return outputSamples * sizeof(s16);
 }
@@ -45,7 +45,7 @@ s32 omm_audio_resample_fast(u8 **output, const u8 *input, s32 inputLength, f32 o
     const s16 *inputBuffer = (const s16 *) input;
     s32 inputSamples = inputLength / sizeof(s16);
     s32 outputSamples = inputSamples * outputScale;
-    s16 *temp = omm_new(s16, outputSamples);
+    s16 *temp = mem_new(s16, outputSamples);
     f32 invOutputScale = 1.f / outputScale;
 
     // Resampling
@@ -54,7 +54,7 @@ s32 omm_audio_resample_fast(u8 **output, const u8 *input, s32 inputLength, f32 o
     }
 
     // Copy temp to output
-    omm_free(*output);
+    mem_del(*output);
     *output = (u8 *) temp;
     return outputSamples * sizeof(s16);
 }
@@ -64,13 +64,13 @@ s32 omm_audio_resample_fast(u8 **output, const u8 *input, s32 inputLength, f32 o
 s32 omm_audio_time_stretch(u8 **output, const u8 *input, s32 inputLength, s32 audioFreq, f32 timeStretch) {
     s32 inputSamples = inputLength / sizeof(s16);
     s32 outputSamples = inputSamples * timeStretch;
-    s16 *temp = omm_new(s16, outputSamples);
+    s16 *temp = mem_new(s16, outputSamples);
 
     // Synchronized OverLap-Add (SOLA) algorithm
     const s16 *inputBuffer = (const s16 *) input;
     const s16 *currOffset = inputBuffer;
     s16 *outputBuffer = temp;
-    f32 *overlap = omm_new(f32, OMM_AUDIO_OVERLAP_SIZE);
+    f32 *overlap = mem_new(f32, OMM_AUDIO_OVERLAP_SIZE);
     f32 timeScale = 1.f / timeStretch;
     for (s32 remaining = inputSamples; remaining > OMM_AUDIO_SEQUENCE_SKIP + OMM_AUDIO_WINDOW_SIZE; remaining -= OMM_AUDIO_SEQUENCE_SKIP) {
 
@@ -80,7 +80,7 @@ s32 omm_audio_time_stretch(u8 **output, const u8 *input, s32 inputLength, s32 au
         }
         
         // Prepare output
-        omm_copy(outputBuffer, currOffset, OMM_AUDIO_FLAT_DURATION * sizeof(s16));
+        mem_cpy(outputBuffer, currOffset, OMM_AUDIO_FLAT_DURATION * sizeof(s16));
         const s16 *prevOffset = currOffset + OMM_AUDIO_FLAT_DURATION;
         inputBuffer += OMM_AUDIO_SEQUENCE_SKIP - OMM_AUDIO_OVERLAP_SIZE;
         s32 bestOffset = 0;
@@ -116,17 +116,17 @@ s32 omm_audio_time_stretch(u8 **output, const u8 *input, s32 inputLength, s32 au
     }
 
     // Copy temp to output
-    omm_free(*output);
-    omm_free(overlap);
+    mem_del(*output);
+    mem_del(overlap);
     *output = (u8 *) temp;
     return outputSamples * sizeof(s16);
 }
 
 // Resizing is done in a temporary buffer, so output and input can be the same buffer
 s32 omm_audio_resize(u8 **output, const u8 *input, s32 inputLength, s32 desiredLength) {
-    u8 *temp = omm_new(u8, desiredLength);
-    omm_copy(temp, input, min_s(inputLength, desiredLength));
-    omm_free(*output);
+    u8 *temp = mem_new(u8, desiredLength);
+    mem_cpy(temp, input, min_s(inputLength, desiredLength));
+    mem_del(*output);
     *output = temp;
     return desiredLength;
 }
@@ -270,7 +270,7 @@ bool omm_sound_is_bank_playing(u8 bank) {
 static void omm_sound_load_wav(s32 id, const char *name, u8 bank, s32 vibesPitchShift, s32 volume, u8 priority) {
 
     // Open file
-    omm_str_cat(filename, SYS_MAX_PATH, "sound/", name, ".wav");
+    str_cat_sa(filename, SYS_MAX_PATH, "sound/", name, ".wav");
     fs_file_t *f = fs_open(filename);
     if (!f) {
         sys_fatal("omm_sound_load_wav: Unable to open file %s.", filename);
@@ -278,7 +278,7 @@ static void omm_sound_load_wav(s32 id, const char *name, u8 bank, s32 vibesPitch
 
     // Read file
     s64 size = fs_size(f);
-    void *buf = omm_new(u8, size);
+    void *buf = mem_new(u8, size);
     if (fs_read(f, buf, size) == -1) {
         sys_fatal("omm_sound_load_wav: Unable to read file %s.", filename);
     }
@@ -313,11 +313,11 @@ static void omm_sound_load_wav(s32 id, const char *name, u8 bank, s32 vibesPitch
     // Set sound data
     OmmSoundData *sound = &sOmmSoundData[id];
     sound->input[0]     = data;
-    sound->input[1]     = omm_dup(data, length * sizeof(u8));
-    sound->input[2]     = omm_dup(data, length * sizeof(u8));
-    sound->input[3]     = omm_dup(data, length * sizeof(u8));
-    sound->input[4]     = omm_dup(data, length * sizeof(u8));
-    sound->output       = omm_dup(data, length * sizeof(u8));
+    sound->input[1]     = mem_dup(data, length * sizeof(u8));
+    sound->input[2]     = mem_dup(data, length * sizeof(u8));
+    sound->input[3]     = mem_dup(data, length * sizeof(u8));
+    sound->input[4]     = mem_dup(data, length * sizeof(u8));
+    sound->output       = mem_dup(data, length * sizeof(u8));
     sound->length       = length;
     sound->volume       = volume;
     sound->priority     = priority;
@@ -330,8 +330,8 @@ static void omm_sound_load_wav(s32 id, const char *name, u8 bank, s32 vibesPitch
         omm_audio_pitch_shift(&sound->input[OMM_PEACH_VIBE_TYPE_JOY], data, length, SOUND_FREQ, OMM_PEACH_VIBE_SOUND_PITCH_MOD_JOY);
 
         // Rage: demonic voice
-        u8 *rageL = omm_dup(data, length * sizeof(u8)); omm_audio_pitch_shift(&rageL, data, length, SOUND_FREQ, OMM_PEACH_VIBE_SOUND_PITCH_MOD_RAGE * 0.98f);
-        u8 *rageR = omm_dup(data, length * sizeof(u8)); omm_audio_pitch_shift(&rageR, data, length, SOUND_FREQ, OMM_PEACH_VIBE_SOUND_PITCH_MOD_RAGE * 1.02f);
+        u8 *rageL = mem_dup(data, length * sizeof(u8)); omm_audio_pitch_shift(&rageL, data, length, SOUND_FREQ, OMM_PEACH_VIBE_SOUND_PITCH_MOD_RAGE * 0.98f);
+        u8 *rageR = mem_dup(data, length * sizeof(u8)); omm_audio_pitch_shift(&rageR, data, length, SOUND_FREQ, OMM_PEACH_VIBE_SOUND_PITCH_MOD_RAGE * 1.02f);
         for (s32 i = 0; i < length; i += sizeof(s16)) {
             *((s16 *) (sound->input[OMM_PEACH_VIBE_TYPE_RAGE] + i)) = (s16) clamp_s((((s32) *((s16 *) (rageL + i))) + ((s32) *((s16 *) (rageR + i)))) * 0.8f, -0x8000, +0x7FFF);
         }
@@ -865,8 +865,8 @@ static bool omm_sound_process_character_sound(const OmmCharacterSound sound, f32
     static bool exec = false;
     if (exec) return false;
     exec = true;
-    for_each_(const OmmCharacterSound *, sounds, omm_static_array_length(sOmmCharacterSounds), sOmmCharacterSounds) {
-        for (s32 i = 0; i != omm_static_array_length(sOmmCharacterSoundsMarioN64); ++i) {
+    for_each_(const OmmCharacterSound *, sounds, array_length(sOmmCharacterSounds), sOmmCharacterSounds) {
+        for (s32 i = 0; i != array_length(sOmmCharacterSoundsMarioN64); ++i) {
             if (omm_sound_compare(*sounds + i, &sound)) {
                 omm_sound_process_character_sound_from_index(i, pos, play);
                 exec = false;

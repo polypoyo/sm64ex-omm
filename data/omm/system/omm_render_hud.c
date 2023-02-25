@@ -6,60 +6,69 @@
 // Buffers
 //
 
-static Vtx sPowerMeterVtx[0x2000];
-static Gfx sPowerMeterGfx[0x4000];
-static Vtx *sPowerMeterVtxHead = NULL;
-static Gfx *sPowerMeterGfxHead = NULL;
-static Vtx sO2MeterVtx[OMM_RENDER_O2_NUM_QUADS * 4];
-static Gfx sO2MeterGfx[OMM_RENDER_O2_NUM_QUADS * 2 + 1];
-static s32 sCoinSparkles[OMM_RENDER_HUD_COIN_SPARKLE_COUNT] = { 0 };
+static Vtx sOmmPowerMeterVtx[0x2000];
+static Gfx sOmmPowerMeterGfx[0x4000];
+static Vtx *sOmmPowerMeterVtxHead = NULL;
+static Gfx *sOmmPowerMeterGfxHead = NULL;
+static Vtx sOmmO2MeterVtx[OMM_RENDER_O2_NUM_QUADS * 4];
+static Gfx sOmmO2MeterGfx[OMM_RENDER_O2_NUM_QUADS * 2 + 1];
+static s32 sOmmCoinSparkles[OMM_RENDER_HUD_COIN_SPARKLE_COUNT] = { 0 };
 
 //
 // Frame interpolation
 //
 
-InterpData sPowerMeter[1];
-InterpData sO2Meter[1];
-InterpData sTimer[1];
-InterpData sRedCoinArrow[1];
+static InterpData sOmmPowerMeter[1];
+static InterpData sOmmO2Meter[1];
+static InterpData sOmmTimer[1];
+static InterpData sOmmRedCoinsArrow[1];
+extern InterpData sOmmStatsBoard[1];
 
 static Gfx *omm_render_hud_power_meter_with_offset(Gfx *pos, f32 ticks, f32 dx, f32 dy, f32 luPos, f32 alpha);
 static Gfx *omm_render_hud_o2_meter_gauge(Gfx *pos, f32 x, f32 y, f32 alpha);
 static Gfx *omm_render_hud_timer_m_s_ms(Gfx *pos, f32 timer);
 static Gfx *omm_render_hud_red_coins_radar_arrow(Gfx *pos, f32 angle);
+extern Gfx *omm_render_stats_board(Gfx *pos, f32 t);
 
 void gfx_interpolate_frame_hud(f32 t) {
 
     // Power meter (health)
-    if (sPowerMeter->pos) {
-        interp_data_lerp(sPowerMeter, t);
-        omm_render_hud_power_meter_with_offset(sPowerMeter->pos, sPowerMeter->s, sPowerMeter->x, sPowerMeter->y, sPowerMeter->z, sPowerMeter->a);
+    if (sOmmPowerMeter->pos) {
+        interp_data_lerp(sOmmPowerMeter, t);
+        omm_render_hud_power_meter_with_offset(sOmmPowerMeter->pos, sOmmPowerMeter->s, sOmmPowerMeter->x, sOmmPowerMeter->y, sOmmPowerMeter->z, sOmmPowerMeter->a);
     }
 
     // Air meter (O2)
-    if (sO2Meter->pos) {
-        interp_data_lerp(sO2Meter, t);
-        omm_render_hud_o2_meter_gauge(sO2Meter->pos, sO2Meter->x, sO2Meter->y, sO2Meter->a);
+    if (sOmmO2Meter->pos) {
+        interp_data_lerp(sOmmO2Meter, t);
+        omm_render_hud_o2_meter_gauge(sOmmO2Meter->pos, sOmmO2Meter->x, sOmmO2Meter->y, sOmmO2Meter->a);
     }
 
     // Timer
-    if (sTimer->pos) {
-        interp_data_lerp(sTimer, t);
-        omm_render_hud_timer_m_s_ms(sTimer->pos, sTimer->t);
+    if (sOmmTimer->pos) {
+        interp_data_lerp(sOmmTimer, t);
+        omm_render_hud_timer_m_s_ms(sOmmTimer->pos, sOmmTimer->t);
     }
 
     // Red coins radar arrow
-    if (sRedCoinArrow->pos) {
-        interp_data_lerp(sRedCoinArrow, t);
-        omm_render_hud_red_coins_radar_arrow(sRedCoinArrow->pos, sRedCoinArrow->a);
+    if (sOmmRedCoinsArrow->pos) {
+        interp_data_lerp(sOmmRedCoinsArrow, t);
+        omm_render_hud_red_coins_radar_arrow(sOmmRedCoinsArrow->pos, sOmmRedCoinsArrow->a);
+    }
+
+    // Stats board
+    if (sOmmStatsBoard->pos) {
+        interp_data_lerp(sOmmStatsBoard, t);
+        omm_render_stats_board(sOmmStatsBoard->pos, sOmmStatsBoard->t);
     }
 }
 
 void gfx_clear_frame_hud() {
-    sPowerMeter->pos = NULL;
-    sO2Meter->pos = NULL;
-    sTimer->pos = NULL;
-    sRedCoinArrow->pos = NULL;
+    sOmmPowerMeter->pos = NULL;
+    sOmmO2Meter->pos = NULL;
+    sOmmTimer->pos = NULL;
+    sOmmRedCoinsArrow->pos = NULL;
+    sOmmStatsBoard->pos = NULL;
 }
 
 //
@@ -81,6 +90,16 @@ static OmmHudTimer sOmmHudVibeTimer   = { 0, 1, +1, +2, -45, 30,  0, 20, 0x00, 0
 static OmmHudTimer sOmmHudHealthTimer = { 0, 1, +1, +2, -60, 30,  0, 20, 0x40, 0xFF, 0, 0 };
 static OmmHudTimer sOmmHudOxygenTimer = { 1, 0, -1, +1,   0, 30, 24, 30, 0x00, 0xFF, 0, 0 };
 static OmmHudTimer sOmmHudCameraTimer = { 0, 0, +1, +2, -45, 30,  0, 20, 0x00, 0xFF, 0, 0 };
+
+#if OMM_CODE_DEV
+u8 *gOmmHudStarsTimerData  = (u8 *) &sOmmHudStarsTimer;
+u8 *gOmmHudCoinsTimerData  = (u8 *) &sOmmHudCoinsTimer;
+u8 *gOmmHudVibeTimerData   = (u8 *) &sOmmHudVibeTimer;
+u8 *gOmmHudHealthTimerData = (u8 *) &sOmmHudHealthTimer;
+u8 *gOmmHudOxygenTimerData = (u8 *) &sOmmHudOxygenTimer;
+u8 *gOmmHudCameraTimerData = (u8 *) &sOmmHudCameraTimer;
+const s32 gOmmHudTimerSize = sizeof(OmmHudTimer);
+#endif
 
 static bool should_instant_fade_in(struct MarioState *m, OmmHudTimer *timer) {
     bool res = false; 
@@ -153,45 +172,45 @@ OMM_ROUTINE_LEVEL_ENTRY(omm_render_at_level_entry) {
 // Stars
 //
 
-bool omm_render_hud_stars(s16 x, s16 y, u8 alpha, s32 level, bool cond, bool shadow) {
+bool omm_render_hud_stars(s16 x, s16 y, u8 alpha, s32 levelNum, bool cond, bool shadow) {
     static const u8 sStarShading[2][2] = { { 0xA0, 0xFF }, { 0x00, 0x00 } };
     static const u8 sStarOpacity[2][2] = { { 0xFF, 0xFF }, { 0x00, 0x80 } };
 
     // Star counter
-    u8 t = omm_stars_get_bits_total(level);
+    u8 t = omm_stars_get_bits_total(levelNum, OMM_GAME_MODE);
     if (t == 0 || !cond ||
-        level == LEVEL_BOWSER_1 ||
-        level == LEVEL_BOWSER_2 ||
-        level == LEVEL_BOWSER_3) {
+        levelNum == LEVEL_BOWSER_1 ||
+        levelNum == LEVEL_BOWSER_2 ||
+        levelNum == LEVEL_BOWSER_3) {
         omm_render_glyph_hud(x, y, 0xFF, 0xFF, 0xFF, alpha, omm_render_get_star_glyph(0, OMM_EXTRAS_COLORED_STARS), shadow);
         return false;
     }
 
     // Course stars
-    s32 course = omm_level_get_course(level);
-    u8 f = save_file_get_star_flags(gCurrSaveFileNum - 1, course - 1);
+    s32 courseNum = omm_level_get_course(levelNum);
+    u8 f = omm_save_file_get_star_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE, courseNum - 1);
     u8 s = omm_stars_get_bits();
-    for (u8 i = 0; i != 8; ++i) {
+    for (u8 i = 0; i != OMM_NUM_STARS_MAX_PER_COURSE; ++i) {
         u8 bit = (1 << i);
         if (bit & t) {
             u8 shading = sStarShading[!(bit & f)][!(bit & s)];
             u8 opacity = sStarOpacity[!(bit & f)][!(bit & s)];
-            omm_render_glyph_hud(x, y, shading, shading, shading, (alpha * opacity) / 0xFF, omm_render_get_star_glyph(clamp_s(course, 0, 16), OMM_EXTRAS_COLORED_STARS), shadow);
+            omm_render_glyph_hud(x, y, shading, shading, shading, (alpha * opacity) / 0xFF, omm_render_get_star_glyph(clamp_s(courseNum, 0, 16), OMM_EXTRAS_COLORED_STARS), shadow);
             x += OMM_RENDER_STAR_OFFSET_X;
         }
     }
 
     // Sparkly Star
     if (OMM_SPARKLY_MODE_IS_ENABLED) {
-        s32 mode = gOmmSparklyMode;
+        s32 sparklyMode = gOmmSparklyMode;
         for (s32 i = -1; i != 8; ++i) {
-            s32 index = omm_sparkly_get_index(mode, level, i == -1 ? gCurrAreaIndex : i);
-            if (index != -1) {
-                bool collected = omm_sparkly_is_star_collected(mode, index);
+            s32 starIndex = omm_sparkly_get_index(sparklyMode, levelNum, i == -1 ? gCurrAreaIndex : i);
+            if (starIndex != -1) {
+                bool collected = omm_sparkly_is_star_collected(sparklyMode, starIndex);
                 bool state = OMM_SPARKLY_STATE_IS_OK;
                 u8 shading = sStarShading[!collected][state];
                 u8 opacity = sStarOpacity[!collected][state];
-                omm_render_glyph_hud(x, y, shading, shading, shading, (alpha * opacity) / 0xFF, OMM_SPARKLY_HUD_GLYPH[mode], shadow);
+                omm_render_glyph_hud(x, y, shading, shading, shading, (alpha * opacity) / 0xFF, OMM_SPARKLY_HUD_GLYPH[sparklyMode], shadow);
                 return true;
             }
         }
@@ -276,12 +295,12 @@ static void omm_render_hud_power_meter_background(f32 x, f32 y, f32 alpha) {
         f32 a0 = ((i + 0) * 65536.f) / OMM_RENDER_POWER_BACKGROUND_NUM_TRIS;
         f32 a1 = ((i + 1) * 65536.f) / OMM_RENDER_POWER_BACKGROUND_NUM_TRIS;
         f32 d  = OMM_RENDER_POWER_SEGMENT_RADIUS_3 + 0.5f;
-        sPowerMeterVtxHead[0] = (Vtx) { { { x,                y,                0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_BACKGROUND_R, OMM_RENDER_POWER_BACKGROUND_G, OMM_RENDER_POWER_BACKGROUND_B, (u8) clamp_f(alpha, 0, 255) } } };
-        sPowerMeterVtxHead[1] = (Vtx) { { { x + d * sins(a0), y + d * coss(a0), 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_BACKGROUND_R, OMM_RENDER_POWER_BACKGROUND_G, OMM_RENDER_POWER_BACKGROUND_B, (u8) clamp_f(alpha, 0, 255) } } };
-        sPowerMeterVtxHead[2] = (Vtx) { { { x + d * sins(a1), y + d * coss(a1), 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_BACKGROUND_R, OMM_RENDER_POWER_BACKGROUND_G, OMM_RENDER_POWER_BACKGROUND_B, (u8) clamp_f(alpha, 0, 255) } } };
-        gSPVertex(sPowerMeterGfxHead++, sPowerMeterVtxHead, 3, 0);
-        gSP1Triangle(sPowerMeterGfxHead++, 0, 2, 1, 0x0);
-        sPowerMeterVtxHead += 3;
+        sOmmPowerMeterVtxHead[0] = (Vtx) { { { x,                y,                0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_BACKGROUND_R, OMM_RENDER_POWER_BACKGROUND_G, OMM_RENDER_POWER_BACKGROUND_B, (u8) clamp_f(alpha, 0, 255) } } };
+        sOmmPowerMeterVtxHead[1] = (Vtx) { { { x + d * sins(a0), y + d * coss(a0), 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_BACKGROUND_R, OMM_RENDER_POWER_BACKGROUND_G, OMM_RENDER_POWER_BACKGROUND_B, (u8) clamp_f(alpha, 0, 255) } } };
+        sOmmPowerMeterVtxHead[2] = (Vtx) { { { x + d * sins(a1), y + d * coss(a1), 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_BACKGROUND_R, OMM_RENDER_POWER_BACKGROUND_G, OMM_RENDER_POWER_BACKGROUND_B, (u8) clamp_f(alpha, 0, 255) } } };
+        gSPVertex(sOmmPowerMeterGfxHead++, sOmmPowerMeterVtxHead, 3, 0);
+        gSP1Triangle(sOmmPowerMeterGfxHead++, 0, 2, 1, 0x0);
+        sOmmPowerMeterVtxHead += 3;
     }
 }
 
@@ -309,19 +328,19 @@ static void omm_render_hud_power_meter_segments(f32 x0, f32 y0, f32 alpha, f32 t
                     index = 4;
                 }
             }
-            sPowerMeterVtxHead[0] = (Vtx) { { { x + sins(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_0, y + coss(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_0, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_BORDER_R, OMM_RENDER_POWER_SEGMENT_BORDER_G, OMM_RENDER_POWER_SEGMENT_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
-            sPowerMeterVtxHead[1] = (Vtx) { { { x + sins(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_1, y + coss(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_1, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_CENTER_R, OMM_RENDER_POWER_SEGMENT_CENTER_G, OMM_RENDER_POWER_SEGMENT_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
-            sPowerMeterVtxHead[2] = (Vtx) { { { x + sins(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_2, y + coss(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_2, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_CENTER_R, OMM_RENDER_POWER_SEGMENT_CENTER_G, OMM_RENDER_POWER_SEGMENT_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
-            sPowerMeterVtxHead[3] = (Vtx) { { { x + sins(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_3, y + coss(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_3, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_BORDER_R, OMM_RENDER_POWER_SEGMENT_BORDER_G, OMM_RENDER_POWER_SEGMENT_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
-            sPowerMeterVtxHead[4] = (Vtx) { { { x + sins(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_0, y + coss(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_0, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_BORDER_R, OMM_RENDER_POWER_SEGMENT_BORDER_G, OMM_RENDER_POWER_SEGMENT_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
-            sPowerMeterVtxHead[5] = (Vtx) { { { x + sins(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_1, y + coss(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_1, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_CENTER_R, OMM_RENDER_POWER_SEGMENT_CENTER_G, OMM_RENDER_POWER_SEGMENT_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
-            sPowerMeterVtxHead[6] = (Vtx) { { { x + sins(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_2, y + coss(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_2, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_CENTER_R, OMM_RENDER_POWER_SEGMENT_CENTER_G, OMM_RENDER_POWER_SEGMENT_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
-            sPowerMeterVtxHead[7] = (Vtx) { { { x + sins(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_3, y + coss(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_3, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_BORDER_R, OMM_RENDER_POWER_SEGMENT_BORDER_G, OMM_RENDER_POWER_SEGMENT_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
-            gSPVertex(sPowerMeterGfxHead++, sPowerMeterVtxHead, 8, 0);
-            gSP2Triangles(sPowerMeterGfxHead++, 2, 6, 3, 0x0, 3, 6, 7, 0x0);
-            gSP2Triangles(sPowerMeterGfxHead++, 1, 5, 2, 0x0, 2, 5, 6, 0x0);
-            gSP2Triangles(sPowerMeterGfxHead++, 0, 4, 1, 0x0, 1, 4, 5, 0x0);
-            sPowerMeterVtxHead += 8;
+            sOmmPowerMeterVtxHead[0] = (Vtx) { { { x + sins(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_0, y + coss(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_0, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_BORDER_R, OMM_RENDER_POWER_SEGMENT_BORDER_G, OMM_RENDER_POWER_SEGMENT_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
+            sOmmPowerMeterVtxHead[1] = (Vtx) { { { x + sins(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_1, y + coss(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_1, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_CENTER_R, OMM_RENDER_POWER_SEGMENT_CENTER_G, OMM_RENDER_POWER_SEGMENT_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
+            sOmmPowerMeterVtxHead[2] = (Vtx) { { { x + sins(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_2, y + coss(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_2, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_CENTER_R, OMM_RENDER_POWER_SEGMENT_CENTER_G, OMM_RENDER_POWER_SEGMENT_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
+            sOmmPowerMeterVtxHead[3] = (Vtx) { { { x + sins(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_3, y + coss(a0) * OMM_RENDER_POWER_SEGMENT_RADIUS_3, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_BORDER_R, OMM_RENDER_POWER_SEGMENT_BORDER_G, OMM_RENDER_POWER_SEGMENT_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
+            sOmmPowerMeterVtxHead[4] = (Vtx) { { { x + sins(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_0, y + coss(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_0, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_BORDER_R, OMM_RENDER_POWER_SEGMENT_BORDER_G, OMM_RENDER_POWER_SEGMENT_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
+            sOmmPowerMeterVtxHead[5] = (Vtx) { { { x + sins(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_1, y + coss(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_1, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_CENTER_R, OMM_RENDER_POWER_SEGMENT_CENTER_G, OMM_RENDER_POWER_SEGMENT_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
+            sOmmPowerMeterVtxHead[6] = (Vtx) { { { x + sins(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_2, y + coss(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_2, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_CENTER_R, OMM_RENDER_POWER_SEGMENT_CENTER_G, OMM_RENDER_POWER_SEGMENT_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
+            sOmmPowerMeterVtxHead[7] = (Vtx) { { { x + sins(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_3, y + coss(a1) * OMM_RENDER_POWER_SEGMENT_RADIUS_3, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_SEGMENT_BORDER_R, OMM_RENDER_POWER_SEGMENT_BORDER_G, OMM_RENDER_POWER_SEGMENT_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
+            gSPVertex(sOmmPowerMeterGfxHead++, sOmmPowerMeterVtxHead, 8, 0);
+            gSP2Triangles(sOmmPowerMeterGfxHead++, 2, 6, 3, 0x0, 3, 6, 7, 0x0);
+            gSP2Triangles(sOmmPowerMeterGfxHead++, 1, 5, 2, 0x0, 2, 5, 6, 0x0);
+            gSP2Triangles(sOmmPowerMeterGfxHead++, 0, 4, 1, 0x0, 1, 4, 5, 0x0);
+            sOmmPowerMeterVtxHead += 8;
         }
     }
 }
@@ -341,15 +360,15 @@ static void omm_render_hud_power_meter_heart(f32 x, f32 y, f32 alpha, f32 ticks)
         f32 dy0 = r0 * coss(a0) - 0.65f;
         f32 dx1 = r1 * sins(a1);
         f32 dy1 = r1 * coss(a1) - 0.65f;
-        sPowerMeterVtxHead[0] = (Vtx) { { { x,                                           y,                                           0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_CENTER_R, OMM_RENDER_POWER_HEART_CENTER_G, OMM_RENDER_POWER_HEART_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
-        sPowerMeterVtxHead[1] = (Vtx) { { { x + dx0 * OMM_RENDER_POWER_HEART_RADIUS_1_X, y + dy0 * OMM_RENDER_POWER_HEART_RADIUS_1_Y, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_CENTER_R, OMM_RENDER_POWER_HEART_CENTER_G, OMM_RENDER_POWER_HEART_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
-        sPowerMeterVtxHead[2] = (Vtx) { { { x + dx0 * OMM_RENDER_POWER_HEART_RADIUS_2_X, y + dy0 * OMM_RENDER_POWER_HEART_RADIUS_2_Y, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_BORDER_R, OMM_RENDER_POWER_HEART_BORDER_G, OMM_RENDER_POWER_HEART_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
-        sPowerMeterVtxHead[3] = (Vtx) { { { x + dx1 * OMM_RENDER_POWER_HEART_RADIUS_1_X, y + dy1 * OMM_RENDER_POWER_HEART_RADIUS_1_Y, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_CENTER_R, OMM_RENDER_POWER_HEART_CENTER_G, OMM_RENDER_POWER_HEART_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
-        sPowerMeterVtxHead[4] = (Vtx) { { { x + dx1 * OMM_RENDER_POWER_HEART_RADIUS_2_X, y + dy1 * OMM_RENDER_POWER_HEART_RADIUS_2_Y, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_BORDER_R, OMM_RENDER_POWER_HEART_BORDER_G, OMM_RENDER_POWER_HEART_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
-        gSPVertex(sPowerMeterGfxHead++, sPowerMeterVtxHead, 5, 0);
-        gSP2Triangles(sPowerMeterGfxHead++, 2, 1, 4, 0x0, 1, 3, 4, 0x0);
-        gSP1Triangle(sPowerMeterGfxHead++, 1, 0, 3, 0x0);
-        sPowerMeterVtxHead += 5;
+        sOmmPowerMeterVtxHead[0] = (Vtx) { { { x,                                           y,                                           0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_CENTER_R, OMM_RENDER_POWER_HEART_CENTER_G, OMM_RENDER_POWER_HEART_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
+        sOmmPowerMeterVtxHead[1] = (Vtx) { { { x + dx0 * OMM_RENDER_POWER_HEART_RADIUS_1_X, y + dy0 * OMM_RENDER_POWER_HEART_RADIUS_1_Y, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_CENTER_R, OMM_RENDER_POWER_HEART_CENTER_G, OMM_RENDER_POWER_HEART_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
+        sOmmPowerMeterVtxHead[2] = (Vtx) { { { x + dx0 * OMM_RENDER_POWER_HEART_RADIUS_2_X, y + dy0 * OMM_RENDER_POWER_HEART_RADIUS_2_Y, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_BORDER_R, OMM_RENDER_POWER_HEART_BORDER_G, OMM_RENDER_POWER_HEART_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
+        sOmmPowerMeterVtxHead[3] = (Vtx) { { { x + dx1 * OMM_RENDER_POWER_HEART_RADIUS_1_X, y + dy1 * OMM_RENDER_POWER_HEART_RADIUS_1_Y, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_CENTER_R, OMM_RENDER_POWER_HEART_CENTER_G, OMM_RENDER_POWER_HEART_CENTER_B, (u8) clamp_f(alpha, 0, 255) } } };
+        sOmmPowerMeterVtxHead[4] = (Vtx) { { { x + dx1 * OMM_RENDER_POWER_HEART_RADIUS_2_X, y + dy1 * OMM_RENDER_POWER_HEART_RADIUS_2_Y, 0 }, 0, { 0, 0 }, { OMM_RENDER_POWER_HEART_BORDER_R, OMM_RENDER_POWER_HEART_BORDER_G, OMM_RENDER_POWER_HEART_BORDER_B, (u8) clamp_f(alpha, 0, 255) } } };
+        gSPVertex(sOmmPowerMeterGfxHead++, sOmmPowerMeterVtxHead, 5, 0);
+        gSP2Triangles(sOmmPowerMeterGfxHead++, 2, 1, 4, 0x0, 1, 3, 4, 0x0);
+        gSP1Triangle(sOmmPowerMeterGfxHead++, 1, 0, 3, 0x0);
+        sOmmPowerMeterVtxHead += 5;
     }
 }
 
@@ -367,20 +386,20 @@ static void omm_render_hud_power_meter_number(f32 x, f32 y, f32 alpha, f32 segme
     s16 y0 = (s16) ((SCREEN_HEIGHT - h - y) * 4.f);
     s16 x1 = (s16) ((x + w) * 4.f);
     s16 y1 = (s16) ((SCREEN_HEIGHT - y) * 4.f);
-    gDPSetTexturePersp(sPowerMeterGfxHead++, G_TP_NONE);
-    gDPSetRenderMode(sPowerMeterGfxHead++, G_RM_AA_XLU_SURF, G_RM_AA_XLU_SURF2);
-    gDPSetCombineLERP(sPowerMeterGfxHead++, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
-    gDPSetEnvColor(sPowerMeterGfxHead++, 0xFF, 0xFF, 0xFF, (u8) clamp_f(alpha, 0, 255));
-    gDPSetTextureFilter(sPowerMeterGfxHead++, G_TF_POINT);
-    gSPTexture(sPowerMeterGfxHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-    gDPLoadTextureBlock(sPowerMeterGfxHead++, sOmmNumberGlyphs[(s32) segments], G_IM_FMT_RGBA, G_IM_SIZ_32b, 16, 16, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
-    gSPTextureRectangle(sPowerMeterGfxHead++, x0, y0, x1, y1, G_TX_RENDERTILE, 0, 0, (s16) (0x4000 / w), (s16) (0x4000 / h));
-    gDPSetTexturePersp(sPowerMeterGfxHead++, G_TP_PERSP);
-    gDPSetRenderMode(sPowerMeterGfxHead++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
-    gDPSetCombineLERP(sPowerMeterGfxHead++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
-    gDPSetEnvColor(sPowerMeterGfxHead++, 0xFF, 0xFF, 0xFF, 0xFF);
-    gDPSetTextureFilter(sPowerMeterGfxHead++, G_TF_BILERP);
-    gSPTexture(sPowerMeterGfxHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
+    gDPSetTexturePersp(sOmmPowerMeterGfxHead++, G_TP_NONE);
+    gDPSetRenderMode(sOmmPowerMeterGfxHead++, G_RM_AA_XLU_SURF, G_RM_AA_XLU_SURF2);
+    gDPSetCombineLERP(sOmmPowerMeterGfxHead++, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
+    gDPSetEnvColor(sOmmPowerMeterGfxHead++, 0xFF, 0xFF, 0xFF, (u8) clamp_f(alpha, 0, 255));
+    gDPSetTextureFilter(sOmmPowerMeterGfxHead++, G_TF_POINT);
+    gSPTexture(sOmmPowerMeterGfxHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    gDPLoadTextureBlock(sOmmPowerMeterGfxHead++, sOmmNumberGlyphs[(s32) segments], G_IM_FMT_RGBA, G_IM_SIZ_32b, 16, 16, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
+    gSPTextureRectangle(sOmmPowerMeterGfxHead++, x0, y0, x1, y1, G_TX_RENDERTILE, 0, 0, (s16) (0x4000 / w), (s16) (0x4000 / h));
+    gDPSetTexturePersp(sOmmPowerMeterGfxHead++, G_TP_PERSP);
+    gDPSetRenderMode(sOmmPowerMeterGfxHead++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
+    gDPSetCombineLERP(sOmmPowerMeterGfxHead++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
+    gDPSetEnvColor(sOmmPowerMeterGfxHead++, 0xFF, 0xFF, 0xFF, 0xFF);
+    gDPSetTextureFilter(sOmmPowerMeterGfxHead++, G_TF_BILERP);
+    gSPTexture(sOmmPowerMeterGfxHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
 }
 
 static void omm_render_hud_power_meter_health_gauge(f32 x, f32 y, f32 alpha, f32 ticks, f32 luPos, bool isLifeUp) {
@@ -402,25 +421,25 @@ static void omm_render_hud_power_meter_health_gauge(f32 x, f32 y, f32 alpha, f32
 }
 
 static Gfx *omm_render_hud_power_meter_with_offset(Gfx *pos, f32 ticks, f32 dx, f32 dy, f32 luPos, f32 alpha) {
-    sPowerMeterGfxHead = sPowerMeterGfx;
-    sPowerMeterVtxHead = sPowerMeterVtx;
+    sOmmPowerMeterGfxHead = sOmmPowerMeterGfx;
+    sOmmPowerMeterVtxHead = sOmmPowerMeterVtx;
     OMM_RENDER_ENABLE_ALPHA(pos++);
-    gSPDisplayList(pos++, sPowerMeterGfx);
-    gSPClearGeometryMode(sPowerMeterGfxHead++, G_LIGHTING);
-    gDPSetCombineLERP(sPowerMeterGfxHead++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
+    gSPDisplayList(pos++, sOmmPowerMeterGfx);
+    gSPClearGeometryMode(sOmmPowerMeterGfxHead++, G_LIGHTING);
+    gDPSetCombineLERP(sOmmPowerMeterGfxHead++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
     if (OMM_MOVESET_ODYSSEY) {
         omm_render_hud_power_meter_health_gauge(OMM_RENDER_POWER_X + dx, OMM_RENDER_POWER_Y + dy, alpha, ticks, luPos, false);
         omm_render_hud_power_meter_health_gauge(OMM_RENDER_POWER_X + dx - OMM_RENDER_POWER_LIFE_UP_OFFSET_X, OMM_RENDER_POWER_Y + dy, alpha, ticks, luPos, true);
     } else {
         omm_render_hud_power_meter_health_gauge(OMM_RENDER_POWER_X, OMM_RENDER_POWER_Y, alpha, ticks, 1.f, false);
     }
-    gSPSetGeometryMode(sPowerMeterGfxHead++, G_LIGHTING);
-    gSPEndDisplayList(sPowerMeterGfxHead);
+    gSPSetGeometryMode(sOmmPowerMeterGfxHead++, G_LIGHTING);
+    gSPEndDisplayList(sOmmPowerMeterGfxHead);
     return pos;
 }
 
 void omm_render_hud_power_meter(struct MarioState *m) {
-    if ((gHudDisplay.flags & HUD_DISPLAY_FLAG_CAMERA_AND_POWER) && !gOmmOneHealthMode) {
+    if ((gHudDisplay.flags & HUD_DISPLAY_FLAG_CAMERA_AND_POWER) && !OMM_MOVESET_ODYSSEY_1H) {
         u8 alpha = vanishing_hud_update_timer_and_get_alpha(m, &sOmmHudHealthTimer);
         if (alpha) {
             omm_render_create_dl_ortho_matrix();
@@ -437,8 +456,8 @@ void omm_render_hud_power_meter(struct MarioState *m) {
                 dy = 0.f;
                 dz = 0.f;
             }
-            interp_data_update(sPowerMeter, !(sPowerMeter->z1 == 0.f && dz == 1.f), gDisplayListHead, dx, dy, dz, alpha, ticks, 0);
-            gDisplayListHead = omm_render_hud_power_meter_with_offset(gDisplayListHead, sPowerMeter->s0, sPowerMeter->x0, sPowerMeter->y0, sPowerMeter->z0, sPowerMeter->a0);
+            interp_data_update(sOmmPowerMeter, !(sOmmPowerMeter->z1 == 0.f && dz == 1.f), gDisplayListHead, dx, dy, dz, alpha, ticks, 0);
+            gDisplayListHead = omm_render_hud_power_meter_with_offset(gDisplayListHead, sOmmPowerMeter->s0, sOmmPowerMeter->x0, sOmmPowerMeter->y0, sOmmPowerMeter->z0, sOmmPowerMeter->a0);
         }
     }
 }
@@ -453,7 +472,7 @@ static Gfx *omm_render_hud_o2_meter_gauge(Gfx *pos, f32 x, f32 y, f32 alpha) {
     bool blink = (t == 1.f) && (gGlobalTimer & 1);
 
     // Vertices
-    Vtx *vtx = sO2MeterVtx;
+    Vtx *vtx = sOmmO2MeterVtx;
     for (s32 i = 0; i != OMM_RENDER_O2_NUM_QUADS; ++i) {
         s32 a0 = ((i + 0) * -65536) / OMM_RENDER_O2_NUM_QUADS;
         s32 a1 = ((i + 1) * -65536) / OMM_RENDER_O2_NUM_QUADS;
@@ -465,9 +484,9 @@ static Gfx *omm_render_hud_o2_meter_gauge(Gfx *pos, f32 x, f32 y, f32 alpha) {
     }
 
     // Triangles
-    Gfx *gfx = sO2MeterGfx;
+    Gfx *gfx = sOmmO2MeterGfx;
     for (s32 i = 0; i != OMM_RENDER_O2_NUM_QUADS; ++i) {
-        gSPVertex(gfx++, sO2MeterVtx + 4 * i, 4, 0);
+        gSPVertex(gfx++, sOmmO2MeterVtx + 4 * i, 4, 0);
         gSP2Triangles(gfx++, 0, 1, 2, 0, 3, 2, 1, 0);
     }
     gSPEndDisplayList(gfx);
@@ -476,7 +495,7 @@ static Gfx *omm_render_hud_o2_meter_gauge(Gfx *pos, f32 x, f32 y, f32 alpha) {
     OMM_RENDER_ENABLE_ALPHA(pos++);
     gSPClearGeometryMode(pos++, G_LIGHTING);
     gDPSetCombineLERP(pos++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
-    gSPDisplayList(pos++, sO2MeterGfx);
+    gSPDisplayList(pos++, sOmmO2MeterGfx);
     gSPSetGeometryMode(pos++, G_LIGHTING);
     return pos;
 }
@@ -507,8 +526,8 @@ void omm_render_hud_o2_meter(struct MarioState *m) {
             if (dist > 0.f) {
                 f32 x = (SCREEN_WIDTH  / 2) * (1.f + (pos2d[0] / dist)) + ((SCREEN_WIDTH  * 1.6f) / sqrtf(dist));
                 f32 y = (SCREEN_HEIGHT / 2) * (1.f - (pos2d[1] / dist)) + ((SCREEN_HEIGHT * 3.2f) / sqrtf(dist));
-                interp_data_update(sO2Meter, sO2Meter->t1 >= (f32) gGlobalTimer - 1, gDisplayListHead, x, y, 0, alpha, 0, gGlobalTimer);
-                gDisplayListHead = omm_render_hud_o2_meter_gauge(gDisplayListHead, sO2Meter->x0, sO2Meter->y0, sO2Meter->a0);
+                interp_data_update(sOmmO2Meter, sOmmO2Meter->t1 >= (f32) gGlobalTimer - 1, gDisplayListHead, x, y, 0, alpha, 0, gGlobalTimer);
+                gDisplayListHead = omm_render_hud_o2_meter_gauge(gDisplayListHead, sOmmO2Meter->x0, sOmmO2Meter->y0, sOmmO2Meter->a0);
             }
         }
     }
@@ -607,12 +626,12 @@ void omm_render_hud_timer() {
         s16 clockW = (OMM_RENDER_GLYPH_SIZE * 4) / 3;
         s16 clockX = OMM_RENDER_TIMER_X - (clockW * 3) / 2;
         s16 clockY = OMM_RENDER_TIMER_Y - (clockW - OMM_RENDER_GLYPH_SIZE) / 2;
-        omm_render_texrect(clockX, clockY, clockW, clockW, G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 16, 0xFF, 0xFF, 0xFF, 0xFF, OMM_TEXTURE_HUD_CLOCK, false);
+        omm_render_texrect(clockX, clockY, clockW, clockW, 16, 16, 0xFF, 0xFF, 0xFF, 0xFF, OMM_TEXTURE_HUD_CLOCK, false);
 
         // Clock hand and timer
         omm_render_create_dl_ortho_matrix();
-        interp_data_update(sTimer, sTimer->s1 >= (f32) gGlobalTimer - 1, gDisplayListHead, 0, 0, 0, 0, gGlobalTimer, gHudDisplay.timer);
-        gDisplayListHead = omm_render_hud_timer_m_s_ms(gDisplayListHead, sTimer->t0);
+        interp_data_update(sOmmTimer, sOmmTimer->s1 >= (f32) gGlobalTimer - 1, gDisplayListHead, 0, 0, 0, 0, gGlobalTimer, gHudDisplay.timer);
+        gDisplayListHead = omm_render_hud_timer_m_s_ms(gDisplayListHead, sOmmTimer->t0);
     }
 }
 
@@ -645,9 +664,9 @@ static s16 omm_render_hud_star_count(struct MarioState *m, s16 y) {
 
                 // Sparkly Star counter
                 if (OMM_SPARKLY_MODE_IS_ENABLED) {
-                    s32 mode = gOmmSparklyMode;
-                    omm_render_glyph_hud(OMM_RENDER_VALUE_GLYPH_X, y, 0xFF, 0xFF, 0xFF, alpha, OMM_SPARKLY_HUD_GLYPH[mode], false);
-                    omm_render_number_hud(OMM_RENDER_VALUE_NUMBER_X, y, alpha, omm_sparkly_get_collected_count(mode), 3, true, false);
+                    s32 sparklyMode = gOmmSparklyMode;
+                    omm_render_glyph_hud(OMM_RENDER_VALUE_GLYPH_X, y, 0xFF, 0xFF, 0xFF, alpha, OMM_SPARKLY_HUD_GLYPH[sparklyMode], false);
+                    omm_render_number_hud(OMM_RENDER_VALUE_NUMBER_X, y, alpha, omm_sparkly_get_collected_count(sparklyMode), 3, true, false);
                     y -= OMM_RENDER_OFFSET_Y;
                 }
             }
@@ -670,8 +689,8 @@ static s16 omm_render_hud_coin_count(struct MarioState *m, s16 y) {
                 // New sparkle
                 if (sOmmHudCoinsTimer.timer == sOmmHudCoinsTimer.timerMin) {
                     for (s32 i = 0; i != OMM_RENDER_HUD_COIN_SPARKLE_COUNT; ++i) {
-                        if (sCoinSparkles[i] <= 0) {
-                            sCoinSparkles[i] = OMM_RENDER_HUD_COIN_SPARKLE_FRAMES * OMM_RENDER_HUD_COIN_SPARKLE_DELAY;
+                        if (sOmmCoinSparkles[i] <= 0) {
+                            sOmmCoinSparkles[i] = OMM_RENDER_HUD_COIN_SPARKLE_FRAMES * OMM_RENDER_HUD_COIN_SPARKLE_DELAY;
                             break;
                         }
                     }
@@ -679,20 +698,19 @@ static s16 omm_render_hud_coin_count(struct MarioState *m, s16 y) {
 
                 // Update
                 for (s32 i = 0; i != OMM_RENDER_HUD_COIN_SPARKLE_COUNT; ++i) {
-                    if (sCoinSparkles[i]-- > 0) {
+                    if (sOmmCoinSparkles[i]-- > 0) {
                         omm_render_texrect(
                             OMM_RENDER_HUD_COIN_SPARKLE_X, OMM_RENDER_HUD_COIN_SPARKLE_Y,
                             OMM_RENDER_HUD_COIN_SPARKLE_SIZE, OMM_RENDER_HUD_COIN_SPARKLE_SIZE,
-                            G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 
-                            0xFF, 0xFF, 0xFF, 0xFF,
-                            (const void *) (omm_static_array_of(const char *) {
+                            32, 32, 0xFF, 0xFF, 0xFF, 0xFF,
+                            (const void *) (array_of(const char *) {
                                 OMM_ASSET_SPARKLE_5,
                                 OMM_ASSET_SPARKLE_4,
                                 OMM_ASSET_SPARKLE_3,
                                 OMM_ASSET_SPARKLE_2,
                                 OMM_ASSET_SPARKLE_1,
                                 OMM_ASSET_SPARKLE_0,
-                            })[sCoinSparkles[i] / OMM_RENDER_HUD_COIN_SPARKLE_DELAY],
+                            })[sOmmCoinSparkles[i] / OMM_RENDER_HUD_COIN_SPARKLE_DELAY],
                             false
                         );
                     }
@@ -783,10 +801,9 @@ static s16 omm_render_hud_sparkly_coins(s16 y) {
             
             // Render the coin icon
             omm_render_texrect(
-                coinX, coinY, coinW, coinW,
-                G_IM_FMT_IA, G_IM_SIZ_16b, 32, 32, 
+                coinX, coinY, coinW, coinW, 32, 32, 
                 sCoins[coinType].r, sCoins[coinType].g, sCoins[coinType].b, 0xFF,
-                (const void *) (omm_static_array_of(const char *) {
+                (const void *) (array_of(const char *) {
                 OMM_ASSET_COIN_0,
                 OMM_ASSET_COIN_1,
                 OMM_ASSET_COIN_2,
@@ -816,9 +833,8 @@ static s16 omm_render_hud_sparkly_red_coins(s16 y) {
             if (omm_sparkly_context_get_data(OMM_SPARKLY_DATA_SHARDS)) {
                 omm_render_texrect(
                     redCoinX, redCoinY, redCoinW, redCoinW,
-                    G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 
-                    0xFF, 0xFF, 0xFF, 0xFF,
-                    (const void *) (omm_static_array_of(const char *) {
+                    32, 32, 0xFF, 0xFF, 0xFF, 0xFF,
+                    (const void *) (array_of(const char *) {
                     OMM_ASSET_SPARKLE_5,
                     OMM_ASSET_SPARKLE_4,
                     OMM_ASSET_SPARKLE_3,
@@ -831,9 +847,8 @@ static s16 omm_render_hud_sparkly_red_coins(s16 y) {
             } else {
                 omm_render_texrect(
                     redCoinX, redCoinY, redCoinW, redCoinW,
-                    G_IM_FMT_IA, G_IM_SIZ_16b, 32, 32, 
-                    0xFF, 0x00, 0x00, 0xFF,
-                    (const void *) (omm_static_array_of(const char *) {
+                    32, 32, 0xFF, 0x00, 0x00, 0xFF,
+                    (const void *) (array_of(const char *) {
                     OMM_ASSET_COIN_0,
                     OMM_ASSET_COIN_1,
                     OMM_ASSET_COIN_2,
@@ -863,9 +878,8 @@ static s16 omm_render_hud_sparkly_flames(s16 y) {
             // Render the animated flame
             omm_render_texrect(
                 flameX, flameY, flameW, flameW,
-                G_IM_FMT_IA, G_IM_SIZ_16b, 32, 32, 
-                0xFF, 0x00, 0x00, 0xFF,
-                (const void *) (omm_static_array_of(const char *) {
+                32, 32, 0xFF, 0x00, 0x00, 0xFF,
+                (const void *) (array_of(const char *) {
                     OMM_ASSET_FLAME_0,
                     OMM_ASSET_FLAME_1,
                     OMM_ASSET_FLAME_2,
@@ -897,8 +911,7 @@ static s16 omm_render_hud_sparkly_boxes(s16 y) {
             // Render the box icon
             omm_render_texrect(
                 boxX, boxY, boxW, boxW,
-                G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 
-                0xFF, 0xFF, 0xFF, 0xFF,
+                32, 32, 0xFF, 0xFF, 0xFF, 0xFF,
                 (const void *) OMM_ASSET_EXCLAMATION_BOX,
                 false
             );
@@ -923,8 +936,7 @@ static s16 omm_render_hud_sparkly_mushrooms(s16 y) {
             // Render the mushroom icon
             omm_render_texrect(
                 mushroomX, mushroomY, mushroomW, mushroomW,
-                G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 64, 
-                0xFF, 0xFF, 0xFF, 0xFF,
+                32, 64, 0xFF, 0xFF, 0xFF, 0xFF,
                 (const void *) OMM_ASSET_MUSHROOM_1UP,
                 false
             );
@@ -974,9 +986,8 @@ static s16 omm_render_hud_sparkly_enemies(s16 y) {
             // Render the animated flame
             omm_render_texrect(
                 enemyX, enemyY, enemyW, enemyW,
-                G_IM_FMT_RGBA, G_IM_SIZ_32b, 512, 512, 
-                0xFF, 0xFF, 0xFF, 0xFF,
-                (const void *) (omm_static_array_of(const char *) {
+                512, 512, 0xFF, 0xFF, 0xFF, 0xFF,
+                (const void *) (array_of(const char *) {
                     OMM_TEXTURE_HUD_ENEMY_0,
                     OMM_TEXTURE_HUD_ENEMY_1,
                     OMM_TEXTURE_HUD_ENEMY_2,
@@ -1060,7 +1071,7 @@ static Gfx *omm_render_hud_red_coins_radar_arrow(Gfx *pos, f32 angle) {
     gDPSetCombineLERP(pos++, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
     gDPSetEnvColor(pos++, 0xFF, 0xFF, 0xFF, 0xFF);
     gSPTexture(pos++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-    gDPLoadTextureBlock(pos++, OMM_TEXTURE_HUD_ARROW, G_IM_FMT_RGBA, G_IM_SIZ_16b, 128, 128, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
+    gDPLoadTextureBlock(pos++, OMM_TEXTURE_HUD_ARROW, G_IM_FMT_RGBA, G_IM_SIZ_32b, 128, 128, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
     gSPVertex(pos++, sRadarArrowVtx, 4, 0);
     gSP2Triangles(pos++, 0, 1, 2, 0, 0, 2, 3, 0);
     gDPSetRenderMode(pos++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
@@ -1085,9 +1096,8 @@ void omm_render_hud_red_coins_radar(struct MarioState *m) {
                     OMM_RENDER_RADAR_Y - OMM_RENDER_RADAR_COIN_SIZE / 2,
                     OMM_RENDER_RADAR_COIN_SIZE,
                     OMM_RENDER_RADAR_COIN_SIZE,
-                    G_IM_FMT_IA, G_IM_SIZ_16b, 32, 32, 
-                    0xFF, 0x00, 0x00, 0xFF,
-                    (const void *) (omm_static_array_of(const char *) {
+                    32, 32, 0xFF, 0x00, 0x00, 0xFF,
+                    (const void *) (array_of(const char *) {
                     OMM_ASSET_COIN_0,
                     OMM_ASSET_COIN_1,
                     OMM_ASSET_COIN_2,
@@ -1105,9 +1115,8 @@ void omm_render_hud_red_coins_radar(struct MarioState *m) {
                     OMM_RENDER_RADAR_Y - OMM_RENDER_RADAR_STAR_SIZE / 2,
                     OMM_RENDER_RADAR_STAR_SIZE,
                     OMM_RENDER_RADAR_STAR_SIZE,
-                    G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 
-                    0xFF, 0x80, 0x80, 0xFF,
-                    (const void *) (omm_static_array_of(const char *) {
+                    32, 32, 0xFF, 0x80, 0x80, 0xFF,
+                    (const void *) (array_of(const char *) {
                     OMM_ASSET_RED_STAR_0,
                     OMM_ASSET_RED_STAR_1,
                     OMM_ASSET_RED_STAR_2,
@@ -1130,14 +1139,92 @@ void omm_render_hud_red_coins_radar(struct MarioState *m) {
                 m->pos[0] - gCamera->pos[0]
             );
             omm_render_create_dl_ortho_matrix();
-            interp_data_update(sRedCoinArrow, true, gDisplayListHead, 0, 0, 0, angle, 0, 0);
-            if (sRedCoinArrow->a0 * sRedCoinArrow->a1 < 0) { // Check the -32768/+32767 over/underflow
-                f32 dl = 0x8000 - abs_f(sRedCoinArrow->a0);
-                f32 dr = 0x8000 - abs_f(sRedCoinArrow->a1);
-                sRedCoinArrow->a0 -= (dl + dr < 0x8000) * sign_f(sRedCoinArrow->a0) * 0x10000;
+            interp_data_update(sOmmRedCoinsArrow, true, gDisplayListHead, 0, 0, 0, angle, 0, 0);
+            if (sOmmRedCoinsArrow->a0 * sOmmRedCoinsArrow->a1 < 0) { // Check the -32768/+32767 over/underflow
+                f32 dl = 0x8000 - abs_f(sOmmRedCoinsArrow->a0);
+                f32 dr = 0x8000 - abs_f(sOmmRedCoinsArrow->a1);
+                sOmmRedCoinsArrow->a0 -= (dl + dr < 0x8000) * sign_f(sOmmRedCoinsArrow->a0) * 0x10000;
             }
-            gDisplayListHead = omm_render_hud_red_coins_radar_arrow(gDisplayListHead, sRedCoinArrow->a0);
+            gDisplayListHead = omm_render_hud_red_coins_radar_arrow(gDisplayListHead, sOmmRedCoinsArrow->a0);
         }
+    }
+}
+
+//
+// Monty mole hole indicator
+//
+
+static Gfx *omm_render_hud_monty_mole_hole_indicator_arrow(Gfx *pos, f32 x, f32 y, f32 radius, f32 angle, f32 scale) {
+    static Vtx sMontyMoleHoleIndicatorArrow[4] = {
+        { { { 0, 0, 0 }, 0, { 0x0000, 0x1000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } },
+        { { { 0, 0, 0 }, 0, { 0x1000, 0x1000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } },
+        { { { 0, 0, 0 }, 0, { 0x1000, 0x0000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } },
+        { { { 0, 0, 0 }, 0, { 0x0000, 0x0000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } }
+    };
+
+    // Vertices
+    for (s32 i = 0; i != 4; ++i) {
+        s16 a = angle + ((i * 0x4000) - 0x6000);
+        sMontyMoleHoleIndicatorArrow[i].v.ob[0] = x +         (radius * coss(angle + 0x4000) + OMM_RENDER_RADAR_ARROW_SIZE * OMM_INVSQRT2 * coss(a));
+        sMontyMoleHoleIndicatorArrow[i].v.ob[1] = y + scale * (radius * sins(angle + 0x4000) + OMM_RENDER_RADAR_ARROW_SIZE * OMM_INVSQRT2 * sins(a));
+    }
+    
+    // Display list
+    gDPSetRenderMode(pos++, G_RM_AA_XLU_SURF, G_RM_AA_XLU_SURF2);
+    gDPSetCombineLERP(pos++, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
+    gDPSetEnvColor(pos++, 0xFF, 0xFF, 0xFF, 0xFF);
+    gSPTexture(pos++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    gDPLoadTextureBlock(pos++, OMM_TEXTURE_HUD_ARROW_2, G_IM_FMT_RGBA, G_IM_SIZ_32b, 128, 128, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
+    gSPVertex(pos++, sMontyMoleHoleIndicatorArrow, 4, 0);
+    gSP2Triangles(pos++, 0, 1, 2, 0, 0, 2, 3, 0);
+    gDPSetRenderMode(pos++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
+    gDPSetCombineLERP(pos++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
+    gDPSetEnvColor(pos++, 0xFF, 0xFF, 0xFF, 0xFF);
+    gSPTexture(pos++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
+    return pos;
+}
+
+void omm_render_hud_monty_mole_hole_indicator() {
+    struct Object *currHole = gOmmMario->capture.obj->oMontyMoleCurrentHole;
+    struct Object *nextHole = gOmmMario->capture.obj->oMontyMoleTargetHole;
+    Vec3f src3d = { currHole->oPosX, currHole->oPosY, currHole->oPosZ };
+
+    // Camera normal
+    Vec3f camN;
+    vec3f_dif(camN, gLakituState.focus, gLakituState.pos);
+    vec3f_normalize(camN);
+
+    // Camera horizontal axis
+    s16 camYaw = atan2s(camN[2], camN[0]) - 0x4000;
+    Vec3f camH = { sins(camYaw), 0.f, coss(camYaw) };
+
+    // Camera vertical axis
+    Vec3f camV;
+    vec3f_cross(camV, camN, camH);
+    vec3f_normalize(camV);
+
+    // Hole position to camera plane
+    Vec2f pos2d;
+    f32 dist;
+    vec3f_to_2d_plane(pos2d, &dist, src3d, gLakituState.pos, camN, camH, camV);
+    if (dist > 0.f) {
+        f32 x = (SCREEN_WIDTH  / 2) * (1.f + (1.75f * (pos2d[0] / dist)));
+        f32 y = (SCREEN_HEIGHT / 2) * (1.f - (2.25f * (pos2d[1] / dist)));
+
+        // Angle, radius and scale
+        s16 angle = atan2s(
+            nextHole->oPosZ - currHole->oPosZ,
+            nextHole->oPosX - currHole->oPosX
+        ) - atan2s(
+            currHole->oPosZ - gCamera->pos[2],
+            currHole->oPosX - gCamera->pos[0]
+        );
+        f32 radius = (120 * SCREEN_HEIGHT) / dist;
+        f32 scale = relerp_0_1_f(abs_f(coss(angle)), 0, 1, 1, (1 + abs_f(camN[1])) / 2);
+
+        // Render
+        omm_render_create_dl_ortho_matrix();
+        gDisplayListHead = omm_render_hud_monty_mole_hole_indicator_arrow(gDisplayListHead, x, y, radius, angle, scale);  
     }
 }
 
@@ -1163,6 +1250,15 @@ void omm_render_hud() {
         s32 textVersionWidth = omm_render_get_string_width(textVersion);
         omm_render_string_left_align(GFX_DIMENSIONS_FROM_RIGHT_EDGE(textVersionWidth + 2), 3, 0xFF, 0xFF, 0xFF, 0xFF, textVersion, true);
         return;
+    }
+
+    // Monty mole capture hole indicator
+    if (omm_mario_is_capture(m) &&
+        gOmmMario->capture.bhv == bhvMontyMole &&
+        gOmmMario->capture.obj != NULL &&
+        gOmmMario->capture.obj->oMontyMoleCurrentHole &&
+        gOmmMario->capture.obj->oMontyMoleTargetHole) {
+        omm_render_hud_monty_mole_hole_indicator();
     }
 
     // HUD

@@ -31,7 +31,7 @@ s32 omm_sparkly_context_get_remaining_flames() {
 s32 omm_sparkly_context_get_remaining_boxes() {
     s32 remainingBoxes = obj_get_count_with_behavior(bhvExclamationBox);
     for_each_object_with_behavior(obj, bhvExclamationBox) {
-        remainingBoxes -= (!obj_is_dormant(obj) && obj->oBhvArgs2ndByte <= 2);
+        remainingBoxes -= (!obj_is_dormant(obj) && obj->oBehParams2ndByte <= 2);
     }
     return remainingBoxes;
 }
@@ -90,7 +90,7 @@ void omm_sparkly_context_spawn_sign(struct MarioState *m) {
     if (OMM_SPARKLY_STATE_IS_OK && gOmmSparklyContext->data) {
 
         // Spawn sign
-        s16 dialogId = OMM_DIALOG_SPARKLY_STAR + gOmmSparklyContext->data->dialog;
+        s16 dialogId = OMM_DIALOG_SPARKLY_STAR + gOmmSparklyContext->data->dialogId;
         if (!obj_get_first_with_behavior(bhvOmmSparklyStarHint) && omm_dialog_get_entry(NULL, dialogId, gOmmSparklyMode)) {
             omm_spawn_sparkly_star_hint(m->marioObj,
                 gOmmSparklyMode,
@@ -132,12 +132,12 @@ static s32 omm_sparkly_context_display_hint_at_level_entry(struct MarioState *m,
     if (!data) {
         data = gOmmSparklyData[gOmmSparklyMode];
         for (s32 i = 0, n = omm_sparkly_get_bowser_4_index(gOmmSparklyMode); i != n; ++i, data++) {
-            if (data->game == OMM_GAME_TYPE && data->level == gCurrLevelNum) {
+            if (data->gameType == OMM_GAME_TYPE && data->levelNum == gCurrLevelNum) {
                 break;
             }
         }
     }
-    s16 dialogId = OMM_DIALOG_SPARKLY_STAR + data->dialog;
+    s16 dialogId = OMM_DIALOG_SPARKLY_STAR + data->dialogId;
     if (omm_dialog_get_entry(NULL, dialogId, gOmmSparklyMode)) {
         switch (data->hint) {
             case OMM_SPARKLY_HINT_NEVER: {
@@ -151,9 +151,9 @@ static s32 omm_sparkly_context_display_hint_at_level_entry(struct MarioState *m,
             case OMM_SPARKLY_HINT_AREA_2:
             case OMM_SPARKLY_HINT_AREA_3:
             case OMM_SPARKLY_HINT_AREA_4: {
-                if ((OMM_SPARKLY_STARS_HINT_ALWAYS || (OMM_SPARKLY_STARS_HINT_NOT_COLLECTED && !omm_sparkly_is_star_collected(gOmmSparklyMode, data->index))) &&
+                if ((OMM_SPARKLY_STARS_HINT_ALWAYS || (OMM_SPARKLY_STARS_HINT_NOT_COLLECTED && !omm_sparkly_is_star_collected(gOmmSparklyMode, data->starIndex))) &&
                     (gCurrAreaIndex - 1) == (data->hint - OMM_SPARKLY_HINT_AREA_1)) {
-                    s32 entryDialogStarIndex = data->dialog + 128 * gOmmSparklyMode;
+                    s32 entryDialogStarIndex = data->dialogId + 128 * gOmmSparklyMode;
                     if (entryDialogStarIndex != lastEntryDialogStarIndex) {
                         gPlayer1Controller->buttonPressed = 0;
                         gPlayer2Controller->buttonPressed = 0;
@@ -170,17 +170,17 @@ static s32 omm_sparkly_context_display_hint_at_level_entry(struct MarioState *m,
 }
 
 void omm_sparkly_context_update(struct MarioState *m) {
-    s32 index = omm_sparkly_get_index(gOmmSparklyMode, gCurrLevelNum, gCurrAreaIndex);
-    const OmmSparklyData *data = (index != -1 ? &gOmmSparklyData[gOmmSparklyMode][index] : NULL);
+    s32 starIndex = omm_sparkly_get_index(gOmmSparklyMode, gCurrLevelNum, gCurrAreaIndex);
+    const OmmSparklyData *data = (starIndex != -1 ? &gOmmSparklyData[gOmmSparklyMode][starIndex] : NULL);
 
     // Area
-    // Reset some values when entering a new area, unless the data->area is 0
+    // Reset some values when entering a new area, unless the data->areaIndex is 0
     // Invalidate the context if a timer was started
     // Restart the entire context inside the Castle
     static s32 sPrevAreaIndex = -1;
     if (sPrevAreaIndex != gCurrAreaIndex) {
         sPrevAreaIndex = gCurrAreaIndex;
-        if (!data || data->area != 0) {
+        if (!data || data->areaIndex != 0) {
             if (gOmmSparklyContext->timerStarted) {
                 omm_sparkly_state_set(OMM_SPARKLY_STATE_INVALID, 1);
                 gHudDisplay.flags &= ~HUD_DISPLAY_FLAG_TIMER;
@@ -264,6 +264,7 @@ void omm_sparkly_context_update(struct MarioState *m) {
         // Doesn't trigger the anti-cheat during transitions or if Mario isn't updated (time stop)
         if (!gOmmSparkly->transition && gOmmSparkly->marioUpdated && gOmmSparklyContext->cheatDetected) {
             gOmmSparkly->cheatDetected = true;
+            gOmmSparklyCheats->counter++;
             gOmmSparklyContext->cheatDetected = false;
             omm_sparkly_state_set(OMM_SPARKLY_STATE_INVALID, 0);
             omm_sparkly_turn_off_cheats();
@@ -329,7 +330,7 @@ void omm_sparkly_context_update(struct MarioState *m) {
         }
 
         // No capture
-        if ((dataFlags & OMM_SPARKLY_DATA_NO_CAPTURE) && (m->action == ACT_OMM_POSSESSION || gOmmCapture)) {
+        if ((dataFlags & OMM_SPARKLY_DATA_NO_CAPTURE) && (omm_mario_is_capture(m) || gOmmCapture)) {
             omm_sparkly_state_set(OMM_SPARKLY_STATE_INVALID, 1);
         }
 
@@ -370,5 +371,5 @@ void omm_sparkly_context_reset() {
     gPlayer1Controller->buttonPressed *= (gCurrCourseNum == COURSE_NONE);
     gPlayer1Controller->buttonDown *= (gCurrCourseNum == COURSE_NONE);
     gOmmSparklyMode = OMM_SPARKLY_STARS_MODE;
-    omm_zero(gOmmSparklyContext, sizeof(gOmmSparklyContext));
+    mem_clr(gOmmSparklyContext, sizeof(gOmmSparklyContext));
 }

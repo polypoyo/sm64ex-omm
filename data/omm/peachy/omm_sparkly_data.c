@@ -71,11 +71,11 @@ const OmmSparklyData gOmmSparklyData[4][OMM_SPARKLY_STARS_MAX] = {
 },
 // Hard mode: Crystal Stars
 {
-{  0,  0, OMM_GAME_SM64, LEVEL_BOB,     1,  -1506,   7000,   1250, -5200,     0,  6750, 0xC000, HINT_AREA_1,     0, CONDITION },
-{  1,  1, OMM_GAME_SM64, LEVEL_WF,      1,      0,   1000,      0,  3075,   256,  5245, 0xC000, HINT_AREA_1,  3150, CONDITION | COINS(100) | COIN_Y },
+{  0,  0, OMM_GAME_SM64, LEVEL_BOB,     1,  -1506,   7100,   1250, -5200,     0,  6750, 0xC000, HINT_AREA_1,     0, CONDITION },
+{  1,  1, OMM_GAME_SM64, LEVEL_WF,      1,      0,   1000,      0,  3075,   256,  5245, 0xC000, HINT_AREA_1,  3000, CONDITION | COINS(100) | COIN_Y },
 {  2,  2, OMM_GAME_SM64, LEVEL_JRB,     1,  -1080,  19500,   7070, -6060,  1126,   940, 0xA000, HINT_AREA_1,     0, CONDITION | COINS(101) | DARK_MODE },
 {  3,  3, OMM_GAME_SM64, LEVEL_CCM,     1,    -55,   9100,   -150,  2560,  2560, -1615, 0x8000, HINT_AREA_1,     0, 0 },
-{  4,  4, OMM_GAME_SM64, LEVEL_BBH,     1,    666,   4000,    260,   916,  -204,  3064, 0x0000, HINT_AREA_1,  3900, CONDITION | COINS(100) | COIN_B },
+{  4,  4, OMM_GAME_SM64, LEVEL_BBH,     1,    666,   4000,    260,   916,  -204,  3064, 0x0000, HINT_AREA_1,  3300, CONDITION | COINS(100) | COIN_B },
 {  5,  5, OMM_GAME_SM64, LEVEL_HMC,     1,  -7500,   2500,   7500, -7100,  2048,  5900, 0x2000, HINT_AREA_1,  4500, CONDITION | FLAMES },
 {  6,  6, OMM_GAME_SM64, LEVEL_LLL,     2,      0,   7000,      0,  -750,   103, -1225, 0xE000, HINT_NEVER,      0, CONDITION | RED_COINS(8) | SHARDS },
 {  7,  7, OMM_GAME_SM64, LEVEL_SSL,     2,      0,   5650,    256,   600,     0,  4500, 0xC000, HINT_AREA_2,   450, CONDITION | COINS(62) },
@@ -83,7 +83,7 @@ const OmmSparklyData gOmmSparklyData[4][OMM_SPARKLY_STARS_MAX] = {
 {  9,  9, OMM_GAME_SM64, LEVEL_SL,      1,      0,   5700,      0,  2035,  1023,   475, 0x6000, HINT_AREA_1,     0, CONDITION | COINS(85) | NO_CAPTURE },
 { 10, 10, OMM_GAME_SM64, LEVEL_WDW,     0,      0,      0,      0,  1400,     0,  -700, 0x4000, HINT_AREA_1,     0, CONDITION | NO_CAPTURE },
 { 11, 11, OMM_GAME_SM64, LEVEL_TTM,     2, -16240,  13850, -16240,  6300, 18781,  6700, 0x2000, HINT_AREA_2,     0, 0 },
-{ 12, 12, OMM_GAME_SM64, LEVEL_THI,     1,      0,   8765,  -1540, -7800, -2969,  7800, 0xE000, HINT_AREA_1,     0, CONDITION },
+{ 12, 12, OMM_GAME_SM64, LEVEL_THI,     1,      0,   8900,  -1540, -7800, -2969,  7800, 0xE000, HINT_AREA_1,     0, CONDITION },
 { 13, 13, OMM_GAME_SM64, LEVEL_TTC,     1,      0,   8000,      0,   800, -4822,   140, 0x6000, HINT_AREA_1,  1050, 0 },
 { 14, 14, OMM_GAME_SM64, LEVEL_RR,      1,   5120,   6500,   3325,  3100, -1833,  2070, 0xC000, HINT_AREA_1,  2850, CONDITION | MUSHROOMS(9) | NO_CAPTURE },
 { 15, 15, OMM_GAME_SM64, LEVEL_BITDW,   1,  -7440,  -2048,   3900, -7440, -3153,  3530, 0x0000, HINT_NEVER,   3000, CONDITION },
@@ -137,40 +137,40 @@ const OmmSparklyData gOmmSparklyData[4][OMM_SPARKLY_STARS_MAX] = {
 },
 };
 
-s32 omm_sparkly_get_index(s32 mode, s32 level, s32 area) {
-    for (s32 i = 0; i != omm_sparkly_get_bowser_4_index(mode); ++i) {
-        if (gOmmSparklyData[mode][i].game == OMM_GAME_TYPE &&
-            gOmmSparklyData[mode][i].level == level && (
-            gOmmSparklyData[mode][i].area == 0 ||
-            gOmmSparklyData[mode][i].area == area)) {
+s32 omm_sparkly_get_index(s32 sparklyMode, s32 levelNum, s32 areaIndex) {
+    for (s32 i = 0; i != omm_sparkly_get_bowser_4_index(sparklyMode); ++i) {
+        if (gOmmSparklyData[sparklyMode][i].gameType == OMM_GAME_TYPE &&
+            gOmmSparklyData[sparklyMode][i].levelNum == levelNum && (
+            gOmmSparklyData[sparklyMode][i].areaIndex == 0 ||
+            gOmmSparklyData[sparklyMode][i].areaIndex == areaIndex)) {
             return i;
         }
     }
     return -1;
 }
 
-static const u8 *omm_sparkly_get_star_strings(s32 mode, s32 index, s32 *lp, s32 *sp, s32 *ep) {
+static const u8 *omm_sparkly_get_star_strings(s32 sparklyMode, s32 starIndex, s32 *lp, s32 *sp, s32 *ep) {
     
     // Mode check
     // Only Normal, Hard and Lunatic are allowed
-    if (mode < 1 || mode >= OMM_SPARKLY_MODE_COUNT) {
+    if (sparklyMode < 1 || sparklyMode >= OMM_SPARKLY_MODE_COUNT) {
         return NULL;
     }
 
     // Index check
     // Out of bounds indexes are not allowed
-    if (index < 0 || index > omm_sparkly_get_bowser_4_index(mode)) {
+    if (starIndex < 0 || starIndex > omm_sparkly_get_bowser_4_index(sparklyMode)) {
         return NULL;
     }
 
     // Game check
     // Don't return strings from a different game
-    if (gOmmSparklyData[mode][index].game != OMM_GAME_TYPE) {
+    if (gOmmSparklyData[sparklyMode][starIndex].gameType != OMM_GAME_TYPE) {
         return NULL;
     }
 
     // String table
-    const u8 *strTable = omm_dialog_get_entry(NULL, OMM_DIALOG_SPARKLY_STAR_NAMES, mode)->str;
+    const u8 *strTable = omm_dialog_get_entry(NULL, OMM_DIALOG_SPARKLY_STAR_NAMES, sparklyMode)->str;
     if (!strTable) {
         return NULL;
     }
@@ -178,7 +178,7 @@ static const u8 *omm_sparkly_get_star_strings(s32 mode, s32 index, s32 *lp, s32 
     // String positions
     // "level$star\n"
     *lp = 0;
-    for (s32 i = 0, j = gOmmSparklyData[mode][index].dialog;; ++i) {
+    for (s32 i = 0, j = gOmmSparklyData[sparklyMode][starIndex].dialogId;; ++i) {
         if (strTable[i] == 0xFE) {
             j--;
             if (j == 0) {
@@ -194,40 +194,40 @@ static const u8 *omm_sparkly_get_star_strings(s32 mode, s32 index, s32 *lp, s32 
     return strTable;
 }
 
-u8 *omm_sparkly_get_level_name(s32 mode, s32 index) {
+u8 *omm_sparkly_get_level_name(s32 sparklyMode, s32 starIndex) {
     s32 lp, sp, ep;
-    const u8 *strings = omm_sparkly_get_star_strings(mode, index, &lp, &sp, &ep);
+    const u8 *strings = omm_sparkly_get_star_strings(sparklyMode, starIndex, &lp, &sp, &ep);
     if (strings) {
         static u8 sLevelName[0x100];
-        omm_set(sLevelName, 0xFF, sizeof(sLevelName));
-        omm_copy(sLevelName, strings + lp, min_s(sizeof(sLevelName) - 1, sp - lp - 1));
+        mem_set(sLevelName, 0xFF, sizeof(sLevelName));
+        mem_cpy(sLevelName, strings + lp, min_s(sizeof(sLevelName) - 1, sp - lp - 1));
         return sLevelName;
     }
     return NULL;
 }
 
-u8 *omm_sparkly_get_star_name(s32 mode, s32 index) {
+u8 *omm_sparkly_get_star_name(s32 sparklyMode, s32 starIndex) {
     s32 lp, sp, ep;
-    const u8 *strings = omm_sparkly_get_star_strings(mode, index, &lp, &sp, &ep);
+    const u8 *strings = omm_sparkly_get_star_strings(sparklyMode, starIndex, &lp, &sp, &ep);
     if (strings) {
         static u8 sStarName[0x100];
-        omm_set(sStarName, 0xFF, sizeof(sStarName));
-        omm_copy(sStarName, strings + sp, min_s(sizeof(sStarName) - 1, ep - sp));
+        mem_set(sStarName, 0xFF, sizeof(sStarName));
+        mem_cpy(sStarName, strings + sp, min_s(sizeof(sStarName) - 1, ep - sp));
         return sStarName;
     }
     return NULL;
 }
 
-s32 omm_sparkly_get_collected_count(s32 mode) {
+s32 omm_sparkly_get_collected_count(s32 sparklyMode) {
     s32 count = 0;
-    for (s32 i = 0; i != omm_sparkly_get_bowser_4_index(mode); ++i) {
-        count += omm_sparkly_is_star_collected(mode, i);
+    for (s32 i = 0; i != omm_sparkly_get_bowser_4_index(sparklyMode); ++i) {
+        count += omm_sparkly_is_star_collected(sparklyMode, i);
     }
-    return count + omm_sparkly_is_grand_star_collected(mode);
+    return count + omm_sparkly_is_grand_star_collected(sparklyMode);
 }
 
-s32 omm_sparkly_get_bowser_4_index(s32 mode) {
-    switch (mode) {
+s32 omm_sparkly_get_bowser_4_index(s32 sparklyMode) {
+    switch (sparklyMode) {
     case OMM_SPARKLY_MODE_NORMAL:  return 29;
     case OMM_SPARKLY_MODE_HARD:    return 29;
     case OMM_SPARKLY_MODE_LUNATIC: return 89;

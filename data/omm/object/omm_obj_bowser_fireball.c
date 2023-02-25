@@ -373,6 +373,6 @@ struct Object *omm_spawn_bowser_fireball(struct Object *o, f32 x, f32 y, f32 z, 
     obj_scale(fireball, 0);
     fireball->oOpacity = 255;
     fireball->oBowserFireDuration = (s32) (maxDistance / forwardVel);
-    play_sound(SOUND_AIR_BOWSER_SPIT_FIRE, fireball->oCameraToObject);
+    obj_play_sound(fireball, SOUND_AIR_BOWSER_SPIT_FIRE);
     return fireball;
 }

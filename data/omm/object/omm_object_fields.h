@@ -11,6 +11,8 @@ struct OmmData {
     void (*update)(void);
     void (*updateMario)(void);
     void (*updateObject)(void);
+    bool (*readStats)(const char **tokens);
+    void (*writeStats)(char **buffer);
 
     // Mario data
     struct {
@@ -91,7 +93,9 @@ struct OmmData {
             const void *data;
             struct Object *obj;
             struct Object *prev;
+            const BehaviorScript *bhv;
             Vec3f animPos[3];
+            s32 model;
             s32 timer;
             s32 lockTimer;
             f32 stickX;   // [-1, +1], positive is right
@@ -112,7 +116,6 @@ struct OmmData {
         struct {
             s32 mode;
             s32 ending;
-            s32 cheats[4];
             bool starBlock;
             bool grandStar;
             bool gamePaused;
@@ -120,6 +123,13 @@ struct OmmData {
             bool transition;
             bool marioUpdated;
             bool cheatDetected;
+            struct {
+                s32 currMsg;
+                s32 introId;
+                s32 messageId;
+                s32 endingId;
+                s32 counter;
+            } cheats[1];
         } sparkly;
     } mario[1];
 
@@ -214,12 +224,63 @@ struct OmmData {
                 } ceiling;
             } swoop;
 
+            // Monty mole
+            struct {
+                struct Object *holes[32];
+                s32 count;
+                s32 current;
+            } monty_mole;
+
             // Motos
             struct {
                 struct Object *heldObj;
             } motos;
         };
     } object[1];
+
+    // Stats data
+    struct {
+
+        // Objects
+        u64 starsCollected;
+        u64 sparklyStarsCollected;
+        u64 coinsCollected;
+        u64 capsCollected;
+        u64 mushrooms1upCollected;
+        u64 secretsCollected;
+        u64 exclamationBoxesBroken;
+        u64 enemiesDefeated;
+        u64 bowsersDefeated;
+
+        // Actions
+        u64 aPresses;
+        u64 jumps;
+        u64 attacks;
+        u64 cappyThrows;
+        u64 cappyBounces;
+        u64 captures;
+        u64 hitsTaken;
+        u64 restarts;
+        u64 deaths;
+
+        // Distance (Mario/Capture)
+        u64 distanceTotal[2];
+        u64 distanceOnGround[2];
+        u64 distanceAirborne[2];
+        u64 distanceUnderwater[2];
+        u64 distanceWingCap[2];
+        u64 distanceMetalCap[2];
+        u64 distanceVanishCap[2];
+
+        // Time (Mario/Capture)
+        u64 timeTotal[2];
+        u64 timeOnGround[2];
+        u64 timeAirborne[2];
+        u64 timeUnderwater[2];
+        u64 timeWingCap[2];
+        u64 timeMetalCap[2];
+        u64 timeVanishCap[2];
+    } stats[1];
 };
 extern struct OmmData *gOmmData;
 #define gOmmMario      gOmmData->mario
@@ -228,6 +289,7 @@ extern struct OmmData *gOmmData;
 #define gOmmPerry      gOmmData->mario->peach.perry
 #define gOmmCapture    gOmmData->mario->capture.obj
 #define gOmmObject     gOmmData->object
+#define gOmmStats      gOmmData->stats
 
 #define oFields             header.gfx._oFields
 #define oGfxInited          oFields._oGfxInited

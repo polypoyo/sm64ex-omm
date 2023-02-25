@@ -348,7 +348,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
 { bhvChainChomp,
     set_bhv_types(BHV_TYPE_INVULNERABLE),
     set_hitbox(100, 240, 80, 160, 0, true), /* 80, 160, 80, 160, 0 */
-    set_capture(chain_chomp, 16, 16, 64, 24, -36, -2.00f, 100, 160, 0, 80, smod_none, true), },
+    set_capture(chain_chomp, 24, 24, 80, 30, -45, -3.00f, 100, 160, 0, 80, smod_none, true), },
 { bhvChainChompChainPart,
     set_bhv_types(0), },
 { bhvChainChompGate,
@@ -592,7 +592,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_hitbox(40, 90, 45, 90, 0, true), /* 40, 50, 50, 60, 40 */ },
 { bhvHoot,
     set_bhv_types(0),
-    set_capture(hoot, 24, 24, 20, 20, -16, -2.00f, 60, 100, 0, 40, smod_none, true), },
+    set_capture(hoot, 30, 30, 30, 30, -16, -2.00f, 60, 100, 0, 40, smod_none, true), },
 { bhvHorStarParticleSpawner,
     set_bhv_types(0), },
 { bhvHorizontalGrindel,
@@ -652,7 +652,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_perry_atk(3, -1),
     set_holdable(HOLD_ALL_ACTIONS, 2, 3, HOLD_HIT_ANY, HOLD_ACT_ATTACKED),
     set_hitbox(60, 60, 40, 30, 0, true), /* 60, 40, 40, 30, 0 */
-    set_capture(koopa, 18, 27, 36, 25, -48, -2.65f, 60, 40, 0, 40, smod_none, true), },
+    set_capture(koopa, 20, 30, 40, 28, -48, -2.65f, 60, 40, 0, 40, smod_none, true), },
 { bhvKoopaFlag,
     set_bhv_types(0), },
 { bhvKoopaRaceEndpoint,
@@ -664,7 +664,8 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
 { bhvKoopaShellFlame,
     set_bhv_types(0), },
 { bhvKoopaShellUnderwater,
-    set_bhv_types(0), },
+    set_bhv_types(BHV_TYPE_GRABBABLE),
+    set_capture(koopa_shell, 40, 60, 60, 42, -75, -4.00f, 90, 100, 0, 60, smod_none, true), },
 { bhvLargeBomp,
     set_bhv_types(0), },
 { bhvLaunchDeathWarp,
@@ -718,7 +719,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
 { bhvMadPiano,
     set_bhv_types(BHV_TYPE_DESTRUCTIBLE),
     set_perry_atk(5, -1),
-    set_capture(mad_piano, 20, 20, 20, 14, -80, -2.00f, 200, 150, 0, 200, smod_none, true), },
+    set_capture(mad_piano, 20, 20, 20, 14, -80, -2.00f, 200, 150, 0, 50, smod_none, true), },
 { bhvMantaRay,
     set_bhv_types(0), },
 { bhvMantaRayRingManager,
@@ -743,7 +744,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_perry_atk(3, -1),
     set_holdable(HOLD_ALL_ACTIONS, -1, -1, HOLD_HIT_ANY, HOLD_ACT_ATTACKED),
     set_hitbox(80, 100, 40, 60, 0, true), /* 140, 80, 40, 60, 0 */
-    set_capture(boo, 24, 48, 48, 20, -20, -2.00f, 80, 80, 0, 60, smod_none, true), },
+    set_capture(boo, 25, 50, 50, 20, -20, -2.00f, 80, 80, 0, 60, smod_none, true), },
 { bhvMerryGoRoundBooManager,
     set_bhv_types(0), },
 { bhvMeshElevator,
@@ -770,7 +771,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
 { bhvMontyMole,
     set_bhv_types(BHV_TYPE_WEAK),
     set_holdable(HOLD_ALL_ACTIONS, 1, 7, HOLD_HIT_ANY, HOLD_ACT_ATTACKED),
-    set_capture(monty_mole, 15, 15, 15, 0, 0, 0.00f, 50, 50, 0, 30, smod_none, true), },
+    set_capture(monty_mole, 20, 20, 20, 0, 0, 0.00f, 50, 50, 0, 30, smod_none, true), },
 { bhvMontyMoleHole,
     set_bhv_types(0), },
 { bhvMontyMoleRock,
@@ -783,14 +784,14 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_bhv_types(BHV_TYPE_STRONG),
     set_perry_atk(4, -1),
     set_holdable(HOLD_ALL_ACTIONS, 1, 0, HOLD_HIT_ANY, HOLD_ACT_DESTROY),
-    set_capture(mr_blizzard, 20, 20, 20, 50, -75, -4.00f, 80, 200, 0, 60, smod_none, true), },
+    set_capture(mr_blizzard, 25, 25, 25, 50, -75, -4.00f, 80, 200, 0, 60, smod_none, true), },
 { bhvMrBlizzardSnowball,
     set_bhv_types(0), },
 { bhvMrI,
     set_bhv_types(BHV_TYPE_STRONG | BHV_TYPE_KNOCKABLE_0),
     set_perry_atk(4, -1),
     set_holdable(HOLD_ALL_ACTIONS, -1, -1, HOLD_HIT_ANY, HOLD_ACT_DESTROY),
-    set_capture(mr_i, 28, 28, 28, 28, -40, -2.00f, 90, 180, 0, 65, smod_none, true), },
+    set_capture(mr_i, 30, 30, 30, 30, -40, -2.00f, 90, 180, 0, 65, smod_none, true), },
 { bhvMrIBlueCoin,
     set_bhv_types(BHV_TYPE_COIN), },
 { bhvMrIBody,
@@ -979,7 +980,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
 { bhvSmallWhomp,
     set_bhv_types(BHV_TYPE_DESTRUCTIBLE | BHV_TYPE_SPARKLY_ENEMY),
     set_perry_atk(5, -1),
-    set_capture(whomp, 16, 16, 16, 28, -80, -4.00f, 100, 400, 0, 150, smod_none, true), },
+    set_capture(whomp, 20, 20, 20, 30, -80, -4.00f, 100, 400, 0, 150, smod_none, true), },
 { bhvSmoke,
     set_bhv_types(0), },
 { bhvSnowBall,
@@ -1027,7 +1028,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_perry_atk(3, -1),
     set_holdable(HOLD_ALL_ACTIONS, 0, 0, HOLD_HIT_ANY, HOLD_ACT_ATTACKED),
     set_hitbox(90, 150, 80, 70, 0, true), /* 90, 80, 80, 70, 0 */
-    set_capture(spindrift, 24, 24, 24, 36, -60, -4.00f, 80, 160, 0, 40, smod_none, true), },
+    set_capture(spindrift, 28, 28, 28, 36, -60, -4.00f, 80, 160, 0, 40, smod_none, true), },
 { bhvSpiny,
     set_bhv_types(BHV_TYPE_STRONG | BHV_TYPE_KNOCKABLE_0),
     set_perry_atk(2, -1),
@@ -1075,7 +1076,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_perry_atk(3, -1),
     set_holdable(HOLD_ALL_ACTIONS, 0, 0, HOLD_HIT_ANY, HOLD_ACT_ATTACKED),
     set_hitbox(80, 80, 70, 70, 0, true), /* 100, 80, 70, 70, 0 */
-    set_capture(swoop, 20, 40, 40, 20, -20, -2.00f, 50, 60, 0, 30, smod_none, true), },
+    set_capture(swoop, 20, 40, 40, 24, -20, -2.00f, 50, 60, 0, 30, smod_none, true), },
 { bhvTTC2DRotator,
     set_bhv_types(0), },
 { bhvTTCCog,
@@ -1121,7 +1122,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
 { bhvToadMessage,
     set_bhv_types(0),
     set_holdable(HOLD_ALL_ACTIONS, 6, 6, HOLD_HIT_FLOOR, HOLD_ACT_BOUNCE),
-    set_capture(toad, 16, 32, 32, 25, -60, -3.60f, 60, 100, 0, 30, smod_none, false), },
+    set_capture(toad, 18, 36, 36, 25, -60, -3.60f, 60, 100, 0, 30, smod_none, false), },
 { bhvTower,
     set_bhv_types(0), },
 { bhvTowerDoor,
@@ -1336,16 +1337,16 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_bhv_types(BHV_TYPE_BULLY | BHV_TYPE_GRABBABLE),
     set_perry_atk(4, -1),
     set_holdable(HOLD_ALL_ACTIONS, 1, 1, HOLD_HIT_FLOOR, 5),
-    set_capture(motos, 8, 8, 8, 10, -75, -1.50f, 50, 110, 0, 30, smod_none, true), },
+    set_capture(motos, 12, 12, 12, 14, -75, -1.50f, 50, 110, 0, 30, smod_none, true), },
 { bhvYoshiEgg,
     set_bhv_types(BHV_TYPE_COIN), },
 { bhvBlargg,
     set_bhv_types(BHV_TYPE_FLAME),
     set_perry_atk(4, -1),
-    set_capture(blargg, 15, 15, 15, 0, 0, 0.00f, 120, 100, 0, 70, smod_none, true), },
+    set_capture(blargg, 20, 20, 20, 0, 0, 0.00f, 120, 100, 0, 70, smod_none, true), },
 { bhvFriendlyBlargg,
     set_bhv_types(0),
-    set_capture(friendly_blargg, 20, 30, 30, 0, 0, 0.00f, 60, 50, 0, 35, smod_none, true), },
+    set_capture(friendly_blargg, 30, 45, 45, 0, 0, 0.00f, 60, 50, 0, 35, smod_none, true), },
 { bhvCharacterSwitchPipe,
     set_bhv_types(0), },
 { bhvCharacterSwitchPipeWarioLocked,
@@ -1559,7 +1560,7 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_bhv_types(0), },
 { bhvOmmChainChompFree,
     set_bhv_types(BHV_TYPE_INVULNERABLE),
-    set_capture(chain_chomp, 16, 16, 64, 24, -36, -2.00f, 100, 160, 0, 80, smod_none, true), },
+    set_capture(chain_chomp, 24, 24, 80, 30, -45, -3.00f, 100, 160, 0, 80, smod_none, true), },
 { bhvOmmMips,
     set_bhv_types(BHV_TYPE_GRABBABLE | BHV_TYPE_NO_CAPPY),
     set_holdable(HOLD_ALL_ACTIONS, 4, 1, HOLD_HIT_FLOOR, HOLD_ACT_BOUNCE), },
@@ -1632,9 +1633,15 @@ static const s64 sOmmBehaviorDataRaw[][64] = {
     set_bhv_types(BHV_TYPE_PLAYER), },
 { bhvOmmSparklyStarSparkleMario,
     set_bhv_types(BHV_TYPE_PLAYER), },
-{ bhvOmmMenuCharacterSelectButton,
-    set_bhv_types(0), },
 { bhvOmmProblem,
+    set_bhv_types(0), },
+{ bhvOmmStatsBoard,
+    set_bhv_types(0), },
+{ bhvOmmMainMenuMario,
+    set_bhv_types(0), },
+{ bhvOmmMainMenuCappy,
+    set_bhv_types(0), },
+{ bhvOmmGfxPaletteModifier,
     set_bhv_types(0), },
 };
 
@@ -1648,14 +1655,14 @@ static const BehaviorScript **sBehaviorList = NULL;
 static OmmHMap sOmmBehaviorData = omm_hmap_zero;
 
 OMM_AT_STARTUP static void omm_behavior_data_init() {
-    s32 numBehaviors = omm_static_array_length(sOmmBehaviorDataRaw);
-    sBehaviorList = omm_new(const BehaviorScript *, numBehaviors + 1);
+    s32 numBehaviors = array_length(sOmmBehaviorDataRaw);
+    sBehaviorList = mem_new(const BehaviorScript *, numBehaviors + 1);
     for (s32 i = 0; i != numBehaviors; ++i) {
         const s64 *raw = sOmmBehaviorDataRaw[i];
         const BehaviorScript *bhv = (const BehaviorScript *) *(raw++);
         sBehaviorList[i] = bhv;
         if (bhv) {
-            OmmBhvData *data = omm_new(OmmBhvData, 1);
+            OmmBhvData *data = mem_new(OmmBhvData, 1);
             data->bhv = bhv;
             while (*raw) {
                 switch (*(raw++)) {
@@ -1665,7 +1672,7 @@ OMM_AT_STARTUP static void omm_behavior_data_init() {
                     } break;
 
                     case CMD_PERRY_ATK: {
-                        data->perryAttack = omm_new(OmmBhvDataPerryAttack, 1);
+                        data->perryAttack = mem_new(OmmBhvDataPerryAttack, 1);
                         data->perryAttack->vibeSparkles = (s32) raw[0];
                         data->perryAttack->deathAction = (s32) raw[1];
                         raw += 2;
@@ -1673,7 +1680,7 @@ OMM_AT_STARTUP static void omm_behavior_data_init() {
 
                     case CMD_HOLDABLE: {
                         if (!data->holdable) {
-                            data->holdable = omm_new(OmmBhvDataHoldable, 1);
+                            data->holdable = mem_new(OmmBhvDataHoldable, 1);
                         }
                         data->holdable->actions[data->holdable->actionsCount++] = (s32) raw[0];
                         data->holdable->heldAnim = (s32) raw[1];
@@ -1684,7 +1691,7 @@ OMM_AT_STARTUP static void omm_behavior_data_init() {
                     } break;
 
                     case CMD_HITBOX: {
-                        data->hitbox = omm_new(OmmBhvDataHitbox, 1);
+                        data->hitbox = mem_new(OmmBhvDataHitbox, 1);
                         data->hitbox->hitboxRadius = (f32) raw[0];
                         data->hitbox->hitboxHeight = (f32) raw[1];
                         data->hitbox->hurtboxRadius = (f32) raw[2];
@@ -1695,7 +1702,7 @@ OMM_AT_STARTUP static void omm_behavior_data_init() {
                     } break;
 
                     case CMD_CAPTURE: {
-                        data->capture = omm_new(OmmBhvDataCapture, 1);
+                        data->capture = mem_new(OmmBhvDataCapture, 1);
                         data->capture->init = (void *) raw[0];
                         data->capture->update = (void *) raw[1];
                         data->capture->end = (void *) raw[2];

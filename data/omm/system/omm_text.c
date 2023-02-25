@@ -95,6 +95,7 @@ static const struct { const char *str; u8 c64; } sSm64CharMap[] = {
     { "!",   0xF2 }, // !
     { "%",   0xF3 }, // %
     { "?",   0xF4 }, // ?
+    { "\"",  0xF6 }, // "
     { "~",   0xF7 }, // ~
     { "$",   0xF9 }, // coin
     { "@",   0xFA }, // star filled
@@ -118,7 +119,7 @@ static const char *omm_text_add_char(u8 *str64, const char *str, s32 *i) {
 
 static u8 *omm_text_alloc(s32 length, bool heapAlloc) {
     u8 *allocated = omm_memory_new(heapAlloc ? NULL : gOmmMemoryPoolStrings, length + 1, NULL);
-    omm_set(allocated, 0xFF, length + 1);
+    mem_set(allocated, 0xFF, length + 1);
     return allocated;
 }
 
@@ -129,11 +130,11 @@ u8 *omm_text_convert(const char *str, bool heapAlloc) {
     if (translated == get_language()->none) {
         translated = getTranslatedText((char *) str);
         s32 length = omm_text_length(translated);
-        str64 = omm_copy(omm_text_alloc(length, heapAlloc), translated, length);
+        str64 = mem_cpy(omm_text_alloc(length, heapAlloc), translated, length);
         free(translated);
     } else {
         s32 length = omm_text_length(translated);
-        str64 = omm_copy(omm_text_alloc(length, heapAlloc), translated, length);
+        str64 = mem_cpy(omm_text_alloc(length, heapAlloc), translated, length);
     }
 #else
     s32 length = strlen(str);
@@ -152,7 +153,7 @@ u8 *omm_text_convert(const char *str, bool heapAlloc) {
 u8 *omm_text_copy(const u8 *str64, bool heapAlloc) {
     s32 length = omm_text_length(str64);
     u8 *strCopy = omm_text_alloc(length, heapAlloc);
-    omm_copy(strCopy, str64, length);
+    mem_cpy(strCopy, str64, length);
     return strCopy;
 }
 
@@ -193,12 +194,12 @@ static s32 omm_text_length_to_skip(const u8 *str64) {
         { "Super Mario", NULL, 0 },
         { "Mario is red", NULL, 0 },
     };
-    for (s32 i = 0; i != (s32) omm_static_array_length(sTextToSkip); ++i) {
+    for (s32 i = 0; i != (s32) array_length(sTextToSkip); ++i) {
         if (!sTextToSkip[i].str64) {
             sTextToSkip[i].str64 = omm_text_convert(sTextToSkip[i].str, true);
             sTextToSkip[i].length = omm_text_length(sTextToSkip[i].str64);
         }
-        if (omm_same(str64, sTextToSkip[i].str64, sTextToSkip[i].length)) {
+        if (mem_eq(str64, sTextToSkip[i].str64, sTextToSkip[i].length)) {
             return sTextToSkip[i].length;
         }
     }
@@ -215,8 +216,8 @@ static void omm_text_replace(u8 *str64, const char *from, const char *to) {
         if (lenToSkip != 0) {
             str64 += lenToSkip;
             lenCurr -= lenToSkip;
-        } else if (omm_same(str64, from64, lenFrom)) {
-            omm_copy(str64, to64, lenFrom);
+        } else if (mem_eq(str64, from64, lenFrom)) {
+            mem_cpy(str64, to64, lenFrom);
             str64 += lenFrom;
             lenCurr -= lenFrom;
         } else {
@@ -266,20 +267,20 @@ u8 *omm_text_get_string_for_selected_player(u8 *str64) {
         const u8 **pstr = (const u8 **) p->as_ptr;
         for (s32 i = 0; i != OMM_NUM_PLAYABLE_CHARACTERS; ++i) {
             if (omm_text_compare(str64, pstr[i]) == 0) {
-                omm_copy(str64, pstr[omm_player_get_selected_index()], lenWithFFterm);
+                mem_cpy(str64, pstr[omm_player_get_selected_index()], lenWithFFterm);
                 return str64;
             }
         }
     }
 
     // It doesn't exist yet, lets add an entry
-    const u8 **pstr = omm_new(const u8 *, OMM_NUM_PLAYABLE_CHARACTERS);
+    u8 **pstr = mem_new(u8 *, OMM_NUM_PLAYABLE_CHARACTERS);
     for (s32 i = 0; i != OMM_NUM_PLAYABLE_CHARACTERS; ++i) {
-        pstr[i] = omm_dup(str64, lenWithFFterm);
+        pstr[i] = mem_dup(str64, lenWithFFterm);
         omm_text_replace_func[i](pstr[i]);
     }
     omm_array_add(sPlayersStrings, ptr, pstr);
-    omm_copy(str64, pstr[omm_player_get_selected_index()], lenWithFFterm);
+    mem_cpy(str64, pstr[omm_player_get_selected_index()], lenWithFFterm);
     return str64;
 }
 
@@ -308,7 +309,7 @@ s32 omm_text_compare(const u8 *str1, const u8 *str2) {
 
 #include "omm_text_dialogs.inl"
 _Static_assert(OMM_DIALOG_END_INDEX <= 256, "Last dialog ID is over 255");
-_Static_assert(omm_static_array_length(sOmmDialogEntriesRaw) == OMM_DIALOG_COUNT, "Missing dialogs");
+_Static_assert(array_length(sOmmDialogEntriesRaw) == OMM_DIALOG_COUNT, "Missing dialogs");
 
 typedef struct {
     s32 id;
@@ -339,9 +340,9 @@ OMM_ROUTINE_UPDATE(omm_load_dialog_entries) {
     }
 #endif
     if (!sOmmDialogEntries) {
-        sOmmDialogEntries = omm_new(OmmArray, 1);
+        sOmmDialogEntries = mem_new(OmmArray, 1);
         for (s32 i = 0; i != OMM_DIALOG_COUNT; ++i) {
-            OmmDialogEntry *entry = omm_new(OmmDialogEntry, 1);
+            OmmDialogEntry *entry = mem_new(OmmDialogEntry, 1);
 #if OMM_GAME_IS_R96X
             entry->id = OMM_DIALOG_START_INDEX + i;
             entry->isMulti = (dialogPool[entry->id]->linesPerBox == 0);
@@ -350,7 +351,7 @@ OMM_ROUTINE_UPDATE(omm_load_dialog_entries) {
             struct OmmDialogEntryRaw *raw = &sOmmDialogEntriesRaw[i];
             entry->id = raw->id;
             entry->isMulti = (raw->linesPerBox == 0);
-            entry->dialog[0] = omm_new(struct DialogEntry, 1);
+            entry->dialog[0] = mem_new(struct DialogEntry, 1);
             entry->dialog[0]->unused = raw->soundBits;
             entry->dialog[0]->linesPerBox = raw->linesPerBox;
             entry->dialog[0]->leftOffset = raw->leftOffset;
@@ -372,7 +373,7 @@ OMM_ROUTINE_UPDATE(omm_load_dialog_entries) {
                 for (s32 j = 0, k = 1; j != OMM_SPARKLY_MODE_COUNT - 1; ++j, k *= 10) {
                     s32 linesPerBox = ((allLinesPerBox / k) % 10);
                     if (linesPerBox > 0) {
-                        entry->dialog[j] = omm_new(struct DialogEntry, 1);
+                        entry->dialog[j] = mem_new(struct DialogEntry, 1);
                         entry->dialog[j]->linesPerBox = linesPerBox;
                         entry->dialog[j]->leftOffset = leftOffset;
                         entry->dialog[j]->width = downOffset;
@@ -408,14 +409,14 @@ static void omm_play_dialog_sound(struct DialogEntry *dialog) {
     }
 }
 
-struct DialogEntry *omm_dialog_get_entry(void **dialogTable, s16 dialogId, s32 mode) {
+struct DialogEntry *omm_dialog_get_entry(void **dialogTable, s16 dialogId, s32 sparklyMode) {
 
     // OMM dialog entry
     if (OMM_LIKELY(sOmmDialogEntries)) {
         omm_array_for_each(*sOmmDialogEntries, p) {
             OmmDialogEntry *entry = (OmmDialogEntry *) p->as_ptr;
             if (entry->id == dialogId) {
-                struct DialogEntry *dialog = entry->dialog[entry->isMulti ? (mode - 1) : 0];
+                struct DialogEntry *dialog = entry->dialog[entry->isMulti ? (sparklyMode - 1) : 0];
                 omm_play_dialog_sound(dialog);
                 return dialog;
             }
@@ -435,7 +436,7 @@ struct DialogEntry *omm_dialog_get_entry(void **dialogTable, s16 dialogId, s32 m
 
 static s16 omm_get_bowser_dialog(bool isIntro, s16 defaultDialog) {
     struct Object *o = obj_get_first_with_behavior(bhvOmmBowser);
-    if (o && o->oBhvArgs) {
+    if (o && o->oBehParams) {
         switch (gCurrLevelNum) {
             case LEVEL_BOWSER_1: return (isIntro ? OMM_DIALOG_BOWSER_1_INTRO : defaultDialog);
             case LEVEL_BOWSER_2: return (isIntro ? OMM_DIALOG_BOWSER_2_INTRO : defaultDialog);
@@ -460,10 +461,10 @@ OMM_ROUTINE_PRE_RENDER(omm_update_dialogs) {
                 case DIALOG_121: gDialogID = omm_get_bowser_dialog(false, DIALOG_121); break;
                 case DIALOG_163: gDialogID = omm_get_bowser_dialog(false, DIALOG_163); break;
             }
-            struct DialogEntry *entry = omm_dialog_get_entry((void **) gDialogTable, gDialogID, gOmmSparklyMode);
+            struct DialogEntry *entry = omm_dialog_get_entry((void **) gDialogTable(OMM_GAME_MODE), gDialogID, gOmmSparklyMode);
             omm_text_get_string_for_selected_player((u8 *) entry->str);
             gDialogID = min_s(gDialogID, DIALOG_COUNT);
-            gDialogTable[gDialogID] = entry;
+            gDialogTable(OMM_GAME_MODE)[gDialogID] = entry;
         }
         sDialogID = gDialogID;
     }
@@ -482,8 +483,8 @@ OMM_ROUTINE_PRE_RENDER(omm_update_dialogs) {
 // For Render96: Auto-generates *.omm.json at execution time
 //
 
-OMM_AT_STARTUP static void omm_r96x_generate_json() {
-    omm_cat_paths(dirname, SYS_MAX_PATH, sys_exe_path(), "res/texts");
+void omm_r96x_generate_json() {
+    str_cat_paths_sa(dirname, SYS_MAX_PATH, sys_exe_path(), "res/texts");
     DIR *dir = opendir(dirname);
     if (dir) {
 
@@ -497,15 +498,15 @@ OMM_AT_STARTUP static void omm_r96x_generate_json() {
                 // Retrieve the language code
                 const char *dot = strchr(ent->d_name, '.');
                 if (dot) {
-                    omm_str_cpy(lang, 16, ent->d_name);
+                    str_cpy_sa(lang, 16, ent->d_name);
                     lang[dot - ent->d_name] = 0;
 
                     // Check if the OMM text file already exists
-                    omm_sprintf(filename, SYS_MAX_PATH, "%s/res/texts/%s.omm.json", sys_exe_path(), lang);
+                    str_fmt_sa(filename, SYS_MAX_PATH, "%s/res/texts/%s.omm.json", sys_exe_path(), lang);
                     if (!fs_sys_file_exists(filename)) {
 
                         // Retrieve the language name
-                        omm_cat_paths(langfilename, SYS_MAX_PATH, dirname, ent->d_name);
+                        str_cat_paths_sa(langfilename, SYS_MAX_PATH, dirname, ent->d_name);
                         FILE *langf = fopen(langfilename, "rb");
                         if (langf) {
                             char buffer[0x100] = { 0 };
@@ -516,7 +517,7 @@ OMM_AT_STARTUP static void omm_r96x_generate_json() {
                                 const char *langnameq0 = strchr(langnamep + 11, '\"');
                                 const char *langnameq1 = langnameq0 ? strchr(langnameq0 + 1, '\"') : NULL;
                                 if (langnameq0 && langnameq1) {
-                                    omm_str_cpy(langname, 64, langnameq0 + 1);
+                                    str_cpy_sa(langname, 64, langnameq0 + 1);
                                     langname[langnameq1 - langnameq0 - 1] = 0;
 
                                     // Write the json
@@ -532,7 +533,7 @@ OMM_AT_STARTUP static void omm_r96x_generate_json() {
 
                                         // Dialogs
                                         fprintf(f, "  \"dialogs\": [\n");
-                                        for (s32 i = 0; i != omm_static_array_length(sOmmDialogEntriesRaw); ++i) {
+                                        for (s32 i = 0; i != array_length(sOmmDialogEntriesRaw); ++i) {
                                             fprintf(f, "    {\n");
                                             fprintf(f, "      \"ID\": %d,\n", sOmmDialogEntriesRaw[i].id);
                                             if (sOmmDialogEntriesRaw[i].soundBits != 0) {
@@ -561,7 +562,7 @@ OMM_AT_STARTUP static void omm_r96x_generate_json() {
                                                     fprintf(f, "%c", *c);
                                                 }
                                             }
-                                            if (i < (s32) omm_static_array_length(sOmmDialogEntriesRaw) - 1) {
+                                            if (i < (s32) array_length(sOmmDialogEntriesRaw) - 1) {
                                                 fprintf(f, "    },\n");
                                             } else {
                                                 fprintf(f, "    }\n");
@@ -576,9 +577,9 @@ OMM_AT_STARTUP static void omm_r96x_generate_json() {
 #include "data/omm/omm_defines_texts.inl"
 #undef OMM_TEXT_
                                         };
-                                        for (s32 i = 0; i != omm_static_array_length(sOmmStrings); ++i) {
+                                        for (s32 i = 0; i != array_length(sOmmStrings); ++i) {
                                             fprintf(f, "    \"%s\": \"%s\"", sOmmStrings[i][0], sOmmStrings[i][1]);
-                                            if (i < (s32) omm_static_array_length(sOmmStrings) - 1) {
+                                            if (i < (s32) array_length(sOmmStrings) - 1) {
                                                 fprintf(f, ",\n");
                                             } else {
                                                 fprintf(f, "\n");

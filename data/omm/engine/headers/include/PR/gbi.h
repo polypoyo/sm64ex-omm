@@ -46,7 +46,8 @@
 #define G_SPECIAL_2                         0xd4
 #define G_SPECIAL_3                         0xd3
 #define G_VTX                               0x01
-#define G_MODIFYVTX                         0x02
+#define G_VTXTC                             0x02
+#define G_MODIFYVTX                         0x00 //0x02
 #define G_CULLDL                            0x03
 #define G_BRANCH_Z                          0x04
 #define G_TRI1                              0x05
@@ -1091,6 +1092,18 @@ typedef union {
 #define gsSPVertex(v, n, v0) \
 {{ \
     (_SHIFTL(G_VTX,24,8) | _SHIFTL((n),12,8) | _SHIFTL((v0)+(n),1,7)), (uintptr_t)(v) \
+}}
+
+#define gSPVertexTC(pkt, v, n, v0) \
+{ \
+    Gfx *_g = (Gfx *)(pkt); \
+    _g->words.w0 = _SHIFTL(G_VTXTC,24,8) | _SHIFTL((n),12,8) | _SHIFTL((v0)+(n),1,7); \
+    _g->words.w1 = (uintptr_t)(v); \
+}
+
+#define gsSPVertexTC(v, n, v0) \
+{{ \
+    (_SHIFTL(G_VTXTC,24,8) | _SHIFTL((n),12,8) | _SHIFTL((v0)+(n),1,7)), (uintptr_t)(v) \
 }}
 
 #define gSPViewport(pkt, v)         gDma2p((pkt), G_MOVEMEM, (v), sizeof(Vp), G_MV_VIEWPORT, 0)
@@ -2498,7 +2511,7 @@ typedef union {
     _g2->words.w1 = (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)); \
 }
 
-/*#define gsDPWord(wordhi, wordlo) \
+#define gsDPWord(wordhi, wordlo) \
     gsImmp1(G_RDPHALF_1, (uintptr_t)(wordhi)), \
     gsImmp1(G_RDPHALF_2, (uintptr_t)(wordlo))
 
@@ -2507,7 +2520,7 @@ typedef union {
     Gfx *_g = (Gfx *)(pkt); \
     gImmp1(pkt, G_RDPHALF_1, (uintptr_t)(wordhi)); \
     gImmp1(pkt, G_RDPHALF_2, (uintptr_t)(wordlo)); \
-}*/
+}
 
 #define gsXPSwapCmd(cmd, func) \
 {{ \

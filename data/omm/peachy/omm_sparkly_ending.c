@@ -36,16 +36,16 @@ void omm_sparkly_ending_cutscene() {
         case OMM_SPARKLY_ENDING_REGULAR:
         case OMM_SPARKLY_ENDING_PEACH: {
             if (sCutsceneGoodEnding) {
-                omm_copy(sCutsceneEnding, sCutsceneGoodEnding, sizeof(sOmmSparklyEndingCutscene));
-                omm_free(sCutsceneGoodEnding);
+                mem_cpy(sCutsceneEnding, sCutsceneGoodEnding, sizeof(sOmmSparklyEndingCutscene));
+                mem_del(sCutsceneGoodEnding);
                 sCutsceneGoodEnding = NULL;
             }
         } break;
 
         case OMM_SPARKLY_ENDING_BAD: {
             if (!sCutsceneGoodEnding) {
-                sCutsceneGoodEnding = omm_dup(sCutsceneEnding, sizeof(sOmmSparklyEndingCutscene));
-                omm_copy(sCutsceneEnding, sOmmSparklyEndingCutscene, sizeof(sOmmSparklyEndingCutscene));
+                sCutsceneGoodEnding = mem_dup(sCutsceneEnding, sizeof(sOmmSparklyEndingCutscene));
+                mem_cpy(sCutsceneEnding, sOmmSparklyEndingCutscene, sizeof(sOmmSparklyEndingCutscene));
             }
         } break;
     }

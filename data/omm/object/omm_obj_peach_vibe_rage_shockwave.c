@@ -37,7 +37,7 @@ typedef struct {
 } State;
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_peach_vibe_rage_shockwave_gfx)];
+    Gfx gfx[array_length(omm_peach_vibe_rage_shockwave_gfx)];
     Gfx tri[2 * (2 * OMM_PEACH_VIBE_RAGE_SHOCKWAVE_POINTS + 8) + 1];
     Vtx vtx[2 * (2 * (OMM_PEACH_VIBE_RAGE_SHOCKWAVE_POINTS + 1))];
     State state[OMM_PEACH_VIBE_RAGE_SHOCKWAVE_POINTS + 1];

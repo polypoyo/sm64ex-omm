@@ -119,7 +119,7 @@ s32 omm_cappy_swoop_update(struct Object *o) {
         pobj_decelerate(o, 0.80f, 0.80f);
         pobj_apply_gravity(o, 1.f);
         pobj_handle_special_floors(o);
-        POBJ_STOP_IF_UNPOSSESSED;
+        pobj_stop_if_unpossessed();
 
         // Batman
         if (POBJ_A_BUTTON_DOWN && o->oCeil && o->oCeil->normal.y < -0.9f) {
@@ -138,8 +138,8 @@ s32 omm_cappy_swoop_update(struct Object *o) {
     }
     
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -163,5 +163,5 @@ s32 omm_cappy_swoop_update(struct Object *o) {
     }
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

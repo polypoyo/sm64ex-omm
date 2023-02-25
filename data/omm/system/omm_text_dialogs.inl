@@ -31,8 +31,8 @@ OMM_DIALOG_LEVEL_VARIANTS, 0, 3, 95, 200,
 "freeze the water of\n"
 "the Secret Aquarium.\n"
 
-"Go out of a dark level\n"
-"to enter a shadowy\n"
+"Go out of a gloomy\n"
+"level to darken\n"
 "Bowser In The Sky..."
 },
 
@@ -328,7 +328,7 @@ OMM_DIALOG_SPARKLY_MULTI_END
 "You'll have to be fast,\n"
 "the vault stays open\n"
 "only for 1 minute and\n"
-"45 seconds!"
+"40 seconds!"
 OMM_DIALOG_SPARKLY_MULTI_END
 
 ""
@@ -393,8 +393,8 @@ OMM_DIALOG_SPARKLY_MULTI_END
 "Collect all blue coins,\n"
 "and only blue ones...\n"
 
-"...under 2 minutes and\n"
-"10 seconds. Hurry up!"
+"...under 1 minute and\n"
+"50 seconds. Hurry up!"
 OMM_DIALOG_SPARKLY_MULTI_END
 
 ""
@@ -1003,85 +1003,30 @@ OMM_DIALOG_SPARKLY_MULTI_END
 "enough, don't try this."
 OMM_DIALOG_SPARKLY_MULTI_END
 
-"Look up.\n"
+"sus\n"
 "\n"
 "\n"
 "\n"
 
-"Do you see it?\n"
-"...\n"
 "\n"
-"No, you don't.\n"
-
-"You're not going to\n"
-"like this.\n"
-"You shouldn't have\n"
-"broken that Block.\n"
-
-"The Nebula Stars.\n"
-"The most powerful force\n"
-"known to the Mushroom\n"
-"Kingdom, even beyond.\n"
-
-"One must prove its\n"
-"worthiness to be able\n"
-"to harness their power.\n"
+"\n"
+"\n"
 "\n"
 
-"Kaizo Mario 64?\n"
-"Super Mario 74 EE?\n"
-"Night of Doom?\n"
-"King Boo's Revenge?\n"
-
-"They drove crazy the\n"
-"fools who tried them.\n"
-"But Nebula Stars are\n"
-"an even worse evil.\n"
-
-"You're about to face\n"
-"something you can't\n"
-"imagine, even in your\n"
-"worst nightmares.\n"
-
-"But with the Odyssey\n"
-"Moveset and Peach,\n"
-"it's gonna be a piece\n"
-"of cake, right?...\n"
-
-"You're wrong.\n"
-"You're going to have\n"
-"a VERY bad time.\n"
+"\n"
+"\n"
+"\n"
 "\n"
 
-"To begin with, there\n"
-"are 90 Nebula Stars.\n"
-"Yes. NINETY.\n"
+"\n"
+"\n"
+"\n"
 "\n"
 
-"Secondly, to be able\n"
-"to catch all of them,\n"
-"you'll have to travel\n"
-"through time and space.\n"
-
-"You can rely only on\n"
-"yourself. No cannon,\n"
-"no cap power-up, and\n"
-"no cheat.\n"
-
-"The Nebula Stars curse\n"
-"reduces your health\n"
-"points to 1. Get hit,\n"
-"and it's over.\n"
-
-"If by any chance you\n"
-"manage to collect 89\n"
-"Nebula Stars, come back\n"
-"here, if you dare.\n"
-
-"Do you have the guts to\n"
-"try this madness, are you\n"
-"ready to give up your\n"
-"sanity in this challenge?"
+"\n"
+"\n"
+"\n"
+"amogus"
 OMM_DIALOG_SPARKLY_MULTI_END
 },
 
@@ -1503,17 +1448,17 @@ OMM_DIALOG_SPARKLY_ANTI_CHEAT_INTRO, 0, 4, 95, 200,
 {
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_0, 0, 4, 95, 200,
 "You ain't a good cheater,\n"
-"you got easily spotted.\n"
+"You got easily spotted.\n"
 "Next time stay in order,\n"
-"you won't be suspected."
+"You won't be suspected."
 },
 
 {
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_1, 0, 4, 95, 200,
 "Cheating is not fair,\n"
-"can you stop please?\n"
+"Can you stop please?\n"
 "I thought I was clear,\n"
-"you cannot do this."
+"You cannot do this."
 },
 
 {
@@ -1527,17 +1472,17 @@ OMM_DIALOG_SPARKLY_ANTI_CHEAT_2, 0, 4, 95, 200,
 {
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_3, 0, 4, 95, 200,
 "What you do is not cool,\n"
-"no matter the intention.\n"
+"No matter the intention.\n"
 "Cheats make you a fool,\n"
-"who needs a correction."
+"Who needs a correction."
 },
 
 {
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_4, 0, 4, 95, 200,
 "Do you think I won't see\n"
-"a despicable cheater?\n"
+"A despicable cheater?\n"
 "You tried to trick me,\n"
-"shame on you, you faker."
+"Shame on you, you faker."
 },
 
 {
@@ -1545,13 +1490,13 @@ OMM_DIALOG_SPARKLY_ANTI_CHEAT_5, 0, 4, 95, 200,
 "In the code, an anomaly,\n"
 "I can detect, immediately.\n"
 "Cheats are no exception,\n"
-"they get all my attention."
+"They get all my attention."
 },
 
 {
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_6, 0, 4, 95, 200,
 "I sensed an irregularity\n"
-"inside the game's memory.\n"
+"Inside the game's memory.\n"
 "Is cheating what you want?\n"
 "I'm sorry, but you can't."
 },
@@ -1559,33 +1504,49 @@ OMM_DIALOG_SPARKLY_ANTI_CHEAT_6, 0, 4, 95, 200,
 {
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_7, 0, 4, 95, 200,
 "What an odd behavior I see\n"
-"that makes me wonder...\n"
+"That makes me wonder...\n"
 "Is this game too glitchy?\n"
 "No, nothing but a cheater."
 },
 
 {
+OMM_DIALOG_SPARKLY_ANTI_CHEAT_FISH, 0, 4, 95, 200,
+"You really tried to cheat,\n"
+"Three times in a row?\n"
+"You didn't listen shit,\n"
+"I'm not gonna let it go."
+},
+
+{
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_0, 0, 4, 95, 200,
 "I'll let it go for now,\n"
-"but don't do that again.\n"
+"But don't do that again.\n"
 "Get caught twice in a row,\n"
-"and I will show you pain."
+"And I will show you pain."
 },
 
 {
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_1, 0, 4, 95, 200,
 "I'll do nothing this time,\n"
-"but think about it twice.\n"
+"But think about it twice.\n"
 "Keep crossing the line,\n"
-"and I won't be that nice."
+"And I won't be that nice."
 },
 
 {
 OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_2, 0, 4, 95, 200,
 "I can tolerate this breach,\n"
-"but only once in a while.\n"
+"But only once in a while.\n"
 "Make me repeat my speech?\n"
 "Say bye to your savefile."
+},
+
+{
+OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_FISH, 0, 4, 95, 200,
+"Keep playing, you wish?\n"
+"Too bad, 'cause you can't.\n"
+"You are a cheater fish\n"
+"That belongs in a tank."
 },
 
 };

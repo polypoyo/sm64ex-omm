@@ -311,6 +311,43 @@ static void geo_fix_marios_anim_translation_y(struct Object *o, f32 nodety, f32 
 }
 
 //
+// Mario's right hand
+//
+
+static bool sNextDLIsMariosRightHand = false;
+static OmmHMap sMariosRightHandDLs = omm_hmap_zero;
+static void geo_process_rotation(struct GraphNodeRotation *node);
+
+static void geo_register_marios_right_hand_display_list(Gfx *displayList) {
+    if (sNextDLIsMariosRightHand && displayList) {
+        if (!OMM_PLAYER_IS_PEACH && omm_hmap_find(sMariosRightHandDLs, (uintptr_t) displayList) == -1) {
+            omm_hmap_insert(sMariosRightHandDLs, (uintptr_t) displayList, displayList);
+        }
+        sNextDLIsMariosRightHand = false;
+    }
+}
+
+static bool geo_apply_rotation_on_marios_right_hand(Gfx *displayList, s16 layer) {
+    static bool isProcessing = false;
+    if (!isProcessing && !OMM_PLAYER_IS_PEACH && omm_hmap_find(sMariosRightHandDLs, (uintptr_t) displayList) != -1) {
+        static struct GraphNodeRotation rot[1];
+        struct Object *perry = omm_perry_get_object();
+        if (perry && (perry->oPerryFlags & OBJ_INT_PERRY_SWORD)) {
+            rot->rotation[0] = _o(rot->_rotation).v[0] = perry->oPerryRightHandRot(0);
+            rot->rotation[1] = _o(rot->_rotation).v[1] = perry->oPerryRightHandRot(1);
+            rot->rotation[2] = _o(rot->_rotation).v[2] = perry->oPerryRightHandRot(2);
+            rot->displayList = displayList;
+            rot->node.flags = (layer << 8);
+            isProcessing = true;
+            geo_process_rotation(rot);
+            isProcessing = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+//
 // Animation data
 //
 
@@ -416,8 +453,9 @@ static void geo_append_display_list(Gfx *displayList, s16 layer) {
 #if OMM_CODE_DEBUG
     if (sDisableRendering) return;
 #endif
+PREPROCESS { geo_register_marios_right_hand_display_list(displayList); }
 NOT_PREPROCESS {
-    if (displayList && OMM_LIKELY(gCurGraphNodeMasterList)) {
+    if (displayList && gCurGraphNodeMasterList && !geo_apply_rotation_on_marios_right_hand(displayList, layer)) {
         if (OMM_UNLIKELY(!gCurGraphNodeMasterList->listHeads[layer])) {
             gCurGraphNodeMasterList->listHeads[layer] = sDisplayListNodePools[layer];
             gCurGraphNodeMasterList->listTails[layer] = sDisplayListNodePools[layer];
@@ -454,7 +492,7 @@ static void geo_process_master_list(struct GraphNodeMasterList *node) {
 
         // Gather display list nodes
         gCurGraphNodeMasterList = node;
-        omm_zero(node->listHeads, sizeof(node->listHeads));
+        mem_clr(node->listHeads, sizeof(node->listHeads));
         geo_process_node_and_siblings(gChildren);
         
         // Enable Z buffer
@@ -470,7 +508,7 @@ static void geo_process_master_list(struct GraphNodeMasterList *node) {
                 struct DisplayListNode *head = node->listHeads[i];
                 struct DisplayListNode *tail = node->listTails[i];
                 for (struct DisplayListNode *dlNode = head; dlNode != tail; dlNode++) {
-                    omm_array_grow(sMtxTbl, ptr, omm_new(InterpMtx, 1), sMtxTblSize + 1);
+                    omm_array_grow(sMtxTbl, ptr, mem_new(InterpMtx, 1), sMtxTblSize + 1);
                     InterpMtx *imtx = (InterpMtx *) omm_array_get(sMtxTbl, ptr, sMtxTblSize);
                     imtx->pos = gDisplayListHead;
                     imtx->gfx = dlNode->displayList;
@@ -513,6 +551,7 @@ static void geo_process_master_list(struct GraphNodeMasterList *node) {
 
 OMM_INLINE Gfx *geo_exec_node_func(struct FnGraphNode *node, s32 callContext, void *context) {
     if (node->func) {
+        gFindFloorForCutsceneStar = (node->func == geo_switch_area);
         return node->func(callContext, gNode, context);
     }
     return NULL;
@@ -523,8 +562,8 @@ OMM_INLINE bool __geo_inc_mat_stack() {
 NOT_PREPROCESS {
     sMtxStack0[sMatStackIndex] = alloc_display_list(sizeof(Mtx));
     sMtxStack1[sMatStackIndex] = alloc_display_list(sizeof(Mtx));
-    omm_copy(sMtxStack0[sMatStackIndex]->m, sMatStack0[sMatStackIndex], sizeof(Mat4));
-    omm_copy(sMtxStack1[sMatStackIndex]->m, sMatStack1[sMatStackIndex], sizeof(Mat4));
+    mem_cpy(sMtxStack0[sMatStackIndex]->m, sMatStack0[sMatStackIndex], sizeof(Mat4));
+    mem_cpy(sMtxStack1[sMatStackIndex]->m, sMatStack1[sMatStackIndex], sizeof(Mat4));
 }
     return false;
 }
@@ -1021,8 +1060,8 @@ PREPROCESS {
 
     // Mario head rotation
     if (gFnNode->func == (GraphNodeFunc) geo_mario_head_rotation) {
-        struct GraphNodeRotation *rotNode = (struct GraphNodeRotation *) gNode->next;
-        vec3s_add(sMarioHeadRot, rotNode->rotation);
+        struct GraphNodeRotation *rot = (struct GraphNodeRotation *) gNode->next;
+        vec3s_add(sMarioHeadRot, rot->rotation);
     }
 }
     // Process children
@@ -1138,8 +1177,9 @@ PREPROCESS {
     // Mario hand pos
     if (sMarioHandFlag != MHF_NOT_HAND) {
         vec3f_copy(sMarioHandPos[sMarioHandFlag - MHF_RIGHT_HAND], gNextMat1[3]);
-        if (sMarioHandFlag == MHF_RIGHT_HAND && OMM_PLAYER_IS_PEACH) { // Right hand
+        if (sMarioHandFlag == MHF_RIGHT_HAND && OMM_PERRY_SWORD_ACTION) { // Right hand
             omm_perry_update_graphics(gMarioState, gCurrMat1, t3f, rot1);
+            sNextDLIsMariosRightHand = true;
         }
         sMarioHandFlag = MHF_NOT_HAND;
     }
@@ -1153,7 +1193,7 @@ PREPROCESS {
 
 static void geo_process_shadow(struct GraphNodeShadow *node) {
 NOT_PREPROCESS {
-    if (gCurGraphNodeCamera && gCurGraphNodeObject) {
+    if (gCurGraphNodeCamera && gCurGraphNodeObject && !omm_is_main_menu()) {
         Vec3f shadowPos;
         f32 shadowScale;
         
@@ -1215,11 +1255,11 @@ NOT_PREPROCESS {
             mtxf_translate(mat, t3f);
             shadow0 = create_shadow_below_xyz(t3f[0], t3f[1], t3f[2], scale, node->shadowSolidity, node->shadowType);
             if (shadow0 && shadow1) {
-                omm_array_grow(sShadowTbl, ptr, omm_new(InterpShadow, 1), sShadowTblSize + 1);
+                omm_array_grow(sShadowTbl, ptr, mem_new(InterpShadow, 1), sShadowTblSize + 1);
                 InterpShadow *ishadow = (InterpShadow *) omm_array_get(sShadowTbl, ptr, sShadowTblSize);
                 ishadow->vtx = (Vtx *) ((shadow0 + 1)->words.w1);
-                omm_copy(ishadow->vtx0, (Vtx *) ((shadow0 + 1)->words.w1), sizeof(Vtx) * 4);
-                omm_copy(ishadow->vtx1, (Vtx *) ((shadow1 + 1)->words.w1), sizeof(Vtx) * 4);
+                mem_cpy(ishadow->vtx0, (Vtx *) ((shadow0 + 1)->words.w1), sizeof(Vtx) * 4);
+                mem_cpy(ishadow->vtx1, (Vtx *) ((shadow1 + 1)->words.w1), sizeof(Vtx) * 4);
                 sShadowTblSize++;
             }
         } else {
@@ -1271,13 +1311,9 @@ NOT_PREPROCESS {
 
         // Init animation state if the object has animations
         if (node->mAnimInfo.curAnim) {
-#if OMM_CODE_DYNOS
-            dynos_gfx_swap_animations(obj);
-#endif
+            omm_models_swap_animations(obj);
             geo_set_animation_globals(node, (node->node.flags & GRAPH_RENDER_HAS_ANIMATION) != 0);
-#if OMM_CODE_DYNOS
-            dynos_gfx_swap_animations(obj);
-#endif
+            omm_models_swap_animations(obj);
         }
 NOT_PREPROCESS {
         update_timestamp_vec3f(node->_objPos, &obj->oPosX);
@@ -1452,17 +1488,13 @@ NOT_PREPROCESS {
 
             // Make a back-up of the current anim state before processing the held object
             GeoAnimState curAnimState;
-            omm_copy(&curAnimState, sCurAnimState, sizeof(sCurAnimState));
+            mem_cpy(&curAnimState, sCurAnimState, sizeof(sCurAnimState));
 
             // Init animation state if the held object has animations
             if (heldObj->oCurrAnim) {
-#if OMM_CODE_DYNOS
-                dynos_gfx_swap_animations(heldObj);
-#endif
+                omm_models_swap_animations(heldObj);
                 geo_set_animation_globals(&heldObj->header.gfx, (heldObj->oNodeFlags & GRAPH_RENDER_HAS_ANIMATION) != 0);
-#if OMM_CODE_DYNOS
-                dynos_gfx_swap_animations(heldObj);
-#endif
+                omm_models_swap_animations(heldObj);
             } else {
                 sCurAnimState->type = ANIM_TYPE_NONE;
             }
@@ -1476,7 +1508,7 @@ NOT_PREPROCESS {
             gCurGraphNodeHeldObject = NULL;
 
             // Recover the current anim state
-            omm_copy(sCurAnimState, &curAnimState, sizeof(curAnimState));
+            mem_cpy(sCurAnimState, &curAnimState, sizeof(curAnimState));
         )
     }
 }
@@ -1679,18 +1711,18 @@ PREPROCESS {
             }
 
             // Set hips pitch
-            struct GraphNodeRotation *rotNode = (struct GraphNodeRotation *) node->node.next;
-            rotNode->rotation[0] = -(sPeachDressRot[0] * 4) / 3;
-            rotNode->rotation[1] = -(sPeachDressRot[1] * 4) / 3;
-            rotNode->rotation[2] = -(sPeachDressRot[2] * 4) / 3;
+            struct GraphNodeRotation *rot = (struct GraphNodeRotation *) node->node.next;
+            rot->rotation[0] = -(sPeachDressRot[0] * 4) / 3;
+            rot->rotation[1] = -(sPeachDressRot[1] * 4) / 3;
+            rot->rotation[2] = -(sPeachDressRot[2] * 4) / 3;
         } break;
 
         // Set Peach's dress rotation
         case GEO_PREPROCESS_PEACH_DRESS_ROT: {
-            struct GraphNodeRotation *rotNode = (struct GraphNodeRotation *) node->node.next;
-            rotNode->rotation[0] = -(sPeachDressRot[0] * 2) / 3;
-            rotNode->rotation[1] = -(sPeachDressRot[1] * 2) / 3;
-            rotNode->rotation[2] = -(sPeachDressRot[2] * 2) / 3;
+            struct GraphNodeRotation *rot = (struct GraphNodeRotation *) node->node.next;
+            rot->rotation[0] = -(sPeachDressRot[0] * 2) / 3;
+            rot->rotation[1] = -(sPeachDressRot[1] * 2) / 3;
+            rot->rotation[2] = -(sPeachDressRot[2] * 2) / 3;
         } break;
         
         // Compute head rotation
@@ -1704,10 +1736,10 @@ PREPROCESS {
 
         // Set Peach's hair rotation
         case GEO_PREPROCESS_PEACH_HAIR_ROT: {
-            struct GraphNodeRotation *rotNode = (struct GraphNodeRotation *) node->node.next;
-            rotNode->rotation[0] = 0;
-            rotNode->rotation[1] = -sMarioHeadRot[1] / 2;
-            rotNode->rotation[2] = -sMarioHeadRot[2] / (1 + (sMarioHeadRot[2] > 0));
+            struct GraphNodeRotation *rot = (struct GraphNodeRotation *) node->node.next;
+            rot->rotation[0] = 0;
+            rot->rotation[1] = -sMarioHeadRot[1] / 2;
+            rot->rotation[2] = -sMarioHeadRot[2] / (1 + (sMarioHeadRot[2] > 0));
         } break;
 
         // Switch between Peach's crown and Tiara
@@ -1857,7 +1889,7 @@ void geo_process_root(struct GraphNodeRoot *node, Vp *viewport1, Vp *viewport2, 
         if (viewport1) {
             clear_framebuffer(clearColor);
             make_viewport_clip_rect(viewport1);
-            omm_copy(viewport, viewport1, sizeof(Vp));
+            mem_cpy(viewport, viewport1, sizeof(Vp));
         } else if (viewport2) {
             clear_framebuffer(clearColor);
             make_viewport_clip_rect(viewport2);
@@ -1893,7 +1925,7 @@ void geo_process_root(struct GraphNodeRoot *node, Vp *viewport1, Vp *viewport2, 
 //
 
 static void __geo_preprocess_object_graph_node(struct Object *obj) {
-    omm_zero(sCurAnimState, sizeof(sCurAnimState));
+    mem_clr(sCurAnimState, sizeof(sCurAnimState));
     sMatStackIndex = 0;
     sMarioHandFlag = MHF_NOT_HAND;
     sMarioRootFlag = MRF_NOT_ROOT;
@@ -1918,13 +1950,9 @@ static void __geo_preprocess_object_graph_node(struct Object *obj) {
     // Make a copy of the animation state, it will be restored at the end of preprocessing
     struct AnimInfoStruct animInfoBackUp = obj->oAnimInfo;
     if (obj->oCurrAnim) {
-#if OMM_CODE_DYNOS
-        dynos_gfx_swap_animations(obj);
-#endif
+        omm_models_swap_animations(obj);
         geo_set_animation_globals(&obj->header.gfx, (obj->oNodeFlags & GRAPH_RENDER_HAS_ANIMATION) != 0);
-#if OMM_CODE_DYNOS
-        dynos_gfx_swap_animations(obj);
-#endif
+        omm_models_swap_animations(obj);
     }
     
     // Preprocess
@@ -1955,12 +1983,12 @@ void geo_preprocess_object_graph_node(struct Object *o) {
                 // Back-up the current animation and restore it after processing
                 // Setting gMarioCurrAnimAddr to NULL forces the game to reload the DMA table
                 struct AnimInfoStruct animInfo;
-                omm_copy(&animInfo, &o->oAnimInfo, sizeof(struct AnimInfoStruct));
+                mem_cpy(&animInfo, &o->oAnimInfo, sizeof(struct AnimInfoStruct));
                 gMarioCurrAnimAddr = NULL;
                 obj_anim_play(gMarioObject, MARIO_ANIM_A_POSE, 1.f);
                 __geo_preprocess_object_graph_node(o);
                 gMarioCurrAnimAddr = NULL;
-                omm_copy(&o->oAnimInfo, &animInfo, sizeof(struct AnimInfoStruct));
+                mem_cpy(&o->oAnimInfo, &animInfo, sizeof(struct AnimInfoStruct));
 
                 // Compute and insert height for the object's graph node
                 f32 marioHeight = 35.f + (sMarioHeadPos[1] - gMarioState->pos[1]);

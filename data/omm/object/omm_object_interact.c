@@ -128,11 +128,39 @@ bool omm_obj_is_exclamation_box(struct Object *o) {
 }
 
 bool omm_obj_is_unagis_tail(struct Object *o) {
-    return (omm_obj_get_behavior_types(o) & BHV_TYPE_UNAGIS_TAIL) != 0 && (o->oBhvArgs2ndByte == -4);
+    return (omm_obj_get_behavior_types(o) & BHV_TYPE_UNAGIS_TAIL) != 0 && (o->oBehParams2ndByte == -4);
 }
 
 bool omm_obj_is_collectible(struct Object *o) {
     return (omm_obj_get_behavior_types(o) & BHV_TYPE_COLLECTIBLE) != 0;
+}
+
+bool omm_obj_is_enemy(struct Object *o) {
+    return (omm_obj_get_behavior_types(o) & BHV_TYPE_ENEMY) != 0 &&
+#if OMM_GAME_IS_SMSR
+           (o->behavior != bhvCustomSMSRBreakableWindow) &&
+#endif
+           (o->behavior != bhvBreakableBoxSmall) &&
+           (o->behavior != bhvJumpingBox) &&
+           (o->behavior != bhvPokeyBodyPart) &&
+           (o->behavior != bhvWaterBomb) &&
+           (o->behavior != bhvTowerDoor) &&
+           (o->behavior != bhvWfBreakableWallLeft) &&
+           (o->behavior != bhvWfBreakableWallRight) &&
+           (o->behavior != bhvBowserBodyAnchor);
+}
+
+bool omm_obj_is_enemy_defeated(struct Object *o) {
+    return !o->activeFlags && omm_obj_is_enemy(o) && ((
+#if OMM_GAME_IS_SMSR
+           (o->behavior != bhvCustomSMSRBulletMine) &&
+#endif
+           (o->behavior != bhvBigBoulder) &&
+           (o->behavior != bhvBowlingBall) &&
+           (o->behavior != bhvFreeBowlingBall) &&
+           (o->behavior != bhvHauntedChair) &&
+           (o->behavior != bhvPitBowlingBall)) ||
+           (o->oFlags & OBJ_FLAG_0100));
 }
 
 //
@@ -206,13 +234,13 @@ typedef struct {
     struct Object *obj;
     const BehaviorScript *bhv;
     Vec3f pos;
-    s32 spk;
-    s32 act;
+    s32 sparkles;
+    s32 action;
 } PerryAttack;
 static PerryAttack sPerryAttacks[MAX_PERRY_ATTACKS];
 
 OMM_ROUTINE_LEVEL_ENTRY(omm_obj_init_perry_attacks) {
-    omm_zero(sPerryAttacks, sizeof(sPerryAttacks));
+    mem_clr(sPerryAttacks, sizeof(sPerryAttacks));
 }
 
 OMM_ROUTINE_PRE_RENDER(omm_obj_update_perry_attacks) {
@@ -223,7 +251,7 @@ OMM_ROUTINE_PRE_RENDER(omm_obj_update_perry_attacks) {
             PerryAttack *patk = &sPerryAttacks[i];
             if (patk->obj) {
                 if (patk->obj->behavior == patk->bhv) {
-                    if (!patk->obj->activeFlags || patk->obj->oAction == patk->act) {
+                    if (!patk->obj->activeFlags || patk->obj->oAction == patk->action) {
                         patk->pos[0] = patk->obj->oPosX;
                         patk->pos[1] = patk->obj->oPosY + max_f(0.f, patk->obj->hitboxHeight - patk->obj->hitboxDownOffset);
                         patk->pos[2] = patk->obj->oPosZ;
@@ -231,7 +259,7 @@ OMM_ROUTINE_PRE_RENDER(omm_obj_update_perry_attacks) {
                     }
                 } else {
                     patk->obj = NULL;
-                    patk->spk = 0;
+                    patk->sparkles = 0;
                 }
             }
         }
@@ -239,18 +267,18 @@ OMM_ROUTINE_PRE_RENDER(omm_obj_update_perry_attacks) {
         // Spawn sparkles from dead objects
         for (s32 i = 0; i != MAX_PERRY_ATTACKS; ++i) {
             PerryAttack *patk = &sPerryAttacks[i];
-            if (!patk->obj && patk->spk) {
-                for (s32 j = 0; j != patk->spk; ++j) {
+            if (!patk->obj && patk->sparkles) {
+                for (s32 j = 0; j != patk->sparkles; ++j) {
                     omm_spawn_peach_vibe_sparkle(gMarioObject, patk->pos[0], patk->pos[1], patk->pos[2]);
                 }
-                patk->spk = 0;
+                patk->sparkles = 0;
             }
         }
     }
 }
 
 static void omm_obj_handle_perry_attack(struct Object *o, u32 interactionFlags) {
-    if (interactionFlags & OBJ_INT_PERRY_ATTACK) {
+    if (OMM_PLAYER_IS_PEACH && (interactionFlags & OBJ_INT_PERRY_ATTACK)) {
         const OmmBhvDataPerryAttack *dpatk = omm_behavior_data_get_perry_attack(o->behavior);
         if (dpatk && dpatk->vibeSparkles > 0) {
             s32 j = -1;
@@ -262,8 +290,8 @@ static void omm_obj_handle_perry_attack(struct Object *o, u32 interactionFlags) 
                     j = k;
                 } else if (patk->obj == o) {
                     patk->bhv = o->behavior;
-                    patk->spk = dpatk->vibeSparkles;
-                    patk->act = dpatk->deathAction;
+                    patk->sparkles = dpatk->vibeSparkles;
+                    patk->action = dpatk->deathAction;
                     return;
                 }
             }
@@ -273,8 +301,8 @@ static void omm_obj_handle_perry_attack(struct Object *o, u32 interactionFlags) 
                 PerryAttack *patk = &sPerryAttacks[j];
                 patk->obj = o;
                 patk->bhv = o->behavior;
-                patk->spk = dpatk->vibeSparkles;
-                patk->act = dpatk->deathAction;
+                patk->sparkles = dpatk->vibeSparkles;
+                patk->action = dpatk->deathAction;
             }
         }
     }
@@ -285,7 +313,6 @@ static void omm_obj_handle_perry_attack(struct Object *o, u32 interactionFlags) 
 //
 
 #define OMM_CAPPY_ONLY_CODE(...) if (isCappy) { __VA_ARGS__ }
-static bool sStopAndReturn;
 
 bool omm_obj_check_interaction(struct Object *o, struct MarioState *m, bool ignoreTangibility) {
     return !(o->oInteractStatus & INT_STATUS_INTERACTED) &&     // Not interacted
@@ -371,7 +398,7 @@ static bool omm_obj_interact_defeat_in_one_hit(struct Object *o, struct Object *
         target->oMoveAngleYaw = obj_get_object1_angle_yaw_to_object2(o->parentObj ? o->parentObj : o, target);
         target->oFaceAngleYaw = target->oMoveAngleYaw + 0x8000;
         target->oInteractStatus = (ATTACK_KICK_OR_TRIP | INT_STATUS_INTERACTED | INT_STATUS_WAS_ATTACKED);
-        play_sound(SOUND_OBJ_BULLY_METAL, target->oCameraToObject);
+        obj_play_sound(target, SOUND_OBJ_BULLY_METAL);
         return true;
     }
 
@@ -417,34 +444,32 @@ static bool omm_obj_interact_defeat_in_one_hit(struct Object *o, struct Object *
     return false;
 }
 
-bool omm_obj_process_one_surface_interaction(struct Object *o, struct Object *target, u32 interactionFlags) {
+s32 omm_obj_process_one_surface_interaction(struct Object *o, struct Object *target, u32 interactionFlags) {
     struct MarioState *m = gMarioState;
     bool isCappy = (o == omm_cappy_get_object());
-    bool interacted = false;
+    s32 result = OBJ_INT_RESULT_NONE;
 
     // Target must not be the same as current object
     // Target must be tangible to Cappy if current object is Cappy
     // Target must be valid for interaction
-    if (target != o && (!isCappy || !omm_obj_is_intangible_to_cappy(target)) && omm_obj_check_interaction(target, m, true)) {
+    if (o && target && target != o && (!isCappy || !omm_obj_is_intangible_to_cappy(target)) && omm_obj_check_interaction(target, m, true)) {
 
 OMM_CAPPY_ONLY_CODE(
         // Capture
         if (omm_cappy_is_mario_available(m, true) && omm_mario_possess_object(m, target, 0)) {
             omm_cappy_unload();
-            sStopAndReturn = true;
-            return true;
+            return OBJ_INT_RESULT_STOP;
         }
 );
         // Interactible
         if (omm_obj_is_interactible(target)) {
-            interacted = true;
+            result = OBJ_INT_RESULT_CONTACT;
 
             // Defeat enemies in one hit
             if (interactionFlags & OBJ_INT_ATTACK_ONE_HIT) {
                 if (omm_obj_is_boss(target) && omm_obj_interact_defeat_in_one_hit(o, target)) {
                     omm_obj_handle_perry_attack(target, interactionFlags);
-                    sStopAndReturn = true;
-                    return true;
+                    return OBJ_INT_RESULT_STOP;
                 }
             }
 
@@ -455,6 +480,7 @@ OMM_CAPPY_ONLY_CODE(
                 if (omm_obj_is_kickable_board(target)) {
                     target->oInteractStatus = INT_STATUS_INTERACTED;
                     target->oAction = 2;
+                    result = OBJ_INT_RESULT_INTERACT;
 OMM_CAPPY_ONLY_CODE(
                     omm_cappy_bounce_back(o);
 );
@@ -470,6 +496,7 @@ OMM_CAPPY_ONLY_CODE(
                     omm_obj_interact_heal_mario(target, interactionFlags);
                     target->oInteractStatus = INT_STATUS_INTERACTED;
                     obj_destroy(target);
+                    result = OBJ_INT_RESULT_INTERACT;
 OMM_CAPPY_ONLY_CODE(
                     omm_cappy_bounce_back(o);
 );
@@ -482,6 +509,7 @@ OMM_CAPPY_ONLY_CODE(
                     target->oInteractStatus = INT_STATUS_INTERACTED;
                     audio_play_puzzle_jingle();
                     obj_destroy(target);
+                    result = OBJ_INT_RESULT_INTERACT;
 OMM_CAPPY_ONLY_CODE(
                     omm_cappy_bounce_back(o);
 );
@@ -491,24 +519,23 @@ OMM_CAPPY_ONLY_CODE(
 
 OMM_CAPPY_ONLY_CODE(
         // If no interaction, check Capture again
-        if (!interacted && omm_cappy_is_mario_available(m, true) && omm_mario_possess_object(m, target, OMM_MARIO_POSSESS_IGNORE_PRESS_HOLD)) {
+        if (result < OBJ_INT_RESULT_INTERACT && omm_cappy_is_mario_available(m, true) && omm_mario_possess_object(m, target, OMM_MARIO_POSSESS_IGNORE_PRESS_HOLD)) {
             omm_cappy_unload();
-            sStopAndReturn = true;
-            return true;
+            return OBJ_INT_RESULT_STOP;
         }
 );
     }
-    return interacted;
+    return result;
 }
 
-bool omm_obj_process_one_object_interaction(struct Object *o, struct Object *target, u32 interactionFlags) {
+s32 omm_obj_process_one_object_interaction(struct Object *o, struct Object *target, u32 interactionFlags) {
     struct MarioState *m = gMarioState;
     bool isCappy = (o == omm_cappy_get_object());
-    bool interacted = false;
+    s32 result = OBJ_INT_RESULT_NONE;
 
     // Target must not be the same as current object
     // Target must be valid for interaction
-    if (target != o && omm_obj_check_interaction(target, m, false)) {
+    if (o && target && target != o && omm_obj_check_interaction(target, m, false)) {
 
         // Attract coins
         if (omm_obj_is_coin(target)) {
@@ -527,20 +554,18 @@ OMM_CAPPY_ONLY_CODE(
             // Capture
             if (omm_cappy_is_mario_available(m, true) && omm_mario_possess_object(m, target, OMM_MARIO_POSSESS_CHECK_TANGIBILITY)) {
                 omm_cappy_unload();
-                sStopAndReturn = true;
-                return true;
+                return OBJ_INT_RESULT_STOP;
             }
 );
             // Interactible
             if (omm_obj_is_interactible(target)) {
-                interacted = true;
+                result = OBJ_INT_RESULT_CONTACT;
 
                 // Defeat enemies in one hit
                 if (interactionFlags & OBJ_INT_ATTACK_ONE_HIT) {
                     if (omm_obj_is_boss(target) && omm_obj_interact_defeat_in_one_hit(o, target)) {
                         omm_obj_handle_perry_attack(target, interactionFlags);
-                        sStopAndReturn = true;
-                        return true;
+                        return OBJ_INT_RESULT_STOP;
                     }
                 }
 
@@ -551,6 +576,7 @@ OMM_CAPPY_ONLY_CODE(
                     if (omm_obj_is_water_ring(target)) {
                         target->oInteractStatus = INT_STATUS_INTERACTED;
                         m->healCounter += 4 * target->oDamageOrCoinValue;
+                        result = OBJ_INT_RESULT_INTERACT;
                     }
 
                     // Mushrooms 1up
@@ -558,6 +584,7 @@ OMM_CAPPY_ONLY_CODE(
                         target->oPosX = m->pos[0];
                         target->oPosY = m->pos[1] + 60.f;
                         target->oPosZ = m->pos[2];
+                        result = OBJ_INT_RESULT_INTERACT;
                     }
 
                     // Secrets
@@ -565,6 +592,7 @@ OMM_CAPPY_ONLY_CODE(
                         target->oPosX = m->pos[0];
                         target->oPosY = m->pos[1] + 60.f;
                         target->oPosZ = m->pos[2];
+                        result = OBJ_INT_RESULT_INTERACT;
                     }
                 }
 
@@ -572,6 +600,7 @@ OMM_CAPPY_ONLY_CODE(
                 if (interactionFlags & OBJ_INT_COLLECT_COINS) {
                     if (omm_obj_is_coin(target)) {
                         omm_mario_interact_coin(m, target);
+                        result = OBJ_INT_RESULT_INTERACT;
 OMM_CAPPY_ONLY_CODE(
                         omm_cappy_try_to_target_next_coin(o);
 );
@@ -582,6 +611,7 @@ OMM_CAPPY_ONLY_CODE(
                 if (interactionFlags & OBJ_INT_COLLECT_STARS) {
                     if (omm_obj_is_star_or_key(target)) {
                         omm_mario_interact_star_or_key(m, target);
+                        result = OBJ_INT_RESULT_INTERACT;
 OMM_CAPPY_ONLY_CODE(
                         omm_cappy_return_to_mario(o);
 );
@@ -593,6 +623,7 @@ OMM_CAPPY_ONLY_CODE(
                     if (omm_obj_is_cap(target)) {
                         if (!omm_mario_interact_cap(m, target)) {
                             interact_cap(m, INTERACT_CAP, target);
+                            result = OBJ_INT_RESULT_INTERACT;
                         }
                     }
                 }
@@ -602,11 +633,10 @@ OMM_CAPPY_ONLY_CODE(
                 if (omm_obj_is_unagis_tail(target)) {
                     if (target->parentObj->oAnimState != 0) {
                         target->parentObj->oAnimState = 0;
-                        target->oBhvArgs = target->parentObj->oBhvArgs;
-                        obj_spawn_star(target, target->oPosX, target->oPosY, target->oPosZ, 6833.f, -3654.f, 2230.f, (target->oBhvArgs >> 24) & 0x1F, false);
+                        target->oBehParams = target->parentObj->oBehParams;
+                        obj_spawn_star(target, target->oPosX, target->oPosY, target->oPosZ, 6833.f, -3654.f, 2230.f, (target->oBehParams >> 24) & 0x1F, false);
                         omm_cappy_return_to_mario(o);
-                        sStopAndReturn = true;
-                        return true;
+                        return OBJ_INT_RESULT_STOP;
                     }
                 }
 );
@@ -615,14 +645,13 @@ OMM_CAPPY_ONLY_CODE(
                 if (interactionFlags & OBJ_INT_GRAB_OBJECTS) {
                     if (omm_obj_is_grabbable(target)) {
                         omm_obj_handle_perry_attack(target, interactionFlags);
-                        if (!isCappy || (omm_cappy_is_mario_available(m, false) && !(m->action & (ACT_FLAG_AIR | ACT_FLAG_SWIMMING | ACT_FLAG_METAL_WATER)))) {
+                        if (!isCappy || (omm_cappy_is_mario_available(m, false) && !(m->action & (ACT_FLAG_AIR | ACT_FLAG_METAL_WATER)))) {
                             if (omm_mario_check_grab(m, target, true)) {
                                 vec3f_set(m->vel, 0, 0, 0);
 OMM_CAPPY_ONLY_CODE(
                                 omm_cappy_return_to_mario(o);
 );
-                                sStopAndReturn = true;
-                                return true;
+                                return OBJ_INT_RESULT_STOP;
                             }
                         }
                     }
@@ -638,9 +667,7 @@ OMM_CAPPY_ONLY_CODE(
                                 case BHV_TYPE_KNOCKABLE_1: obj_set_knockback(target, o, 1, 30.f, 0.f); break;
                             }
                         } else {
-                            if ((interactionFlags & OBJ_INT_ATTACK_STRONG) && (
-                                (omm_obj_is_goomba(target) && (target->oGoombaSize & 1)) ||
-                                (target->behavior == bhvWigglerHead))) {
+                            if (target->behavior == bhvWigglerHead || ((interactionFlags & OBJ_INT_ATTACK_STRONG) && omm_obj_is_goomba(target) && (target->oGoombaSize & 1))) {
                                 target->oInteractStatus = (ATTACK_GROUND_POUND_OR_TWIRL | INT_STATUS_INTERACTED | INT_STATUS_WAS_ATTACKED);
                             } else {
                                 target->oInteractStatus = (ATTACK_KICK_OR_TRIP | INT_STATUS_INTERACTED | INT_STATUS_WAS_ATTACKED | INT_STATUS_TOUCHED_BOB_OMB);
@@ -650,7 +677,7 @@ OMM_CAPPY_ONLY_CODE(
 OMM_CAPPY_ONLY_CODE(
                         omm_cappy_bounce_back(o);
 );
-                        return true;
+                        return OBJ_INT_RESULT_INTERACT;
                     }
                 }
 
@@ -671,7 +698,7 @@ OMM_CAPPY_ONLY_CODE(
 OMM_CAPPY_ONLY_CODE(
                         omm_cappy_bounce_back(o);
 );
-                        return true;
+                        return OBJ_INT_RESULT_INTERACT;
                     }
                 }
 
@@ -685,7 +712,7 @@ OMM_CAPPY_ONLY_CODE(
 OMM_CAPPY_ONLY_CODE(
                         omm_cappy_bounce_back(o);
 );
-                        return true;
+                        return OBJ_INT_RESULT_INTERACT;
                     }
                 }
 
@@ -704,7 +731,7 @@ OMM_CAPPY_ONLY_CODE(
 OMM_CAPPY_ONLY_CODE(
                         omm_cappy_bounce_back(o);
 );
-                        return true;
+                        return OBJ_INT_RESULT_INTERACT;
                     }
                 }
 
@@ -718,7 +745,8 @@ OMM_CAPPY_ONLY_CODE(
                         target->oFaceAngleYaw = target->oMoveAngleYaw + 0x8000;
                         target->oInteractStatus = (ATTACK_KICK_OR_TRIP | INT_STATUS_INTERACTED | INT_STATUS_WAS_ATTACKED);
                         target->oInteractStatus |= (interactionFlags & (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_STRONG)) << 24; // Attack type
-                        play_sound(SOUND_OBJ_BULLY_METAL, target->oCameraToObject);
+                        obj_play_sound(target, SOUND_OBJ_BULLY_METAL);
+                        result = OBJ_INT_RESULT_INTERACT;
 OMM_CAPPY_ONLY_CODE(
                         omm_cappy_bounce_back(o);
 );
@@ -732,28 +760,27 @@ OMM_CAPPY_ONLY_CODE(
                         omm_obj_interact_heal_mario(target, interactionFlags);
                         obj_spawn_white_puff(target, SOUND_GENERAL_FLAME_OUT);
                         obj_mark_for_deletion(target);
+                        result = OBJ_INT_RESULT_INTERACT;
                     }
                 }
             }
 
 OMM_CAPPY_ONLY_CODE(
             // If no interaction, check Capture again
-            if (!interacted && omm_cappy_is_mario_available(m, true) && omm_mario_possess_object(m, target, OMM_MARIO_POSSESS_CHECK_TANGIBILITY | OMM_MARIO_POSSESS_IGNORE_PRESS_HOLD)) {
+            if (result < OBJ_INT_RESULT_INTERACT && omm_cappy_is_mario_available(m, true) && omm_mario_possess_object(m, target, OMM_MARIO_POSSESS_CHECK_TANGIBILITY | OMM_MARIO_POSSESS_IGNORE_PRESS_HOLD)) {
                 omm_cappy_unload();
-                sStopAndReturn = true;
-                return true;
+                return OBJ_INT_RESULT_STOP;
             }
 );
         }
     }
-    return interacted;
+    return result;
 }
 
 struct Object *omm_obj_process_interactions(struct Object *o, u32 interactionFlags) {
     struct Object *interacted = NULL;
     bool isCappy = (o == omm_cappy_get_object());
     bool notInteracted = ((interactionFlags & OBJ_INT_NOT_INTERACTED) != 0);
-    sStopAndReturn = false;
 
     // Surfaces
     if (isCappy || (interactionFlags & OBJ_INT_PRESET_ATTACK_SURFACE)) {
@@ -775,9 +802,10 @@ struct Object *omm_obj_process_interactions(struct Object *o, u32 interactionFla
                     if (find_wall_collisions(&hitbox) != 0) {
                         for (s32 k = 0; k != hitbox.numWalls; ++k) {
                             struct Object *obj = hitbox.walls[k]->object;
-                            if (obj && omm_obj_process_one_surface_interaction(o, obj, interactionFlags)) {
+                            s32 result = omm_obj_process_one_surface_interaction(o, obj, interactionFlags);
+                            if (result != OBJ_INT_RESULT_NONE) {
                                 interacted = obj;
-                                if (sStopAndReturn) {
+                                if (result == OBJ_INT_RESULT_STOP) {
                                     return (notInteracted ? NULL : interacted);
                                 }
                             }
@@ -791,9 +819,10 @@ struct Object *omm_obj_process_interactions(struct Object *o, u32 interactionFla
     // Objects
     if (obj_check_hitbox(o, OBJ_OVERLAP_FLAG_HITBOX)) {
         for_each_object_in_interaction_lists(obj) {
-            if (omm_obj_process_one_object_interaction(o, obj, interactionFlags)) {
+            s32 result = omm_obj_process_one_object_interaction(o, obj, interactionFlags);
+            if (result != OBJ_INT_RESULT_NONE) {
                 interacted = obj;
-                if (sStopAndReturn) {
+                if (result == OBJ_INT_RESULT_STOP) {
                     return (notInteracted ? NULL : interacted);
                 }
             }

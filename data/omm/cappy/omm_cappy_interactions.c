@@ -108,7 +108,7 @@ void omm_cappy_try_to_target_next_coin(struct Object *cappy) {
 void omm_cappy_bounce_back(struct Object *cappy) {
     if (cappy->oCappyBehavior < OMM_CAPPY_BHV_SPIN_GROUND && !(cappy->oCappyFlags & OMM_CAPPY_FLAG_PLAY_AS)) {
         spawn_object(cappy, MODEL_NONE, bhvHorStarParticleSpawner);
-        play_sound(SOUND_OBJ_DEFAULT_DEATH, cappy->oCameraToObject);
+        obj_play_sound(cappy, SOUND_OBJ_DEFAULT_DEATH);
         omm_cappy_return_to_mario(cappy);
     }
 }
@@ -143,7 +143,8 @@ void omm_cappy_process_interactions(struct Object *cappy, struct MarioState *m) 
                 omm_mario_init_next_action(m);
                 omm_cappy_return_to_mario(cappy);
                 spawn_object(m->marioObj, MODEL_NONE, bhvHorStarParticleSpawner);
-                play_sound(SOUND_GENERAL_BOING1, m->marioObj->oCameraToObject);
+                obj_play_sound(m->marioObj, SOUND_GENERAL_BOING1);
+                gOmmStats->cappyBounces++;
                 return;
             }
         }
@@ -155,7 +156,7 @@ void omm_cappy_process_interactions(struct Object *cappy, struct MarioState *m) 
     for_each_object_with_behavior(obj, bhvTreasureChestBottom) {
         if (vec3f_is_inside_cylinder(&cappy->oPosX, &obj->oPosX, 150.f * obj->oScaleX, 160.f * obj->oScaleY, 0.f)) {
             if (obj->oAction == 0 || (obj->oAction == 2 && obj->oTimer > 30)) {
-                if (obj->parentObj->oTreasureChestUnkF4 == obj->oBhvArgs2ndByte) {
+                if (obj->parentObj->oTreasureChestUnkF4 == obj->oBehParams2ndByte) {
                     play_sound(SOUND_GENERAL2_RIGHT_ANSWER, gGlobalSoundArgs);
                     obj->parentObj->oTreasureChestUnkF4++;
                     obj->parentObj->oTreasureChestUnkF8 = 0;

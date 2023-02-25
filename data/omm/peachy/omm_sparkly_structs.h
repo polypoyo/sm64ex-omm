@@ -4,7 +4,7 @@
 #include "types.h"
 
 typedef struct OmmSparklyData {
-    s32 index, dialog, game, level, area;
+    s32 starIndex, dialogId, gameType, levelNum, areaIndex;
     s32 starX, starY, starZ;
     s32 signX, signY, signZ, signA, hint;
     s32 timer;

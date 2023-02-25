@@ -52,7 +52,7 @@ s32 omm_cappy_penguin_small_update(struct Object *o) {
 
         // Walk
         if (gOmmMario->capture.stickMag > 0) {
-            s32 incdec = 0x1000 * max_f(0.f, (1.0f - max_f(0, o->oForwardVel - omm_capture_get_walk_speed(o)) / 90.f));
+            s32 incdec = 0x1000 * max_f(0.f, (1.f - max_f(0, o->oForwardVel - omm_capture_get_walk_speed(o)) / 90.f));
             s32 faceYaw = gOmmMario->capture.stickYaw - approach_s32((s16) (gOmmMario->capture.stickYaw - o->oFaceAngleYaw), 0, incdec, incdec);
             obj_set_forward_vel(o, faceYaw, gOmmMario->capture.stickMag, gOmmObject->state.actionState == 1 ? o->oForwardVel : omm_capture_get_walk_speed(o));
             o->oFaceAngleYaw = faceYaw;
@@ -81,7 +81,7 @@ s32 omm_cappy_penguin_small_update(struct Object *o) {
             o->oFloor = NULL;
             gOmmObject->state.actionState = 1;
             omm_mario_lock(gMarioState, 15);
-            play_sound(SOUND_OBJ_BABY_PENGUIN_DIVE, o->oCameraToObject);
+            obj_play_sound(o, SOUND_OBJ_BABY_PENGUIN_DIVE);
         }
 
         // Slide
@@ -95,10 +95,10 @@ s32 omm_cappy_penguin_small_update(struct Object *o) {
     pobj_decelerate(o, (gOmmObject->state.actionState == 1) ? 0.99f : 0.80f, (gOmmObject->state.actionState == 1) ? 0.99f : 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Tuxie's mother
     // The timer is needed to prevent the mother's dialogs (and knockbacks)
@@ -125,7 +125,7 @@ s32 omm_cappy_penguin_small_update(struct Object *o) {
 
     );
     gOmmObject->state.actionTimer = max_s(0, gOmmObject->state.actionTimer - 1);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -159,5 +159,5 @@ s32 omm_cappy_penguin_small_update(struct Object *o) {
     }
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

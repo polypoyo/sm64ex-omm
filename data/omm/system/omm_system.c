@@ -1,6 +1,7 @@
 #define OMM_ALL_HEADERS
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
+#include "level_commands.h"
 
 //
 // Data
@@ -13,7 +14,8 @@ static bool sOmmIsMainMenu = true;
 static bool sOmmIsLevelEntry = false;
 static bool sOmmIsEndingCutscene = false;
 static bool sOmmIsEndingCakeScreen = false;
-static s32  sOmmTimerReturnToMainMenu = 0;
+static u32  sOmmReturnToMainMenu = 0;
+static s32  sOmmWarpToLastCourseNum = COURSE_NONE;
 
 //
 // Complete save cheat
@@ -23,7 +25,7 @@ static s32  sOmmTimerReturnToMainMenu = 0;
 
 static const u16 sOmmCompleteSaveButtons[] = { U_CBUTTONS, U_CBUTTONS, D_CBUTTONS, D_CBUTTONS, L_CBUTTONS, R_CBUTTONS, L_CBUTTONS, R_CBUTTONS, Z_TRIG, R_TRIG, A_BUTTON, 0xFFFF };
 static s32 sOmmCompleteSaveSequenceIndex = 0;
-extern void omm_set_complete_save_file(s32 fileIndex);
+extern void omm_set_complete_save_file(s32 fileIndex, s32 modeIndex);
 extern void omm_stars_init_bits();
 
 //
@@ -49,17 +51,20 @@ static void omm_execute_routines(s32 type) {
 // Main Menu
 //
 
-void omm_select_save_file(s32 saveFileNum) {
+void omm_select_save_file(s32 fileIndex, s32 modeIndex, s32 courseNum, bool skipIntro) {
+    if (sOmmCompleteSaveSequenceIndex == array_length(sOmmCompleteSaveButtons) - 1) {
+        omm_set_complete_save_file(fileIndex, modeIndex);
+    }
     gMarioState->health = omm_health_get_max(0);
-    gCurrSaveFileNum = saveFileNum;
+    gCurrSaveFileNum = fileIndex + 1;
+    gCurrAreaIndex = modeIndex + 1;
+    sWarpDest.areaIdx = modeIndex + 1;
+    sOmmWarpToLastCourseNum = courseNum;
     sOmmIsMainMenu = false;
     sOmmIsLevelEntry = false;
     sOmmIsEndingCutscene = false;
-    if (sOmmCompleteSaveSequenceIndex == omm_static_array_length(sOmmCompleteSaveButtons) - 1) {
-        omm_set_complete_save_file(saveFileNum - 1);
-    }
     sOmmCompleteSaveSequenceIndex = 0;
-    sOmmSkipIntro = (gPlayer1Controller->buttonPressed & START_BUTTON) != 0;
+    sOmmSkipIntro = skipIntro;
 }
 
 void omm_return_to_main_menu() {
@@ -75,6 +80,18 @@ void omm_return_to_main_menu() {
 
 void omm_update() {
 
+    // Resume save file from last course
+    if (!sOmmIsMainMenu && sOmmWarpToLastCourseNum != COURSE_NONE && gMarioObject) {
+        s32 levelNum = omm_level_from_course(sOmmWarpToLastCourseNum);
+        initiate_warp(levelNum, gCurrAreaIndex, OMM_LEVEL_ENTRY_WARP(levelNum), 0);
+        play_transition(WARP_TRANSITION_FADE_INTO_COLOR, 1, 0xFF, 0xFF, 0xFF);
+        level_set_transition(0, NULL);
+        warp_special(0);
+        gSavedCourseNum = COURSE_NONE;
+        sOmmWarpToLastCourseNum = COURSE_NONE;
+        return;
+    }
+
     // Level entry
     if (sOmmIsLevelEntry) {
         omm_execute_routines(OMM_ROUTINE_TYPE_LEVEL_ENTRY);
@@ -85,7 +102,7 @@ void omm_update() {
     omm_execute_routines(OMM_ROUTINE_TYPE_UPDATE);
 
     // Complete save cheat inputs
-    if (sOmmIsMainMenu) {
+    if (sOmmIsMainMenu && obj_get_first_with_behavior_and_field_s32(bhvStaticObject, 0x31, 1)) {
         if (gPlayer1Controller->buttonPressed != 0) {
             u16 buttonPressed = gPlayer1Controller->buttonPressed;
             u16 buttonRequired = sOmmCompleteSaveButtons[sOmmCompleteSaveSequenceIndex];
@@ -104,7 +121,7 @@ void omm_update() {
 
     // Inhibit inputs (except camera controls) during a transition
     if (omm_is_transition_active() || omm_is_warping()) {
-        for (s32 i = 0; i != omm_static_array_length(gControllers); ++i) {
+        for (s32 i = 0; i != array_length(gControllers); ++i) {
             gControllers[i].rawStickX      = 0;
             gControllers[i].rawStickY      = 0;
             gControllers[i].stickX         = 0;
@@ -120,11 +137,15 @@ void omm_update() {
     configWindow.settings_changed = sConfigWindow.fullscreen != configWindow.fullscreen || sConfigWindow.vsync != configWindow.vsync;
     sConfigWindow = configWindow;
 
-    // Misc stuff
-    sOmmTimerReturnToMainMenu--;
-    gPrevFrameObjectCount = 0;
+    // Trigger a save after exiting the options menu
+    static bool optmenu_was_open = false;
+    if (optmenu_was_open && !optmenu_open) {
+        omm_save_file_do_save();
+    }
+    optmenu_was_open = optmenu_open;
 
-    // Disable Star Road Hard Mode to use OMM's
+    // Misc stuff
+    gPrevFrameObjectCount = 0;
 #if OMM_GAME_IS_SMSR
     gStarRoadHardMode = FALSE;
 #endif
@@ -200,7 +221,7 @@ static void omm_pre_render_update_stars_models() {
         sOmmStarGraphNodes[33] = geo_layout_to_graph_node(NULL, omm_geo_star_16_transparent);
     }
 
-    s32 starColor = OMM_STAR_COLOR_[clamp_s(gCurrCourseNum, 0, 16)];
+    s32 starColor = OMM_STAR_COLOR_[clamp_s(gCurrCourseNum, 0, 16) + OMM_STAR_COLOR_OFFSET(OMM_GAME_MODE)];
     omm_array_for_each(omm_obj_get_star_model_behaviors(), p) {
         const BehaviorScript *bhv = (const BehaviorScript *) p->as_ptr;
         for_each_object_with_behavior(obj, bhv) {
@@ -251,12 +272,15 @@ static void omm_pre_render_update_caps_models() {
 }
 
 void omm_pre_render() {
-    omm_execute_routines(OMM_ROUTINE_TYPE_PRE_RENDER);
 
-    // Mario
-    if (gMarioState->marioBodyState && OMM_EXTRAS_INVISIBLE_MODE) {
-        gMarioState->marioBodyState->modelState &= ~0xFF;
-        gMarioState->marioBodyState->modelState |= 0x100;
+    // Mario model state
+    if (gMarioState->marioBodyState) {
+        if (OMM_EXTRAS_INVISIBLE_MODE) {
+            gMarioState->marioBodyState->modelState &= ~0xFF;
+            gMarioState->marioBodyState->modelState |= 0x100;
+        } else if (omm_is_main_menu()) {
+            gMarioState->marioBodyState->modelState &= ~0x1FF;
+        }
     }
 
     // Sparkly Stars sparkles
@@ -271,6 +295,9 @@ void omm_pre_render() {
     omm_pre_render_update_stars_models();
     omm_pre_render_update_caps_models();
 
+    // Routines
+    omm_execute_routines(OMM_ROUTINE_TYPE_PRE_RENDER);
+
     // Invisible mode
     omm_array_for_each(omm_obj_get_player_behaviors(), p) {
         const BehaviorScript *bhv = (const BehaviorScript *) p->as_ptr;
@@ -282,6 +309,12 @@ void omm_pre_render() {
             }
         }
     }
+
+    // Cut the music before resuming save file from last course
+    if (!sOmmIsMainMenu && sOmmWarpToLastCourseNum != COURSE_NONE && gMarioObject) {
+        music_fade_out(SEQ_PLAYER_LEVEL, 1);
+        music_pause();
+    }
 }
 
 //
@@ -290,7 +323,7 @@ void omm_pre_render() {
 
 void *omm_update_cmd(void *cmd, s32 reg) {
 
-    // Main Menu
+    // Main menu
     if (cmd == level_script_entry_point ||
         cmd == level_script_splash_screen ||
         cmd == level_script_goddard_regular ||
@@ -303,10 +336,13 @@ void *omm_update_cmd(void *cmd, s32 reg) {
         cmd == level_script_to_splash_screen ||
         cmd == level_script_file_select) {
         gMarioState->action = 0;
+        configSkipIntro = false;
+        sOmmSkipIntro = false;
         sOmmIsMainMenu = true;
         sOmmIsLevelEntry = false;
         sOmmIsEndingCutscene = false;
         sOmmIsEndingCakeScreen = false;
+        sOmmReturnToMainMenu = 0;
     }
 
     // Loading screen
@@ -317,7 +353,7 @@ void *omm_update_cmd(void *cmd, s32 reg) {
     }
 
     // Palette editor
-    if (!omm_is_transition_active()) {
+    if (sOmmIsMainMenu && !omm_is_transition_active()) {
         switch (gOmmPaletteEditorState) {
             case OMM_PALETTE_EDITOR_STATE_OPENING: { gOmmPaletteEditorState = OMM_PALETTE_EDITOR_STATE_OPEN;   return (void *) omm_level_palette_editor; }
             case OMM_PALETTE_EDITOR_STATE_CLOSING: { gOmmPaletteEditorState = OMM_PALETTE_EDITOR_STATE_CLOSED; return (void *) level_script_file_select; }
@@ -325,105 +361,73 @@ void *omm_update_cmd(void *cmd, s32 reg) {
     }
 
 #if OMM_GAME_IS_SM64
-    // Skip Intro cutscene (NOT Lakitu and Bowser's laugh)
+    // Skip intro cutscene (NOT Lakitu and Bowser's laugh)
+    // Oddly enough, the check for intro Lakitu and Bowser's laugh occurs BEFORE the check for the intro cutscene
+    // Meaning we can enable the former, then set configSkipIntro to skip the latter 
     static const uintptr_t cmd_lvl_init_from_save_file[] = { CALL(0, lvl_init_from_save_file) };
-    if (omm_same(cmd, cmd_lvl_init_from_save_file, sizeof(cmd_lvl_init_from_save_file))) {
+    if (mem_eq(cmd, cmd_lvl_init_from_save_file, sizeof(cmd_lvl_init_from_save_file))) {
         configSkipIntro = sOmmSkipIntro;
     }
 #endif
 
-    // Level Entry
+    // Level entry
     static const uintptr_t cmd_level_entry[] = { CALL(0, lvl_init_or_update) };
-    if (omm_same(cmd, cmd_level_entry, sizeof(cmd_level_entry))) {
+    if (mem_eq(cmd, cmd_level_entry, sizeof(cmd_level_entry))) {
         sOmmIsMainMenu = false;
         sOmmIsLevelEntry = true;
         sOmmIsEndingCakeScreen = false;
         omm_stars_init_bits();
     }
 
-    // Star Select
-    static const uintptr_t cmd_star_select[] = { EXECUTE(0x14, _menuSegmentRomStart, _menuSegmentRomEnd, level_script_star_select) };
-    if (omm_same(cmd, cmd_star_select, sizeof(cmd_star_select)) && (OMM_STARS_NON_STOP_NOT_ENDING_CUTSCENE
-#if OMM_GAME_IS_SMSR
-        || (reg == LEVEL_CCM && sWarpDest.nodeId == 0x02) // Chuckya Harbor secret entrance
-#endif
-    )) {
-        gCurrLevelNum = reg;
-        gCurrCourseNum = omm_level_get_course(reg);
-        gCurrActNum = 1;
-#if !OMM_GAME_IS_SM74
-        gCurrAreaIndex = 1;
-#endif
-        gDialogCourseActNum = gCurrActNum;
+#if OMM_GAME_IS_SM64 || OMM_GAME_IS_SM74
+    if (!sOmmIsMainMenu) {
 
-        // Reset the coin counter and star flags unless Mario enters a Bowser fight or returns to the Castle
-        if (gCurrLevelNum != LEVEL_BOWSER_1 &&
-            gCurrLevelNum != LEVEL_BOWSER_2 &&
-            gCurrLevelNum != LEVEL_BOWSER_3 &&
-            gCurrLevelNum != LEVEL_CASTLE   &&
-            gCurrLevelNum != LEVEL_GROUNDS  &&
-            gCurrLevelNum != LEVEL_COURT) {
-            gMarioState->numCoins = 0;
-            gHudDisplay.coins = 0;
-            gCurrCourseStarFlags = save_file_get_star_flags(gCurrSaveFileNum - 1, gCurrCourseNum - 1);
+        // Ending cutscene
+        if (gMarioState->action == ACT_END_PEACH_CUTSCENE ||
+            gMarioState->action == ACT_CREDITS_CUTSCENE ||
+            gMarioState->action == ACT_END_WAVING_CUTSCENE) {
+            sOmmIsEndingCutscene = true;
         }
 
-        // Return an EXIT command to skip the star select screen
-        static const uintptr_t cmd_skip_star_select[] = { EXIT() };
-        return (void *) cmd_skip_star_select;
-    }
+        // Ending cake screen
+        if (cmd == level_script_cake_ending) {
+            sOmmIsEndingCutscene = true;
+            sOmmIsEndingCakeScreen = true;
+        }
 
-    // Ending Cutscene
-    if (gMarioState->action == ACT_JUMBO_STAR_CUTSCENE ||
-        gMarioState->action == ACT_END_WAVING_CUTSCENE ||
-        gMarioState->action == ACT_END_PEACH_CUTSCENE ||
-        gMarioState->action == ACT_CREDITS_CUTSCENE) {
-        sOmmIsMainMenu = false;
-        sOmmIsEndingCutscene = true;
-    }
+        // Skip ending
+        if (sOmmIsEndingCutscene && !sOmmReturnToMainMenu && (gPlayer1Controller->buttonPressed & START_BUTTON)) {
+            sOmmReturnToMainMenu = gGlobalTimer;
+            play_transition(WARP_TRANSITION_FADE_INTO_STAR, 30, 0, 0, 0);
+            music_fade_out(SEQ_PLAYER_LEVEL, 190);
+            return NULL;
+        }
 
-    // Skip Ending
-    if (!sOmmIsEndingCakeScreen && (
-        gMarioState->action == ACT_END_WAVING_CUTSCENE ||
-        gMarioState->action == ACT_END_PEACH_CUTSCENE ||
-        gMarioState->action == ACT_CREDITS_CUTSCENE) && (
-        gPlayer1Controller->buttonPressed & START_BUTTON)) {
-        play_transition(WARP_TRANSITION_FADE_INTO_STAR, 30, 0, 0, 0);
-        sOmmTimerReturnToMainMenu = 45;
-    }
-
-    // Ending return to Main Menu
-    switch (sOmmTimerReturnToMainMenu) {
-
-        // Sets sOmmIsEndingCakeScreen to true if loading the cake screen
-        // Starts the timer when hearing the "Thank you so much"
-        default: {
-            if (cmd == level_script_cake_ending) {
-                sOmmIsEndingCakeScreen = true;
-            }
-            static const uintptr_t cmd_ending_cake_sound[] = { CALL(0, lvl_play_the_end_screen_sound) };
-            if (omm_same(cmd, cmd_ending_cake_sound, sizeof(cmd_ending_cake_sound))) {
-                sOmmTimerReturnToMainMenu = 300;
-            }
-        } break;
-
-        // After 5 seconds, stops the timer, and wait for the player to press A or Start
-        case 150: {
-            if (gPlayer1Controller->buttonPressed & (A_BUTTON | START_BUTTON)) {
-                play_transition(WARP_TRANSITION_FADE_INTO_COLOR, 90, 0, 0, 0);
-            } else {
-                sOmmTimerReturnToMainMenu++;
-            }
-        } break;
-
-        // After 5 other seconds and a transition, return to the main menu
-        case 0: {
+        // Return to main menu
+        if (sOmmReturnToMainMenu && (gGlobalTimer - sOmmReturnToMainMenu) > 45) {
             gHudDisplay.flags = 0;
-            sOmmTimerReturnToMainMenu = -1;
-            sOmmIsEndingCakeScreen = false;
-            return (void *) level_script_goddard_regular;
-        } break;
+            sOmmIsEndingCutscene = false;
+            sOmmReturnToMainMenu = 0;
+
+            // Level stack is already cleared by the jump to cake ending, so just jump to the main menu entry
+            if (sOmmIsEndingCakeScreen) {
+                return (void *) level_script_goddard_regular;
+            }
+
+            // The current level must be properly cleared before jumping to the main menu
+            // Unset current transition, set warp to main menu, clear and exit
+            static const uintptr_t cmd_return_to_main_menu[] = {
+                CALL_LOOP(1, lvl_init_or_update),
+                CLEAR_LEVEL(),
+                SLEEP_BEFORE_EXIT(1),
+                EXIT()
+            };
+            level_set_transition(0, NULL);
+            warp_special(-2);
+            return (void *) cmd_return_to_main_menu;
+        }
     }
+#endif
 
     // Warp update
     return omm_update_warp(cmd, sOmmIsLevelEntry);

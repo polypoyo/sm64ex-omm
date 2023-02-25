@@ -7,7 +7,7 @@
 //
 
 bool omm_cappy_mr_i_init(struct Object *o) {
-    if (o->oBhvArgs2ndByte != 0 || ( // Don't capture Big Mr. I
+    if (o->oBehParams2ndByte != 0 || ( // Don't capture Big Mr. I
         o->oAction != 1 &&
         o->oAction != 2)) {
         return false;
@@ -51,7 +51,7 @@ s32 omm_cappy_mr_i_update(struct Object *o) {
 
     // Inputs
     if (!obj_update_door(o) && !omm_mario_is_locked(gMarioState)) {
-        pobj_move(o, false, false, gOmmObject->state.actionTimer != 0);
+        pobj_move(o, false, false, false);
         if (pobj_jump(o, 0, 1) == POBJ_RESULT_JUMP_START) {
             obj_play_sound(o, SOUND_OBJ_GOOMBA_ALERT);
         }
@@ -59,9 +59,9 @@ s32 omm_cappy_mr_i_update(struct Object *o) {
         // Shoot
         // Hold B to shoot faster, further and with bigger projectiles
         if (POBJ_B_BUTTON_DOWN) {
-            gOmmObject->state.actionTimer = min_s(gOmmObject->state.actionTimer + 1, 30);
+            gOmmObject->state.actionTimer = min_s(gOmmObject->state.actionTimer + 1, 20);
         } else if (gOmmObject->state.actionTimer > 0) {
-            f32 power = 1.f + 1.5f * (gOmmObject->state.actionTimer / 30.f);
+            f32 power = 1.f + 2.f * (gOmmObject->state.actionTimer / 20.f);
             omm_spawn_mr_i_beam(o, power);
             gOmmObject->state.actionTimer = 0;
         }
@@ -72,18 +72,19 @@ s32 omm_cappy_mr_i_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
 
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
+    obj_set_angle(o, 0, o->oFaceAngleYaw, 0);
     obj_update_gfx(o);
 
     // Cappy values
@@ -91,5 +92,5 @@ s32 omm_cappy_mr_i_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.5f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

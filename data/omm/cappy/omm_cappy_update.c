@@ -208,7 +208,7 @@ bool omm_cappy_perform_step_return_to_mario(struct Object *cappy, struct MarioSt
                 m->pos[2] = cappy->oPosZ;
                 m->vel[1] = 0.f;
                 omm_mario_set_action(m, ACT_FREEFALL, 0, 0);
-                play_sound(SOUND_ACTION_TELEPORT, m->marioObj->oCameraToObject);
+                obj_play_sound(m->marioObj, SOUND_ACTION_TELEPORT);
                 return true;
             }
         }
@@ -243,7 +243,7 @@ bool omm_cappy_perform_step_return_to_mario(struct Object *cappy, struct MarioSt
 // Cappy does a quick homing attack before returning if the D-Pad is pressed
 static void omm_cappy_call_back(struct Object *cappy, struct MarioState *m, s32 frameStart) {
     if (cappy->oCappyLifeTimer >= frameStart) {
-        u32 udlrx = (m->controller->buttonPressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD | X_BUTTON));
+        u32 udlrx = JPAD_INPUT(m->controller->buttonPressed) & (U_JPAD | D_JPAD | L_JPAD | R_JPAD | X_BUTTON);
         if (udlrx != 0) {
 
             // D-Pad
@@ -546,7 +546,7 @@ void omm_cappy_update_mario_anim(struct Object *cappy, struct MarioState *m) {
         if (cappy->oCappyFlags & OMM_CAPPY_FLAG_START_ANIM) {
             obj_anim_play(m->marioObj, p->anim, p->speed);
             obj_anim_set_frame(m->marioObj, p->start);
-            play_sound(sThrowSounds[p->sound + (random_u16() % 3) + (6 * metal)], m->marioObj->oCameraToObject);
+            obj_play_sound(m->marioObj, sThrowSounds[p->sound + (random_u16() % 3) + (6 * metal)]);
             cappy->oCappyFlags &= ~OMM_CAPPY_FLAG_START_ANIM;
         }
 
@@ -567,9 +567,9 @@ void omm_cappy_update_mario_anim(struct Object *cappy, struct MarioState *m) {
 
     // Make a copy of Cappy values
     if (cappy != &sCappy) {
-        omm_copy(&sCappy.rawData, &cappy->rawData, sizeof(cappy->rawData));
+        mem_cpy(&sCappy.rawData, &cappy->rawData, sizeof(cappy->rawData));
 #if IS_64_BIT
-        omm_copy(&sCappy.ptrData, &cappy->ptrData, sizeof(cappy->ptrData));
+        mem_cpy(&sCappy.ptrData, &cappy->ptrData, sizeof(cappy->ptrData));
 #endif
     }
 }

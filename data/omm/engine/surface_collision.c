@@ -334,8 +334,8 @@ static struct Surface *find_ceil_from_list(OmmArray surfaces, s32 count, f32 x, 
 f32 find_ceil(f32 x, f32 y, f32 z, struct Surface **pCeil) {
     static struct Surface *sDummyCeil = NULL;
     if (!pCeil) { pCeil = &sDummyCeil; }
-    f32 sHeight = +20000.f;
-    f32 dHeight = +20000.f;
+    f32 sHeight = CELL_HEIGHT_LIMIT;
+    f32 dHeight = CELL_HEIGHT_LIMIT;
     *pCeil = NULL;
 
 #if OMM_GAME_IS_R96X
@@ -558,8 +558,8 @@ f32 find_room_floor(f32 x, f32 y, f32 z, struct Surface **pFloor) {
 f32 find_floor(f32 x, f32 y, f32 z, struct Surface **pFloor) {
     static struct Surface *sDummyFloor = NULL;
     if (!pFloor) { pFloor = &sDummyFloor; }
-    f32 sHeight = -11000.f;
-    f32 dHeight = -11000.f;
+    f32 sHeight = FLOOR_LOWER_LIMIT;
+    f32 dHeight = FLOOR_LOWER_LIMIT;
     *pFloor = NULL;
 
     // Call from geo_switch_area
@@ -599,7 +599,7 @@ f32 find_floor(f32 x, f32 y, f32 z, struct Surface **pFloor) {
     // Handle SURFACE_INTANGIBLE, used to prevent the wrong room from loading
     // when passing above the Merry-Go-Round, but allows Mario to pass through.
     if (!check_surface_intangible_find_floor() && sFloor && sFloor->type == SURFACE_INTANGIBLE) {
-        f32 y0 = sHeight - 200.f; sHeight = -11000.f;
+        f32 y0 = sHeight - 200.f; sHeight = FLOOR_LOWER_LIMIT;
         sFloor = find_floor_from_list(gOmmFloors(0, cx, cz)->data, gOmmFloors(0, cx, cz)->count, x, y0, z, &sHeight);
     } else {
         disable_surface_intangible_find_floor();
@@ -609,7 +609,7 @@ f32 find_floor(f32 x, f32 y, f32 z, struct Surface **pFloor) {
     // Because the Possession action doesn't check for floors during the animation (first 20 frames),
     // it can easily result in an out of bounds step, triggering the instant death sequence
     if (!sFloor && !dFloor) {
-        if (gMarioState->action == ACT_OMM_POSSESSION && gOmmMario->capture.timer < 20) {
+        if (omm_mario_is_capture(gMarioState) && gOmmMario->capture.timer < 20) {
             sFloor = get_pseudo_floor_at_pos(x, y, z);
             sHeight = y;
         }
@@ -635,9 +635,9 @@ f32 find_floor(f32 x, f32 y, f32 z, struct Surface **pFloor) {
 #if OMM_GAME_IS_R96X
     // If out-of-bounds but NoBounds is enabled, place a fake death plane below Mario
     if (!sFloor && !dFloor && cheats_no_bounds(gMarioState)) {
-        sFloor = get_pseudo_floor_at_pos(x, -11000.f, z);
+        sFloor = get_pseudo_floor_at_pos(x, FLOOR_LOWER_LIMIT, z);
         sFloor->type = SURFACE_DEATH_PLANE;
-        sHeight = -11000.f;
+        sHeight = FLOOR_LOWER_LIMIT;
     }
 #endif
 
@@ -712,9 +712,9 @@ f32 find_water_level(f32 x, f32 z) {
                 }
             }
         }
-        return -11000.f;
+        return FLOOR_LOWER_LIMIT;
     }
-    return +20000.f;
+    return CELL_HEIGHT_LIMIT;
 }
 
 f32 find_poison_gas_level(f32 x, f32 z) {
@@ -729,7 +729,7 @@ f32 find_poison_gas_level(f32 x, f32 z) {
             }
         }
     }
-    return -11000.f;
+    return FLOOR_LOWER_LIMIT;
 }
 
 void debug_surface_list_info(UNUSED f32 x, UNUSED f32 z) {
@@ -839,7 +839,7 @@ static void find_ray_hits_from_surface_list(OmmArray surfaces, s32 count, Vec3f 
         // Add hit to the hits sorted list
         for (s32 i = 0; i <= hits->count; ++i) {
             if (i == hits->count || hits->hits[i].dist > hit.dist) {
-                omm_move(hits->hits + i + 1, hits->hits + i, sizeof(RayHit) * (hits->count - i));
+                mem_mov(hits->hits + i + 1, hits->hits + i, sizeof(RayHit) * (hits->count - i));
                 hits->hits[i] = hit;
                 hits->count++;
                 break;

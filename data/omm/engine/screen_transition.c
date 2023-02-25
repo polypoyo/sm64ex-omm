@@ -27,8 +27,8 @@ void gfx_clear_frame_transition() {
 // Utils
 //
 
-static s32 sTransitionColorFadeTimer = 0;
-static s32 sTransitionTextureFadeTimer = 0;
+s32 sTransitionColorFadeTimer = 0;
+s32 sTransitionTextureFadeTimer = 0;
 static const void *sTransitionTextures[] = {
     texture_transition_star_half,
     texture_transition_circle_half,
@@ -73,11 +73,11 @@ static bool render_fade_transition_color(s32 transTime, struct WarpTransitionDat
         u8 alpha0 = get_transition_color_fade_alpha(fadeOut, sTransitionColorFadeTimer - 1, transTime);
         vertex_transition_color(sTransitionVtx0, transData, alpha0);
     } else {
-        omm_copy(sTransitionVtx0, sTransitionVtx1, sizeof(sTransitionVtx1));
+        mem_cpy(sTransitionVtx0, sTransitionVtx1, sizeof(sTransitionVtx1));
     }
 
     // Vertices
-    omm_copy(sTransitionVtx, sTransitionVtx0, sizeof(sTransitionVtx0));
+    mem_cpy(sTransitionVtx, sTransitionVtx0, sizeof(sTransitionVtx0));
 
     // Display list
     gSPDisplayList(gDisplayListHead++, dl_proj_mtx_fullscreen);
@@ -173,11 +173,11 @@ static bool render_textured_transition(s32 transTime, struct WarpTransitionData 
         s16 texTransRadius0 = calc_tex_transition_radius(transTime, transData, 0);
         load_tex_transition_vertex(sTransitionVtx0, transData, centerTransX, centerTransY, texTransRadius0, transTexType);
     } else {
-        omm_copy(sTransitionVtx0, sTransitionVtx1, sizeof(sTransitionVtx1));
+        mem_cpy(sTransitionVtx0, sTransitionVtx1, sizeof(sTransitionVtx1));
     }
 
     // Vertices
-    omm_copy(sTransitionVtx, sTransitionVtx0, sizeof(sTransitionVtx0));
+    mem_cpy(sTransitionVtx, sTransitionVtx0, sizeof(sTransitionVtx0));
 
     // Display list
     gSPDisplayList(gDisplayListHead++, dl_proj_mtx_fullscreen)

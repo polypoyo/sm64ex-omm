@@ -35,42 +35,44 @@ typedef struct {
     float _oSafeStepCoords[3];
 } ObjFields;
 
-//
-// str
-//
+#if defined(R96X)
+#define omm_GraphNode_extra_fields \
+bool noBillboard;
+#elif defined(DYNOS)
+#define omm_GraphNode_extra_fields
+#else
+#define omm_GraphNode_extra_fields \
+const void *georef; \
+bool noBillboard;
+#endif
 
-#define str_rep(str, c0, c1) { \
-    for (char *str_p = (str); (str_p = strchr(str_p, c0)) != NULL; *(str_p++) = c1); \
-}
+#define omm_AnimInfo_extra_fields \
+s16_ts _animID; \
+ptr_ts _curAnim; \
+s16_ts _animFrame;
 
-#define str_cpy(dst, dst_siz, src) { \
-    const char *src_p = (src); \
-    char *dst_p = (dst); \
-    s32 dst_len = (s32) (dst_siz); \
-    if (src_p && dst_p) { \
-        s32 src_len = (s32) strlen(src_p); \
-        memcpy(dst_p, src_p, min(src_len + 1, dst_len)); \
-    } \
-}
+#define omm_GraphNodeObject_extra_fields \
+ObjFields _oFields; \
+Vec3s_ts _angle; \
+Vec3f_ts _pos; \
+Vec3f_ts _scale; \
+Vec3f_ts _objPos; \
+Vec3f_ts _shadowPos; \
+f32_ts _shadowScale; \
+Mat4_ts _throwMatrix;
 
-#define str_cat(dst, dst_siz, ...) { \
-    char *dst_p = (dst); \
-    s32 dst_len = (s32) (dst_siz); \
-    if (dst_p && dst_len) { \
-        const char *src_list[] = { __VA_ARGS__, NULL }; \
-        for (const char **src_p = src_list; dst_len > 1 && *src_p; ++src_p) { \
-            if (*src_p) { \
-                s32 src_len = (s32) strlen(*src_p); \
-                src_len = min(src_len, dst_len - 1); \
-                if (src_len) { \
-                    memcpy(dst_p, *src_p, src_len); \
-                    dst_p += src_len; \
-                    dst_len -= src_len; \
-                } \
-            } \
-        } \
-        *dst_p = 0; \
-    } \
+#define omm_patch__dynos__dynos_cpp_to_c \
+extern "C" { \
+void *dynos_opt_get_action(const char *funcName) { \
+    return (void *) DynOS_Opt_GetAction(String(funcName)); \
+} \
+void dynos_opt_set_action(const char *funcName, void *funcPtr) { \
+    return DynOS_Opt_AddAction(String(funcName), (DynosActionFunction) funcPtr, true); \
+} \
+s32 dynos_gfx_get_mario_model_pack_index() { \
+    extern const GeoLayout mario_geo[]; \
+    return DynOS_Gfx_GetActorList()[DynOS_Geo_GetActorIndex(mario_geo)].mPackIndex; \
+} \
 }
 
 //
@@ -117,8 +119,13 @@ typedef struct {
 #define OMM_GAME_IS_SMGS (OMM_GAME_SAVE == OMM_GAME_SMGS)
 #define OMM_GAME_IS_SM64 (OMM_GAME_TYPE == OMM_GAME_SM64) // Vanilla Super Mario 64
 #define OMM_GAME_IS_RF14 (OMM_GAME_IS_XALO || OMM_GAME_IS_SM74 || OMM_GAME_IS_SMSR) // Refresh 14+ code
+
+// Buttons
 #define X_BUTTON 0x0040
 #define Y_BUTTON 0x0080
+#define JPAD_MASK (U_JPAD | D_JPAD | L_JPAD | R_JPAD)
+#define JPAD_INPUT(x) ((x) & ~(IS_SPIN_INPUT(x) * JPAD_MASK))
+#define IS_SPIN_INPUT(x) (((x) & JPAD_MASK) == JPAD_MASK)
 
 // OMM_BOWSER | Replaces Vanilla Bowser with OMM Bowser
 #if defined(OMM_BOWSER)
@@ -141,26 +148,23 @@ typedef struct {
 #define OMM_CODE_DEV 0
 #endif
 
-// Render API
+// Gfx API
 #if defined(RAPI_GL) || defined(RAPI_GL_LEGACY)
-#define OMM_RAPI_GL 1
-#define OMM_RAPI_D3D 0
-#elif defined(RAPI_D3D11) || defined(RAPI_D3D12)
-#define OMM_RAPI_GL 0
-#define OMM_RAPI_D3D 1
-#else
-#error "Unknown Render API"
-#endif
-
-// Window API
 #if defined(WAPI_SDL1) || defined(WAPI_SDL2)
-#define OMM_WAPI_SDL 1
-#define OMM_WAPI_DXGI 0
-#elif defined(WAPI_DXGI)
-#define OMM_WAPI_SDL 0
-#define OMM_WAPI_DXGI 1
+#define OMM_GFX_API_GL 1
+#define OMM_GFX_API_DX 0
 #else
-#error "Unknown Window API"
+#error "Cannot mix OpenGL render API with DirectX window API"
+#endif
+#elif defined(RAPI_D3D11) || defined(RAPI_D3D12)
+#if defined(WAPI_DXGI)
+#define OMM_GFX_API_GL 0
+#define OMM_GFX_API_DX 1
+#else
+#error "Cannot mix DirectX render API with SDL window API"
+#endif
+#else
+#error "Unknown graphics API"
 #endif
 
 // Windows build | Some features are exclusive to the Windows OS

@@ -71,6 +71,7 @@ static void controller_sdl_bind(void) {
     controller_sdl_add_binds(X_BUTTON, gOmmControlsButtonX);
     controller_sdl_add_binds(Y_BUTTON, gOmmControlsButtonY);
     controller_sdl_add_binds(START_BUTTON, gOmmControlsButtonStart);
+    controller_sdl_add_binds(JPAD_MASK, gOmmControlsButtonSpin);
     controller_sdl_add_binds(L_TRIG, gOmmControlsTriggerL);
     controller_sdl_add_binds(R_TRIG, gOmmControlsTriggerR);
     controller_sdl_add_binds(Z_TRIG, gOmmControlsTriggerZ);
@@ -100,13 +101,14 @@ static void controller_sdl_init(void) {
 
 static void controller_sdl_read(OSContPad *pad) {
     if (OMM_LIKELY(sControllerInited)) {
+        u32 padButtons = 0;
 
         // Mouse
         u32 mouseButtons = controller_sdl_get_mouse_state();
         omm_array_for_each(sMouseMapping, pcm) {
             u64 cm = pcm->as_u64;
             if (mouseButtons & SDL_BUTTON(CM_BUTTON(cm))) {
-                pad->button |= CM_MASK(cm);
+                padButtons |= CM_MASK(cm);
             }
         }
         sMouseLastButton = (sMouseButtonsDown ^ mouseButtons) & mouseButtons;
@@ -144,30 +146,18 @@ static void controller_sdl_read(OSContPad *pad) {
             controller_sdl_update_joystick_button(VK_RTRIGGER - VK_BASE_SDL_GAMEPAD, rt > 0x1C00);
 
             // Register button presses
-            u32 buttonsDown = 0;
             omm_array_for_each(sJoystickMapping, pcm) {
                 u64 cm = pcm->as_u64;
                 if (sJoystickButtonsDown[CM_BUTTON(cm)]) {
-                    buttonsDown |= CM_MASK(cm);
+                    padButtons |= CM_MASK(cm);
                 }
-            }
-            pad->button |= buttonsDown;
-
-            // Stick
-            switch (buttonsDown & STICK_XMASK) {
-                case STICK_LEFT:  pad->stick_x = -0x7F; break;
-                case STICK_RIGHT: pad->stick_x = +0x7F; break;
-            }
-            switch (buttonsDown & STICK_YMASK) {
-                case STICK_DOWN:  pad->stick_y = -0x7F; break;
-                case STICK_UP:    pad->stick_y = +0x7F; break;
             }
 
             // C-buttons
-            if (rx < -0x4000) pad->button |= L_CBUTTONS;
-            if (rx > +0x4000) pad->button |= R_CBUTTONS;
-            if (ry < -0x4000) pad->button |= U_CBUTTONS;
-            if (ry > +0x4000) pad->button |= D_CBUTTONS;
+            if (rx < -0x6000) pad->button |= L_CBUTTONS;
+            if (rx > +0x6000) pad->button |= R_CBUTTONS;
+            if (ry < -0x6000) pad->button |= U_CBUTTONS;
+            if (ry > +0x6000) pad->button |= D_CBUTTONS;
 
             // Left stick
             u32 lsMag2 = sqr(lx) + sqr(ly);
@@ -184,6 +174,17 @@ static void controller_sdl_read(OSContPad *pad) {
                 pad->ext_stick_x = clamp_s(+rx / 0x100, -0x7F, +0x7F);
                 pad->ext_stick_y = clamp_s(-ry / 0x100, -0x7F, +0x7F);
             }
+        }
+
+        // Pad stick and buttons
+        pad->button |= padButtons;
+        switch (padButtons & STICK_XMASK) {
+            case STICK_LEFT:  pad->stick_x = -0x7F; break;
+            case STICK_RIGHT: pad->stick_x = +0x7F; break;
+        }
+        switch (padButtons & STICK_YMASK) {
+            case STICK_DOWN:  pad->stick_y = -0x7F; break;
+            case STICK_UP:    pad->stick_y = +0x7F; break;
         }
     }
 }

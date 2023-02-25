@@ -4,16 +4,17 @@
 
 bool omm_sparkly_interact_star(struct MarioState *m, struct Object *o) {
     if (o->behavior == bhvOmmSparklyStar) {
-        if (m->action != ACT_OMM_POSSESSION) {
+        if (!omm_mario_is_capture(m)) {
             omm_sparkly_collect_star(gOmmSparklyMode, omm_sparkly_get_index(gOmmSparklyMode, gCurrLevelNum, gCurrAreaIndex));
             mario_stop_riding_and_holding(m);
             update_mario_sound_and_camera(m);
-            play_sound(SOUND_MENU_STAR_SOUND, m->marioObj->oCameraToObject);
+            obj_play_sound(m->marioObj, SOUND_MENU_STAR_SOUND);
             spawn_object(o, MODEL_NONE, bhvStarKeyCollectionPuffSpawner);
             omm_sparkly_state_set(OMM_SPARKLY_STATE_INVALID, 0);
             omm_sparkly_context_reset_data();
             omm_mario_set_action(m, ACT_OMM_SPARKLY_STAR_DANCE, (m->prevAction & ACT_FLAG_METAL_WATER) || ((m->prevAction & ACT_GROUP_MASK) == ACT_GROUP_SUBMERGED), 0);
             obj_mark_for_deletion(o);
+            gOmmStats->sparklyStarsCollected++;
         }
         return true;
     }
@@ -30,6 +31,7 @@ void omm_sparkly_interact_grand_star(struct MarioState *m, struct Object *o) {
         if (gOmmSparkly->grandStar) {
             gOmmSparklyEnding = (!omm_player_is_unlocked(OMM_PLAYER_PEACH) ? OMM_SPARKLY_ENDING_PEACH : OMM_SPARKLY_ENDING_REGULAR);
             omm_sparkly_collect_grand_star(gOmmSparklyMode);
+            gOmmStats->sparklyStarsCollected++;
             return;
         }
 

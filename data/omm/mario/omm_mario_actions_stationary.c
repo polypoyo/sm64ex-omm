@@ -96,9 +96,19 @@ static s32 omm_act_ground_pound_land(struct MarioState *m) {
 /////////////
 
 static s32 omm_act_shocked_from_high_fall(struct MarioState *m) {
-    action_init(0, 0, PARTICLE_MIST_CIRCLE, SOUND_MARIO_ATTACKED, play_mario_heavy_landing_sound(m, SOUND_ACTION_TERRAIN_BODY_HIT_GROUND););
+    if (m->actionTimer < 3) {
+        action_a_pressed(OMM_MOVESET_ODYSSEY, ACT_FORWARD_ROLLOUT, 0, RETURN_CANCEL, PFX(PARTICLE_SPARKLES););
+    } else if (m->actionTimer == 3) {
+        PFX(PARTICLE_MIST_CIRCLE);
+        SFX(SOUND_MARIO_ATTACKED);
+        play_mario_heavy_landing_sound(m, SOUND_ACTION_TERRAIN_BODY_HIT_GROUND);
+        mario_set_forward_vel(m, 0.f);
+    }
+    m->vel[1] = 0.f;
+    m->pos[1] = m->floorHeight = find_floor_height(m->pos[0], m->pos[1], m->pos[2]);
+    vec3f_copy(m->marioObj->oGfxPos, m->pos);
+    vec3s_set(m->marioObj->oGfxAngle, 0, m->faceAngle[1], 0);
     obj_anim_play(m->marioObj, MARIO_ANIM_SHOCKED, 1.f);
-    stop_and_set_height_to_floor(m);
     if (m->actionTimer++ < 30) set_camera_shake_from_hit(SHAKE_SHOCK);
     action_condition(m->actionTimer >= 45, ACT_IDLE, 0, RETURN_BREAK);
     return OMM_MARIO_ACTION_RESULT_CONTINUE;
@@ -119,7 +129,7 @@ static s32 omm_act_spin_ground(struct MarioState *m) {
 
     mario_set_forward_vel(m, max_f(0, m->forwardVel - 1.f));
     obj_anim_play(m->marioObj, MARIO_ANIM_TWIRL, 1.f);
-    play_sound(SOUND_MOVING_TERRAIN_SLIDE + m->terrainSoundAddend, m->marioObj->oCameraToObject);
+    obj_play_sound(m->marioObj, SOUND_MOVING_TERRAIN_SLIDE + m->terrainSoundAddend);
     gOmmMario->spin.yaw += min_s(0x31E9, 0x280 * gOmmMario->spin.timer);
     m->marioObj->oGfxAngle[1] = m->faceAngle[1] - gOmmMario->spin.yaw;
     m->marioBodyState->handState = MARIO_HAND_OPEN;

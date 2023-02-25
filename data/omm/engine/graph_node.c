@@ -21,7 +21,7 @@ struct GraphNodeHeldObject *gCurGraphNodeHeldObject = NULL;
 #define init_graph_node(typeName, typeIndex) { \
     if (!node) { \
     if (pool) { node = (struct typeName *) alloc_only_pool_alloc(pool, sizeof(struct typeName)); } \
-    else      { node = (struct typeName *) omm_new(struct typeName, 1); } \
+    else      { node = (struct typeName *) mem_new(struct typeName, 1); } \
     } \
     gNode->type = (typeIndex); \
     gNode->flags = GRAPH_RENDER_ACTIVE; \
@@ -446,7 +446,7 @@ s16 geo_update_animation_frame(struct AnimInfoStruct *animInfo, s32 *accelAssist
 void *geo_get_geo_data(struct Object *o, s32 size, const Gfx *gfxSrc, s32 gfxSize) {
     if (!o->oGeoData) {
         void *data = omm_memory_new(gOmmMemoryPoolGeoData, size, o);
-        omm_copy(data, gfxSrc, gfxSize);
+        mem_cpy(data, gfxSrc, gfxSize);
         for (s32 i = 0, n = gfxSize / sizeof(const Gfx); i != n; ++i) {
             Gfx *gfx = ((Gfx *) data) + i;
             if (_SHIFTR(gfx->words.w0, 24, 8) == G_DL && gfx->words.w1 == (uintptr_t) null) {

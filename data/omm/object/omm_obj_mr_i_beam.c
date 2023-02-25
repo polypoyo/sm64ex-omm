@@ -19,25 +19,20 @@ static void bhv_omm_mr_i_beam_delete(struct Object *o) {
         struct Object *p = spawn_object(o, MODEL_PURPLE_MARBLE, bhvPurpleParticle);
         obj_scale(p, 0.5f);
     }
-    play_sound(SOUND_OBJ_DEFAULT_DEATH, o->oCameraToObject);
+    obj_play_sound(o, SOUND_OBJ_DEFAULT_DEATH);
     obj_mark_for_deletion(o);
 }
 
 static void bhv_omm_mr_i_beam_loop() {
     struct Object *o = gCurrentObject;
     perform_object_step(o, OBJ_STEP_UPDATE_HOME);
-    if (o->oTimer > 60 || o->oWall || o->oCeil || o->oDistToFloor <= 0.f) {
+    if (o->oTimer > 60 || !o->oFloor || o->oWall || (o->oCeil && o->oCeil->normal.y > -0.9f) || (o->oDistToFloor <= 5 && o->oFloor->normal.y < 0.9f)) {
         bhv_omm_mr_i_beam_delete(o);
         return;
     }
     obj_reset_hitbox(o, 20, 30, 0, 0, 15, 0);
     obj_set_params(o, 0, 0, 0, 0, true);
-    struct Object *interacted = NULL;
-    if (o->oMrIBeamPower >= 2.f) {
-        interacted = omm_obj_process_interactions(o, OBJ_INT_PRESET_BEAM_LARGE);
-    } else {
-        interacted = omm_obj_process_interactions(o, OBJ_INT_PRESET_BEAM_SMALL);
-    }
+    struct Object *interacted = omm_obj_process_interactions(o, (o->oMrIBeamPower >= 2.f ? OBJ_INT_PRESET_BEAM_LARGE : OBJ_INT_PRESET_BEAM_SMALL));
     if (interacted && !omm_obj_is_collectible(interacted)) {
         bhv_omm_mr_i_beam_delete(o);
     }
@@ -67,6 +62,6 @@ struct Object *omm_spawn_mr_i_beam(struct Object *o, f32 power) {
     beam->oScaleY = 2.f * power * o->oScaleY;
     beam->oScaleZ = 2.f * power * o->oScaleZ;
     beam->oMrIBeamPower = power;
-    play_sound(SOUND_OBJ_MRI_SHOOT, o->oCameraToObject);
+    obj_play_sound(o, SOUND_OBJ_MRI_SHOOT);
     return beam;
 }

@@ -33,7 +33,7 @@ static const Gfx omm_peach_vibe_rage_aura_gfx[] = {
 //
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_peach_vibe_rage_aura_gfx)];
+    Gfx gfx[array_length(omm_peach_vibe_rage_aura_gfx)];
     Gfx tri[(OMM_PEACH_VIBE_RAGE_AURA_NUM_SEGMENTS + 0) * (OMM_PEACH_VIBE_RAGE_AURA_POINTS_PER_SEGMENT + 1) + 1];
     Vtx vtx[(OMM_PEACH_VIBE_RAGE_AURA_NUM_SEGMENTS + 1) * (OMM_PEACH_VIBE_RAGE_AURA_POINTS_PER_SEGMENT + 1)];
 } OmmPeachVibeRageAuraGeoData;

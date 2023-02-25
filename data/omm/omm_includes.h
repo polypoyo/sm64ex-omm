@@ -22,6 +22,7 @@
 #include "data/omm/object/omm_object_data.h"
 #include "data/omm/object/omm_object_fields.h"
 #include "data/omm/object/omm_behavior_data.h"
+#include "data/omm/models/omm_models.h"
 #include "data/omm/mario/omm_mario.h"
 #include "data/omm/mario/omm_mario_actions.h"
 #include "data/omm/cappy/omm_cappy.h"
@@ -43,7 +44,6 @@
 #include "dialog_ids.h"
 #include "geo_commands.h"
 #include "gfx_dimensions.h"
-#include "level_commands.h"
 #include "level_misc_macros.h"
 #include "model_ids.h"
 #include "seq_ids.h"
@@ -98,6 +98,7 @@
 #include "audio/external.h"
 #include "audio/load.h"
 #include "menu/file_select.h"
+#include "menu/star_select.h"
 #include "levels/intro/header.h"
 #include "levels/bowser_2/header.h"
 #include "levels/ending/header.h"
@@ -115,6 +116,7 @@
 #include "pc/controller/controller_api.h"
 #include "pc/controller/controller_sdl.h"
 #include "pc/controller/controller_keyboard.h"
+#include "pc/controller/controller_mouse.h"
 #include FILE_MACRO_PRESETS_H
 #include FILE_SPECIAL_PRESETS_H
 #include FILE_OPTIONS_H
@@ -149,6 +151,7 @@ extern f32 gDialogBoxAngle;
 extern const Gfx null[];
 extern const bool gIsBowserInteractible[];
 extern const BehaviorScript *sWarpBhvSpawnTable[];
+extern struct TransitionInfo sModeTransition;
 extern struct PlayerGeometry sMarioGeometry;
 extern struct PlayerCameraState *sMarioCamState;
 
@@ -168,7 +171,9 @@ extern u32 determine_interaction(struct MarioState *m, struct Object *o);
 extern u32 interact_cap(struct MarioState *m, u32 interactType, struct Object *o);
 extern u32 interact_coin(struct MarioState *m, u32 interactType, struct Object *o);
 extern u32 interact_flame(struct MarioState *m, u32 interactType, struct Object *o);
+extern u32 interact_text(struct MarioState *m, u32 interactType, struct Object *o);
 extern u32 interact_warp(struct MarioState *m, u32 interactType, struct Object *o);
+extern u32 should_push_or_pull_door(struct MarioState *m, struct Object *o);
 extern f32 get_buoyancy(struct MarioState *m);
 extern void apply_slope_accel(struct MarioState *m);
 extern void bhv_chain_chomp_update_chain_parts(struct Object *o, bool isFreed);
@@ -185,6 +190,7 @@ extern void cutscene_ending_stop(struct Camera *);
 extern void cutscene_ending_zoom_fov(struct Camera *);
 extern void debug_surface_list_info(f32 x, f32 z);
 extern void handle_power_meter_actions(s16);
+extern void handle_special_dialog_text(s16 dialogID);
 extern void initiate_warp(s16, s16, s16, s32);
 extern void mario_reset_bodystate(struct MarioState *m);
 extern void mario_update_hitbox_and_cap_model(struct MarioState *m);
@@ -199,7 +205,6 @@ extern void set_mario_initial_action(struct MarioState *, u32, u32);
 extern void set_play_mode(s16);
 extern void set_submerged_cam_preset_and_spawn_bubbles(struct MarioState *m);
 extern void sink_mario_in_quicksand(struct MarioState *m);
-extern void spawn_particle(u32 activeParticleFlag, s16 model, const BehaviorScript *behavior);
 extern void squish_mario_model(struct MarioState *m);
 extern void tilt_body_ground_shell(struct MarioState *m, s16 startYaw);
 extern void tilt_body_walking(struct MarioState *m, s16 startYaw);

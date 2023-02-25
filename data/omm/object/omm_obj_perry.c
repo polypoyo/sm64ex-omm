@@ -27,7 +27,7 @@ static void bhv_omm_perry_update() {
         // Process interactions
         struct Object *interacted = omm_obj_process_interactions(o, o->oPerryFlags);
         if (interacted && !omm_obj_is_collectible(interacted)) {
-            play_sound(SOUND_ACTION_BOUNCE_OFF_OBJECT, interacted->oCameraToObject);
+            obj_play_sound(interacted, SOUND_ACTION_BOUNCE_OFF_OBJECT);
         }
 
         // Reset values
@@ -54,10 +54,10 @@ const BehaviorScript bhvOmmPerry[] = {
 
 OMM_ROUTINE_UPDATE(omm_spawn_perry) {
     if (gMarioObject) {
-        if (OMM_PLAYER_IS_PEACH) {
+        if (OMM_PERRY_SWORD_ACTION) {
             struct Object *perry = omm_perry_get_object();
             if (!perry) {
-                gOmmPerry = obj_spawn_from_geo(gMarioObject, omm_geo_perry, bhvOmmPerry);
+                gOmmPerry = obj_spawn_from_geo(gMarioObject, OMM_PLAYER_IS_PEACH ? omm_geo_perry : omm_geo_brush, bhvOmmPerry);
             }
         } else {
             obj_deactivate_all_with_behavior(bhvOmmPerry);

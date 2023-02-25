@@ -45,7 +45,7 @@ s32 omm_cappy_npc_message_update(struct Object *o) {
 
         // Start dialog
         else if (gOmmObject->state.actionState == 1) {
-            s16 dialogId = (o->oBhvArgs2ndByte != 0 ? (s16) o->oBhvArgs2ndByte : (s16) o->oToadMessageDialogId);
+            s16 dialogId = (o->oBehParams2ndByte != 0 ? (s16) o->oBehParams2ndByte : (s16) o->oToadMessageDialogId);
             if (obj_dialog_start(dialogId)) {
                 gOmmObject->state.actionState = 2;
             }
@@ -68,7 +68,7 @@ s32 omm_cappy_npc_message_update(struct Object *o) {
     } else {
         gOmmObject->state.actionTimer--;
     }
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     o->oOpacity = 0xFF;
@@ -80,5 +80,5 @@ s32 omm_cappy_npc_message_update(struct Object *o) {
     gOmmObject->cappy.scale     = omm_capture_get_gravity(o);
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

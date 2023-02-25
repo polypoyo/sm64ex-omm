@@ -7,9 +7,9 @@
 //
 
 static struct OmmWarpState {
-    s32 level;
-    s32 area;
-    s32 act;
+    s32 levelNum;
+    s32 areaIndex;
+    s32 actNum;
     bool exit;
     bool active;
 } sOmmWarpState = { 0 };
@@ -18,11 +18,11 @@ static struct OmmWarpState {
 // Warps
 //
 
-bool omm_warp_to_level(s32 level, s32 area, s32 act) {
-    if (omm_level_can_warp(level) && omm_level_get_entry_warp(level, area)) {
-        sOmmWarpState.level = level;
-        sOmmWarpState.area = area;
-        sOmmWarpState.act = act;
+bool omm_warp_to_level(s32 levelNum, s32 areaIndex, s32 actNum) {
+    if (omm_level_can_warp(levelNum) && omm_level_get_entry_warp(levelNum, areaIndex)) {
+        sOmmWarpState.levelNum = levelNum;
+        sOmmWarpState.areaIndex = areaIndex;
+        sOmmWarpState.actNum = actNum;
         sOmmWarpState.exit = false;
         sOmmWarpState.active = true;
         return true;
@@ -34,19 +34,23 @@ bool omm_restart_level() {
 #if OMM_GAME_IS_SM74
     return omm_restart_area();
 #else
-    return omm_warp_to_level(gCurrLevelNum,
+    if (omm_warp_to_level(gCurrLevelNum,
 #if OMM_GAME_IS_SM64
         (gCurrLevelNum == LEVEL_THI && gCurrAreaIndex == 2 ? 2 : 1),
 #else
         1,
 #endif
-        gCurrActNum);
+        gCurrActNum)) {
+        gOmmStats->restarts++;
+        return true;
+    }
 #endif
 }
 
 bool omm_restart_area() {
     for (s32 i = gCurrAreaIndex; i != 0; --i) {
         if (omm_warp_to_level(gCurrLevelNum, i, gCurrActNum)) {
+            gOmmStats->restarts++;
             return true;
         }
     }
@@ -75,13 +79,14 @@ bool omm_exit_level() {
         fadeout_level_music(0);
 
         // Play a fade-out transition, and trigger a "fake" warp
+        omm_speedrun_split(OMM_SPLIT_EXIT);
         play_transition(WARP_TRANSITION_FADE_INTO_COLOR, 16, 0, 0, 0);
         level_set_transition(30, 0);
         warp_special(0);
         sWarpDest.type = 0;
-        sOmmWarpState.level = gCurrLevelNum;
-        sOmmWarpState.area = gCurrAreaIndex;
-        sOmmWarpState.act = gCurrActNum;
+        sOmmWarpState.levelNum = gCurrLevelNum;
+        sOmmWarpState.areaIndex = gCurrAreaIndex;
+        sOmmWarpState.actNum = gCurrActNum;
         sOmmWarpState.exit = true;
         sOmmWarpState.active = true;
         return true;
@@ -92,6 +97,7 @@ bool omm_exit_level() {
 bool omm_return_to_castle(bool fadeOut, bool force) {
     if (force || (!omm_is_game_paused() && !omm_is_transition_active() && !omm_is_warping() && sCurrPlayMode != 4)) {
         initiate_warp(OMM_LEVEL_RETURN_TO_CASTLE);
+        omm_speedrun_split(OMM_SPLIT_EXIT);
         if (fadeOut) {
             fade_into_special_warp(0, 0);
         } else {
@@ -112,12 +118,12 @@ bool omm_is_warping() {
 // Update
 //
 
-static void omm_exit_level_find_position(s16 *x0, s16 *y0, s16 *z0, s16 yaw, f32 dist) {
+static void omm_exit_level_find_position(f32 *x0, f32 *y0, f32 *z0, s16 yaw, f32 dist) {
     for (f32 d = dist; d > 0.f; d -= 10.f) {
-        f32 x = (f32) *x0 + d * sins(yaw + 0x8000);
-        f32 z = (f32) *z0 + d * coss(yaw + 0x8000);
+        f32 x = *x0 + d * sins(yaw + 0x8000);
+        f32 z = *z0 + d * coss(yaw + 0x8000);
         for (f32 dy = 0.f; dy <= 5000.f; dy += 100.f) {
-            f32 y = (f32) *y0 + dy;
+            f32 y = *y0 + dy;
             struct Surface *floor;
             f32 floorY = find_floor(x, y, z, &floor);
             if (floor &&
@@ -140,7 +146,7 @@ static void omm_exit_level_find_position(s16 *x0, s16 *y0, s16 *z0, s16 yaw, f32
 void *omm_update_warp(void *cmd, bool inited) {
     static s32 sExitTimer = 0;
     static s32 sTargetArea = -1;
-    static s16 *sTargetWarp = NULL;
+    static Warp *sTargetWarp = NULL;
     if (sOmmWarpState.active) {
 
         // Exit level
@@ -161,14 +167,14 @@ void *omm_update_warp(void *cmd, bool inited) {
                 }
 
                 // Bowser levels
-                if (sOmmWarpState.level == LEVEL_BOWSER_1) sOmmWarpState.level = LEVEL_BITDW;
-                if (sOmmWarpState.level == LEVEL_BOWSER_2) sOmmWarpState.level = LEVEL_BITFS;
-                if (sOmmWarpState.level == LEVEL_BOWSER_3) sOmmWarpState.level = LEVEL_BITS;
+                if (sOmmWarpState.levelNum == LEVEL_BOWSER_1) sOmmWarpState.levelNum = LEVEL_BITDW;
+                if (sOmmWarpState.levelNum == LEVEL_BOWSER_2) sOmmWarpState.levelNum = LEVEL_BITFS;
+                if (sOmmWarpState.levelNum == LEVEL_BOWSER_3) sOmmWarpState.levelNum = LEVEL_BITS;
 
                 // Exit warp to Castle warp
                 // Uses the death warp, as it's the only warp that exists for every stage in the game
-                s16 *warp = omm_level_get_death_warp(sOmmWarpState.level, sOmmWarpState.area);
-                sTargetWarp = omm_level_get_warp(warp[7], warp[8], warp[9]);
+                Warp *warp = omm_level_get_death_warp(sOmmWarpState.levelNum, sOmmWarpState.areaIndex);
+                sTargetWarp = omm_level_get_warp(warp->dstLevelNum, warp->dstAreaIndex, warp->dstId);
 
                 // Free everything from the current level
                 clear_objects();
@@ -187,12 +193,12 @@ void *omm_update_warp(void *cmd, bool inited) {
                 gOmmData->reset();
 
                 // Set up new level values
-                gCurrLevelNum = warp[7];
+                gCurrLevelNum = warp->dstLevelNum;
                 gCurrCourseNum = omm_level_get_course(gCurrLevelNum);
                 gSavedCourseNum = gCurrCourseNum;
                 gDialogCourseActNum = gCurrActNum;
-                gCurrAreaIndex = warp[8];
-                sTargetArea = warp[8];
+                gCurrAreaIndex = warp->dstAreaIndex;
+                sTargetArea = warp->dstAreaIndex;
 
                 // Set up new level script
                 sWarpDest.type = 0;
@@ -214,16 +220,16 @@ void *omm_update_warp(void *cmd, bool inited) {
                 if (sTargetWarp && inited) {
             
                     // Find target position
-                    s16 x = sTargetWarp[3];
-                    s16 y = sTargetWarp[4];
-                    s16 z = sTargetWarp[5];
-                    s16 yaw = sTargetWarp[6];
+                    f32 x = sTargetWarp->x;
+                    f32 y = sTargetWarp->y;
+                    f32 z = sTargetWarp->z;
+                    s16 yaw = sTargetWarp->yaw;
                     omm_exit_level_find_position(&x, &y, &z, yaw, OMM_LEVEL_EXIT_DISTANCE);
 
                     // Init Mario
-                    gMarioSpawnInfo->startPos[0] = x;
-                    gMarioSpawnInfo->startPos[1] = y;
-                    gMarioSpawnInfo->startPos[2] = z;
+                    gMarioSpawnInfo->startPos[0] = (s16) x;
+                    gMarioSpawnInfo->startPos[1] = (s16) y;
+                    gMarioSpawnInfo->startPos[2] = (s16) z;
                     gMarioSpawnInfo->startAngle[0] = 0;
                     gMarioSpawnInfo->startAngle[1] = yaw;
                     gMarioSpawnInfo->startAngle[2] = 0;
@@ -296,12 +302,12 @@ void *omm_update_warp(void *cmd, bool inited) {
                 gOmmData->reset();
 
                 // Set up new level values
-                gCurrLevelNum = sOmmWarpState.level;
+                gCurrLevelNum = sOmmWarpState.levelNum;
                 gCurrCourseNum = omm_level_get_course(gCurrLevelNum);
                 gSavedCourseNum = gCurrCourseNum;
-                gCurrActNum = max_s(1, sOmmWarpState.act * (gCurrCourseNum <= COURSE_STAGES_MAX));
+                gCurrActNum = max_s(1, sOmmWarpState.actNum * (gCurrCourseNum <= COURSE_STAGES_MAX));
                 gDialogCourseActNum = gCurrActNum;
-                gCurrAreaIndex = sOmmWarpState.area;
+                gCurrAreaIndex = sOmmWarpState.areaIndex;
                 sTargetArea = gCurrAreaIndex;
 
                 // Set up new level script
@@ -324,13 +330,13 @@ void *omm_update_warp(void *cmd, bool inited) {
                 if (inited) {
 
                     // Init Mario
-                    s16 *warp = omm_level_get_entry_warp(gCurrLevelNum, gCurrAreaIndex);
-                    s16 spawnType = sSpawnTypeFromWarpBhv[warp[2]];
-                    gMarioSpawnInfo->startPos[0] = warp[3] + (spawnType == MARIO_SPAWN_DOOR_WARP) * 300.0f * sins(warp[6]);
-                    gMarioSpawnInfo->startPos[1] = warp[4];
-                    gMarioSpawnInfo->startPos[2] = warp[5] + (spawnType == MARIO_SPAWN_DOOR_WARP) * 300.0f * coss(warp[6]);
+                    Warp *warp = omm_level_get_entry_warp(gCurrLevelNum, gCurrAreaIndex);
+                    s16 spawnType = sSpawnTypeFromWarpBhv[warp->srcType];
+                    gMarioSpawnInfo->startPos[0] = (s16) (warp->x + (spawnType == MARIO_SPAWN_DOOR_WARP) * 300.f * sins(warp->yaw));
+                    gMarioSpawnInfo->startPos[1] = (s16) (warp->y);
+                    gMarioSpawnInfo->startPos[2] = (s16) (warp->z + (spawnType == MARIO_SPAWN_DOOR_WARP) * 300.f * coss(warp->yaw));
                     gMarioSpawnInfo->startAngle[0] = 0;
-                    gMarioSpawnInfo->startAngle[1] = warp[6];
+                    gMarioSpawnInfo->startAngle[1] = warp->yaw;
                     gMarioSpawnInfo->startAngle[2] = 0;
                     gMarioSpawnInfo->areaIndex = gCurrAreaIndex;
                     init_mario();

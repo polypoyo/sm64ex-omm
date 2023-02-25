@@ -60,7 +60,7 @@ const BehaviorScript bhvOmmExplosion[] = {
 struct Object *omm_spawn_explosion(struct Object *o) {
     struct Object *explosion  = obj_spawn_from_geo(o, omm_geo_explosion, bhvOmmExplosion);
     explosion->oAnimState     = -1;
-    explosion->oGraphYOffset += 100.0f;
+    explosion->oGraphYOffset += 100;
     explosion->oOpacity       = 255;
     create_sound_spawner(SOUND_GENERAL2_BOBOMB_EXPLOSION);
     set_environmental_camera_shake(SHAKE_ENV_EXPLOSION);

@@ -46,9 +46,9 @@ void omm_cappy_boo_end(struct Object *o) {
     if (is_ghost_hunt_boo(o) || is_merry_go_round_boo(o)) {
         o->parentObj = o;
         o->oBooParentBigBoo = NULL;
-        o->oBhvArgs &= 0xFF00FFFF;
-        o->oBhvArgs |= 0x00010000;
-        o->oBhvArgs2ndByte = 1;
+        o->oBehParams &= 0xFF00FFFF;
+        o->oBehParams |= 0x00010000;
+        o->oBehParams2ndByte = 1;
     }
 }
 
@@ -154,7 +154,7 @@ s32 omm_cappy_boo_update(struct Object *o) {
         if (POBJ_B_BUTTON_PRESSED) {
             if (gOmmObject->state.actionTimer == 0) {
                 gOmmObject->state.actionTimer = 45;
-                play_sound(SOUND_GENERAL_VANISH_SFX, o->oCameraToObject);
+                obj_play_sound(o, SOUND_GENERAL_VANISH_SFX);
             }
         }
     }
@@ -169,12 +169,12 @@ s32 omm_cappy_boo_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
     o->oIntangibleTimer = -1 * gOmmObject->state.actionState;
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -193,5 +193,5 @@ s32 omm_cappy_boo_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.25f * !is_boo_with_cage(o);
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

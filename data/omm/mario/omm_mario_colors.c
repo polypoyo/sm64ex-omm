@@ -69,8 +69,8 @@ static OmmMarioColors sOmmMarioColorsPresets[] = {
     { { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0xFF0000, 0xFF4080 } }, // Silver
     { { 0x7F7F7F, 0xFFFFFF }, { 0x390300, 0x730600 }, { 0x7F603C, 0xFEC179 }, { 0x7F7F7F, 0xFFFFFF }, { 0x7F7F7F, 0xFFFFFF }, { 0x7F7F7F, 0xFFFFFF }, { 0xFF0000, 0xFF4080 } }, // White
     { { 0x000000, 0x3F3F3F }, { 0x390300, 0x730600 }, { 0x7F603C, 0xFEC179 }, { 0x000000, 0x3F3F3F }, { 0x000000, 0x3F3F3F }, { 0x000000, 0x3F3F3F }, { 0xFF0000, 0xFF4080 } }, // Black
-    { { 0x00007F, 0x0000FF }, { 0x390300, 0x730600 }, { 0x7F603C, 0xFEC179 }, { 0x7F7F7F, 0xFFFFFF }, { 0x7F7F7F, 0xFFFFFF }, { 0x390E07, 0x721C0E }, { 0xFF0000, 0xFF4080 } }, // SMG4
     { { 0x100810, 0x201020 }, { 0x380840, 0x701080 }, { 0x7F603C, 0xFEC179 }, { 0x7F7F7F, 0xFFFFFF }, { 0x400820, 0x801040 }, { 0x7F0000, 0xFF0000 }, { 0xFF0000, 0xFF4080 } }, // SonicDark
+    { { 0xA244BD, 0xDA5EFF }, { 0x9A0025, 0xFF0046 }, { 0xF4AB64, 0xE3CB96 }, { 0xA0A0A0, 0xEEEEEE }, { 0x111111, 0x444444 }, { 0x592000, 0x8C4710 }, { 0xF000FF, 0x7A00FF } }, // JokerFactor
     { { 0x7F0000, 0xFF0000 }, { 0x390300, 0x730600 }, { 0x7F603C, 0xFEC179 }, { 0x7F7F7F, 0xFFFFFF }, { 0x00007F, 0x0000FF }, { 0x390E07, 0x721C0E }, { 0xFF0000, 0xFF4080 } }, // Custom 1
     { { 0x7F0000, 0xFF0000 }, { 0x390300, 0x730600 }, { 0x7F603C, 0xFEC179 }, { 0x7F7F7F, 0xFFFFFF }, { 0x00007F, 0x0000FF }, { 0x390E07, 0x721C0E }, { 0xFF0000, 0xFF4080 } }, // Custom 2
     { { 0x7F0000, 0xFF0000 }, { 0x390300, 0x730600 }, { 0x7F603C, 0xFEC179 }, { 0x7F7F7F, 0xFFFFFF }, { 0x00007F, 0x0000FF }, { 0x390E07, 0x721C0E }, { 0xFF0000, 0xFF4080 } }, // Custom 3
@@ -162,8 +162,8 @@ static OmmPeachColors sOmmPeachColorsPresets[] = {
     { { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0x404040, 0xC0C0C0 }, { 0xFF0080, 0xFF40FF } }, // Silver
     { { 0x7F6E64, 0xFFDCC8 }, { 0x7F780C, 0xFFF018 }, { 0x7F7F7F, 0xFFFFFF }, { 0x7F7F7F, 0xFFFFFF }, { 0x7F7F7F, 0xFFFFFF }, { 0x00607F, 0x00C0FF }, { 0x7F7F7F, 0xFFFFFF }, { 0xFF0080, 0xFF40FF } }, // White
     { { 0x7F6E64, 0xFFDCC8 }, { 0x7F780C, 0xFFF018 }, { 0x000000, 0x3F3F3F }, { 0x000000, 0x3F3F3F }, { 0x000000, 0x3F3F3F }, { 0x00607F, 0x00C0FF }, { 0x000000, 0x3F3F3F }, { 0xFF0080, 0xFF40FF } }, // Black
-    { { 0x7F6E64, 0xFFDCC8 }, { 0x7F780C, 0xFFF018 }, { 0x7F7F7F, 0xFFFFFF }, { 0x00007F, 0x0000FF }, { 0x7F7F7F, 0xFFFFFF }, { 0x00607F, 0x00C0FF }, { 0x7F0018, 0xFF0030 }, { 0xFF0080, 0xFF40FF } }, // SMG4
     { { 0x7F6E64, 0xFFDCC8 }, { 0x000000, 0x3F3F3F }, { 0x400820, 0x801040 }, { 0x380840, 0x701080 }, { 0x404040, 0x808080 }, { 0x00607F, 0x00C0FF }, { 0x7F0018, 0xFF0030 }, { 0xFF0080, 0xFF40FF } }, // SonicDark
+    { { 0x7F6E64, 0xFFDCC8 }, { 0x9A0025, 0xFF0046 }, { 0x111111, 0x444444 }, { 0xA244BD, 0xDF89FF }, { 0x818181, 0xEEEEEE }, { 0x8D2D8D, 0xFF00E0 }, { 0x19007F, 0x4F4FFF }, { 0xD100FF, 0x5C00FF } }, // JokerFactor
     { { 0x7F6E64, 0xFFDCC8 }, { 0x7F780C, 0xFFF018 }, { 0x7F3C50, 0xFF78A0 }, { 0x681830, 0xD03060 }, { 0x7F7F7F, 0xFFFFFF }, { 0x00607F, 0x00C0FF }, { 0x7F0018, 0xFF0030 }, { 0xFF0080, 0xFF40FF } }, // Custom 1
     { { 0x7F6E64, 0xFFDCC8 }, { 0x7F780C, 0xFFF018 }, { 0x7F3C50, 0xFF78A0 }, { 0x681830, 0xD03060 }, { 0x7F7F7F, 0xFFFFFF }, { 0x00607F, 0x00C0FF }, { 0x7F0018, 0xFF0030 }, { 0xFF0080, 0xFF40FF } }, // Custom 2
     { { 0x7F6E64, 0xFFDCC8 }, { 0x7F780C, 0xFFF018 }, { 0x7F3C50, 0xFF78A0 }, { 0x681830, 0xD03060 }, { 0x7F7F7F, 0xFFFFFF }, { 0x00607F, 0x00C0FF }, { 0x7F0018, 0xFF0030 }, { 0xFF0080, 0xFF40FF } }, // Custom 3
@@ -231,11 +231,11 @@ bool omm_mario_colors_read(const char **tokens) {
         char *name = NULL;
         s32 size = 0;
         if (strstr(tokens[0], "mario_custom_") == tokens[0]) {
-            preset = (void *) &sOmmMarioColorsPresets[omm_static_array_length(sOmmMarioColorsPresets) - 5 + index];
+            preset = (void *) &sOmmMarioColorsPresets[array_length(sOmmMarioColorsPresets) - 5 + index];
             name = (char *) sOmmMarioColorsCustoms[index - 1];
             size = sizeof(OmmMarioColors);
         } else if (strstr(tokens[0], "peach_custom_") == tokens[0]) {
-            preset = (void *) &sOmmPeachColorsPresets[omm_static_array_length(sOmmPeachColorsPresets) - 5 + index];
+            preset = (void *) &sOmmPeachColorsPresets[array_length(sOmmPeachColorsPresets) - 5 + index];
             name = (char *) sOmmPeachColorsCustoms[index - 1];
             size = sizeof(OmmPeachColors);
         } else {
@@ -260,14 +260,14 @@ bool omm_mario_colors_read(const char **tokens) {
         // Fill name
         s32 length = strlen(c);
         if (length) {
-            omm_copy(name, c, min_s(length + 1, 256));
+            mem_cpy(name, c, min_s(length + 1, 256));
         } else {
-            snprintf(name, 256, "Custom_%d", index);
+            str_fmt(name, 256, "Custom_%d", index);
         }
-        str_rep(name, '_', ' ');
+        str_rep(name, 256, name, '_', ' ');
 
         // Fill preset
-        omm_copy(preset, colors, size);
+        mem_cpy(preset, colors, size);
         return true;
     }
     return false;
@@ -277,7 +277,7 @@ bool omm_mario_colors_read(const char **tokens) {
 void omm_mario_colors_write(char **buffer) {
     write("[mario_colors]\n");
     for (s32 i = 0; i != 4; ++i) {
-        const OmmMarioColors *preset = &sOmmMarioColorsPresets[omm_static_array_length(sOmmMarioColorsPresets) - 4 + i];
+        const OmmMarioColors *preset = &sOmmMarioColorsPresets[array_length(sOmmMarioColorsPresets) - 4 + i];
         write("mario_custom_%d = ", i + 1);
         write("%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X",
             preset->cap[0], preset->cap[1],
@@ -288,8 +288,7 @@ void omm_mario_colors_write(char **buffer) {
             preset->shoes[0], preset->shoes[1],
             preset->cappy[0], preset->cappy[1]
         );
-        omm_str_cpy(name, 256, sOmmMarioColorsCustoms[i]);
-        str_rep(name, ' ', '_');
+        str_rep_sa(name, 256, sOmmMarioColorsCustoms[i], ' ', '_');
         if (*name) {
             write("%s\n", name);
         } else {
@@ -298,7 +297,7 @@ void omm_mario_colors_write(char **buffer) {
     }
     write("\n[peach_colors]\n");
     for (s32 i = 0; i != 4; ++i) {
-        const OmmPeachColors *preset = &sOmmPeachColorsPresets[omm_static_array_length(sOmmPeachColorsPresets) - 4 + i];
+        const OmmPeachColors *preset = &sOmmPeachColorsPresets[array_length(sOmmPeachColorsPresets) - 4 + i];
         write("peach_custom_%d = ", i + 1);
         write("%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X%06X",
             preset->skin[0], preset->skin[1],
@@ -310,8 +309,7 @@ void omm_mario_colors_write(char **buffer) {
             preset->shoes[0], preset->shoes[1],
             preset->tiara[0], preset->tiara[1]
         );
-        omm_str_cpy(name, 256, sOmmPeachColorsCustoms[i]);
-        str_rep(name, ' ', '_');
+        str_rep_sa(name, 256, sOmmPeachColorsCustoms[i], ' ', '_');
         if (*name) {
             write("%s\n", name);
         } else {
@@ -353,8 +351,8 @@ const char **omm_mario_colors_choices(bool peach) {
         OMM_TEXT_OPT_MARIO_COLORS_SILVER,
         OMM_TEXT_OPT_MARIO_COLORS_WHITE,
         OMM_TEXT_OPT_MARIO_COLORS_BLACK,
-        OMM_TEXT_OPT_MARIO_COLORS_SMG4,
         OMM_TEXT_OPT_MARIO_COLORS_SONICDARK,
+        OMM_TEXT_OPT_MARIO_COLORS_JOKERFACTOR,
 #if OMM_GAME_IS_R96X
         OMM_TEXT_OPT_MARIO_COLORS_CUSTOM_1,
         OMM_TEXT_OPT_MARIO_COLORS_CUSTOM_2,
@@ -393,8 +391,8 @@ const char **omm_mario_colors_choices(bool peach) {
         OMM_TEXT_OPT_MARIO_COLORS_SILVER,
         OMM_TEXT_OPT_MARIO_COLORS_WHITE,
         OMM_TEXT_OPT_MARIO_COLORS_BLACK,
-        OMM_TEXT_OPT_MARIO_COLORS_SMG4,
         OMM_TEXT_OPT_MARIO_COLORS_SONICDARK,
+        OMM_TEXT_OPT_MARIO_COLORS_JOKERFACTOR,
 #if OMM_GAME_IS_R96X
         OMM_TEXT_OPT_MARIO_COLORS_CUSTOM_1,
         OMM_TEXT_OPT_MARIO_COLORS_CUSTOM_2,
@@ -411,7 +409,7 @@ const char **omm_mario_colors_choices(bool peach) {
 }
 
 s32 omm_mario_colors_count() {
-    return omm_static_array_length(sOmmMarioColorsPresets);
+    return array_length(sOmmMarioColorsPresets);
 }
 
 //

@@ -8,15 +8,7 @@ extern "C" {
 #include "pc/gfx/gfx_rendering_api.h"
 }
 
-typedef struct { u32 hash, id; u8 cms, cmt, lin; } GfxTexture;
-
-OMM_INLINE u32 string_hash(const char *str) {
-    u32 hash = 0;
-    for (; *str; str++) {
-        hash = (hash * 31) + *str;
-    }
-    return hash;
-}
+typedef struct { u32 hash, id, w, h, pal; u8 cms, cmt, lin, *data; } GfxTexture;
 
 static GfxTexture *__dynos_gfx_texture_find(OmmHMap *phmap, struct GfxRenderingAPI *rapi, const void *p) {
     Array<ActorGfx> &actorList = DynOS_Gfx_GetActorList();
@@ -26,8 +18,8 @@ static GfxTexture *__dynos_gfx_texture_find(OmmHMap *phmap, struct GfxRenderingA
                 if ((const void *) node == p) {
                     
                     // Node found, computing name hash
-                    omm_cat_paths(name, SYS_MAX_PATH, "DYNOS", node->mName.begin());
-                    u32 hash = string_hash(name);
+                    str_cat_paths_sa(name, SYS_MAX_PATH, "DYNOS", node->mName.begin());
+                    u32 hash = str_hash(name);
                     GfxTexture *tex = NULL;
 
                     // Look for texture in cache
@@ -43,12 +35,16 @@ static GfxTexture *__dynos_gfx_texture_find(OmmHMap *phmap, struct GfxRenderingA
                     }
 
                     // Create new texture
-                    tex = (GfxTexture *) omm_new(GfxTexture, 1);
+                    tex = (GfxTexture *) mem_new(GfxTexture, 1);
                     tex->hash = hash;
                     tex->id = rapi->new_texture();
+                    tex->w = node->mData->mRawWidth;
+                    tex->h = node->mData->mRawHeight;
+                    tex->pal = 0;
                     tex->cms = 0;
                     tex->cmt = 0;
                     tex->lin = 0;
+                    tex->data = NULL;
                     rapi->select_texture(0, tex->id);
                     rapi->set_sampler_parameters(0, false, 0, 0);
 

@@ -4,32 +4,38 @@
 #undef OMM_ALL_HEADERS
 #include "gfx_patches.inl"
 #include <unistd.h>
-#if OMM_WAPI_DXGI
+#if OMM_GFX_API_DX
 #include <windows.h>
 #endif
 
+// Enable runtime asserts in debug mode
 #ifdef DEBUG
 #define ASSERT(x) SDL_assert(x)
 #else
 #define ASSERT(x)
 #endif
 
+// Enable level palettes in SM64
 #if OMM_GAME_IS_SM64
 #define LEVEL_PALETTES 1
 #else
 #define LEVEL_PALETTES 0
 #endif
 
-#if OMM_GAME_IS_R96X && OMM_RAPI_GL && defined(TRANSPARENCY_GL)
+// Enable GL transparency (alpha to coverage/order-independent transparency) on some Render96 builds
+#if OMM_GAME_IS_R96X && OMM_GFX_API_GL && defined(TRANSPARENCY_GL)
 #include "GL/glew.h"
 #define GL_TRANSPARENCY 1
 #else
 #define GL_TRANSPARENCY 0
 #endif
 
-#define GAME_UPDATES_PER_SECOND             30
-#define GAME_UPDATE_DURATION                (1.0 / GAME_UPDATES_PER_SECOND)
-#if OMM_WAPI_DXGI
+//
+// Constants
+//
+
+#define GAME_UPDATE_DURATION                (1.0 / gGameUpdatesPerSecond)
+#if OMM_GFX_API_DX
 #define UNLIMITED_FPS                       1000
 #else
 #define UNLIMITED_FPS                       1000000
@@ -41,7 +47,7 @@
 #define GFX_MAX_VERTS                       64
 #define GFX_MAX_TRIS                        256
 #define GFX_MAX_TEXTURES                    8192
-#define GFX_NO_FOG                          (omm_world_is_flooded() || omm_world_is_frozen() || omm_world_is_shadow())
+#define GFX_NO_FOG                          (omm_world_is_flooded() || omm_world_is_frozen() || omm_world_is_dark())
 
 #define GFX_OP                              ((u8) (sGfxCmd->words.w0 >> 24))
 #define GFX_W0                              sGfxCmd->words.w0
@@ -52,11 +58,14 @@
 #define GFX_CMD_SIZE                        0x40
 #define GFX_CMD_BITS                        0x3F
 
-#define mtx_stack_offset(x)                 ((x) * (sizeof(Mat4) / sizeof(f32)))
-#define mtx_stack_inc(x)                    sGfxRsp->mtx += mtx_stack_offset(x)
-#define mtx_stack_dec(x)                    sGfxRsp->mtx -= mtx_stack_offset(x)
+//
+// Inlines
+//
+
+#define mtx_stack_inc(x)                    sGfxRsp->mtx += (x)
+#define mtx_stack_dec(x)                    sGfxRsp->mtx -= (x)
 #define mtx_mul(c, a, b)                    mtxf_mul((void *) (c), (void *) (a), (void *) (b))
-#define gfx_adjust_x_for_aspect_ratio(x)    ((x) * gfx_adjust_for_aspect_ratio)
+#define gfx_adjust_x_for_aspect_ratio(x)    ((x) * sGfxAdjustForAspectRatio)
 #define gfx_color_comb_comp(x)              ((x) < 6 ? (x) : ((x) == G_CCMUX_TEXEL0_ALPHA ? CC_TEXEL0A : CC_0))
 #define gfx_color_comb(a, b, c, d)          ((gfx_color_comb_comp(a) << 0) | (gfx_color_comb_comp(b) << 3) | (gfx_color_comb_comp(c) << 6) | (gfx_color_comb_comp(d) << 9))
 #define tex_u_normalize(tu)                 ((((tu) - (sGfxRdp->texTile.uls << 3)) * INV32 + sGfxRdp->texOffset) * sGfxRdp->invTexWidth)
@@ -66,10 +75,10 @@
 // Structs
 //
 
-typedef void (*GfxCmdFunc)(); 
+typedef void (*GfxCmdFunc)();
 typedef struct { u16 x, y, w, h; } XYWH;
-typedef struct { Vec4f p; Vec3f n; Vec2f tc; Vec4f color; u8 tti, rej; const Vtx_t *v; } Vertex;
-typedef struct { u32 hash, id, w, h; u8 cms, cmt, lin, pal, *data; } GfxTexture;
+typedef struct { Vec4f p; Vec3f n; Vec2f tc; Vec4f color; u8 /*tti,*/ rej, done; const Vtx *vtx; } Vertex;
+typedef struct { u32 hash, id, w, h, pal; u8 cms, cmt, lin, *data; } GfxTexture;
 typedef struct { GfxTexture pool[GFX_MAX_TEXTURES]; u32 index; } GfxTexturePool;
 typedef struct { OmmHMap pngs; FILE* file; u8 *data; u32 size; s32 texw, texh; } GfxTexturePreLoad;
 typedef struct { u32 id; struct ShaderProgram *prg; u8 mapShaderInput[2][4]; } GfxColorCombiner;
@@ -79,14 +88,14 @@ typedef struct {
 
     // Matrices
     Mat4 mtxStack[64];
-    f32 *mtx;
+    Mat4 *mtx;
     Mat4 mtxP;
     Mat4 mtxMP;
     
     // Lights
     Light_t light, lightAmb;
     Vec3f lightCoeffs, lookAtXCoeffs, lookAtYCoeffs;
-    bool lightsChanged;
+    bool lightChanged, lookAtChanged;
 
     // Vertices
     u32 geometryMode;
@@ -100,7 +109,7 @@ typedef struct {
     // Textures
     const char *texToLoad;
     const char *texLoaded;
-    struct { u8 tti, cms, cmt; u16 uls, ult, lrs, lrt; } texTile;
+    struct { u8 /*tti,*/ cms, cmt; u16 uls, ult, lrs, lrt; } texTile;
     f32 invTexWidth, invTexHeight, texOffset;
     bool texChanged;
     
@@ -135,7 +144,8 @@ static GfxTexturePreLoad sGfxTexturePreLoad[1];
 static OmmHMap sGfxTextureCache = omm_hmap_zero;
 static GfxCmdFunc sGfxCmdTable[GFX_CMD_SIZE];
 struct GfxDimensions gfx_current_dimensions;
-static f32 gfx_adjust_for_aspect_ratio;
+static f32 sGfxAdjustForAspectRatio;
+static f32 *sGfxPaletteModifiers = NULL;
 
 static const f32 INV32 = 1.f / 32.f;
 static const f32 INV64 = 1.f / 64.f;
@@ -143,6 +153,10 @@ static const f32 INV256 = 1.f / 256.f;
 static f32 *gVec4fZero3[3] = { gVec4fZero, gVec4fZero, gVec4fZero };
 static f32 *gVec4fOne3[3] = { gVec4fOne, gVec4fOne, gVec4fOne };
 
+#if !OMM_CODE_DEV
+static const
+#endif
+f64 gGameUpdatesPerSecond = 30;
 static s32 sTargetFps = 0;
 static f64 sDeltaTime = 0;
 static f64 sStartTime = 0;
@@ -176,23 +190,13 @@ static const u8 sMissingTexture[] = {
 // Texture cache
 //
 
-OMM_INLINE u32 string_hash(const char *str) {
-    u32 hash = 0;
-    for (; *str; str++) {
-        hash = (hash * 31) + *str;
-    }
-    return hash;
-}
-
 OMM_INLINE GfxTexture *gfx_texture_find(const char *name) {
-#if OMM_CODE_DYNOS
-    extern void *dynos_gfx_texture_find(OmmHMap *, struct GfxRenderingAPI *, const void *);
-    GfxTexture *tex = (GfxTexture *) dynos_gfx_texture_find(&sGfxTextureCache, sGfxRapi, (const void *) name);
+    extern void *omm_models_find_texture(OmmHMap *, struct GfxRenderingAPI *, const void *);
+    GfxTexture *tex = (GfxTexture *) omm_models_find_texture(&sGfxTextureCache, sGfxRapi, (const void *) name);
     if (tex) {
         return tex;
     }
-#endif
-    s32 i = omm_hmap_find(sGfxTextureCache, string_hash(name));
+    s32 i = omm_hmap_find(sGfxTextureCache, str_hash(name));
     if (i != -1) {
         return omm_hmap_get(sGfxTextureCache, GfxTexture *, i);
     }
@@ -223,9 +227,10 @@ static bool gfx_texture_has_palette(const char *texname) {
 #if LEVEL_PALETTES
 
 enum {
-    GFX_LEVEL_PALETTE_FLOODED = (1 << 0),
-    GFX_LEVEL_PALETTE_FROZEN  = (1 << 1),
-    GFX_LEVEL_PALETTE_SHADOW  = (1 << 2),
+    GFX_LEVEL_PALETTE_FLOODED  = (1 << 0),
+    GFX_LEVEL_PALETTE_FROZEN   = (1 << 1),
+    GFX_LEVEL_PALETTE_DARK     = (1 << 2),
+    GFX_LEVEL_PALETTE_MODIFIER = (1 << 3),
 };
 
 static bool gfx_texture_is_level_palette(const char *texname) {
@@ -245,19 +250,28 @@ static bool gfx_texture_is_level_palette(const char *texname) {
     return false;
 }
 
-#define set_r(r) data[i + 0] = clamp_s(r, 0x00, 0xFF)
-#define set_g(g) data[i + 1] = clamp_s(g, 0x00, 0xFF)
-#define set_b(b) data[i + 2] = clamp_s(b, 0x00, 0xFF)
+#define set_r(r_) data[i + 0] = r = clamp_s(r_, 0x00, 0xFF)
+#define set_g(g_) data[i + 1] = g = clamp_s(g_, 0x00, 0xFF)
+#define set_b(b_) data[i + 2] = b = clamp_s(b_, 0x00, 0xFF)
 static void gfx_texture_load_level_palette(GfxTexture *tex) {
-    u8 pal = (
-        (GFX_LEVEL_PALETTE_FLOODED * omm_world_is_flooded()) |
-        (GFX_LEVEL_PALETTE_FROZEN  * omm_world_is_frozen() ) |
-        (GFX_LEVEL_PALETTE_SHADOW  * omm_world_is_shadow() )
+    u32 pal = (
+        (GFX_LEVEL_PALETTE_FLOODED  * (omm_world_is_flooded() == true)) |
+        (GFX_LEVEL_PALETTE_FROZEN   * (omm_world_is_frozen()  == true)) |
+        (GFX_LEVEL_PALETTE_DARK     * (omm_world_is_dark()    == true)) |
+        (GFX_LEVEL_PALETTE_MODIFIER * (sGfxPaletteModifiers   != NULL))
     );
+    if (pal & GFX_LEVEL_PALETTE_MODIFIER) {
+        u8 rmod = (u8) (sGfxPaletteModifiers[0] * 127.9f);
+        u8 gmod = (u8) (sGfxPaletteModifiers[1] * 127.9f);
+        u8 bmod = (u8) (sGfxPaletteModifiers[2] * 127.9f);
+        pal |= (((u32) rmod) << 24);
+        pal |= (((u32) gmod) << 16);
+        pal |= (((u32) bmod) <<  8);
+    }
     if (gfx_texture_is_level_palette(sGfxRdp->texLoaded) && tex->data && tex->pal != pal) {
         if (pal) {
             u32 size = tex->w * tex->h * 4;
-            u8 *data = omm_dup(tex->data, size);
+            u8 *data = mem_dup(tex->data, size);
             for (u32 i = 0; i != size; i += 4) {
                 s32 r = data[i + 0];
                 s32 g = data[i + 1];
@@ -274,14 +288,19 @@ static void gfx_texture_load_level_palette(GfxTexture *tex) {
                     set_g((y + 0x0FF) / 2);
                     set_b((y + 0x1FF) / 3);
                 }
-                if (pal & GFX_LEVEL_PALETTE_SHADOW) {
+                if (pal & GFX_LEVEL_PALETTE_DARK) {
                     set_r(0);
                     set_g(0);
                     set_b(0);
                 }
+                if (pal & GFX_LEVEL_PALETTE_MODIFIER) {
+                    set_r(r * sGfxPaletteModifiers[0]);
+                    set_g(g * sGfxPaletteModifiers[1]);
+                    set_b(b * sGfxPaletteModifiers[2]);
+                }
             }
             sGfxRapi->upload_texture(data, tex->w, tex->h);
-            omm_free(data);
+            mem_del(data);
         } else {
             sGfxRapi->upload_texture(tex->data, tex->w, tex->h);
         }
@@ -296,10 +315,10 @@ static void gfx_texture_load_level_palette(GfxTexture *tex) {
 //
 
 static bool gfx_texture_preload_init() {
-    omm_zero(sGfxTexturePreLoad, sizeof(GfxTexturePreLoad));
-    omm_hmap_insert(sGfxTexturePreLoad->pngs, 1, omm_new(s32, 1));
+    mem_clr(sGfxTexturePreLoad, sizeof(GfxTexturePreLoad));
+    omm_hmap_insert(sGfxTexturePreLoad->pngs, 1, mem_new(s32, 1));
     if (gOmmPreloadTextures == 2) {
-        omm_cat_paths(gfxTextureRawFilename, SYS_MAX_PATH, sys_exe_path(), GFX_TEXTURE_RAW_FILEPATH);
+        str_cat_paths_sa(gfxTextureRawFilename, SYS_MAX_PATH, sys_exe_path(), GFX_TEXTURE_RAW_FILEPATH);
         sGfxTexturePreLoad->file = fopen(gfxTextureRawFilename, "rb");
     }
     return sGfxTexturePreLoad->file != NULL;
@@ -307,7 +326,7 @@ static bool gfx_texture_preload_init() {
 
 static void gfx_texture_preload_create_raw() {
     if (gOmmPreloadTextures == 2) {
-        omm_cat_paths(gfxTextureRawFilename, SYS_MAX_PATH, sys_exe_path(), GFX_TEXTURE_RAW_FILEPATH);
+        str_cat_paths_sa(gfxTextureRawFilename, SYS_MAX_PATH, sys_exe_path(), GFX_TEXTURE_RAW_FILEPATH);
         sGfxTexturePreLoad->file = fopen(gfxTextureRawFilename, "wb");
     }
 }
@@ -316,9 +335,9 @@ static void gfx_texture_preload_end() {
     if (sGfxTexturePreLoad->file) {
         fclose(sGfxTexturePreLoad->file);
     }
-    omm_free(sGfxTexturePreLoad->data);
+    mem_del(sGfxTexturePreLoad->data);
     omm_hmap_delete(sGfxTexturePreLoad->pngs);
-    omm_zero(sGfxTexturePreLoad, sizeof(GfxTexturePreLoad));
+    mem_clr(sGfxTexturePreLoad, sizeof(GfxTexturePreLoad));
 }
 
 static const char *gfx_texture_preload_read_raw() {
@@ -339,8 +358,8 @@ static const char *gfx_texture_preload_read_raw() {
         }
         u32 size = sGfxTexturePreLoad->texw * sGfxTexturePreLoad->texh * 4;
         if (OMM_UNLIKELY(size > sGfxTexturePreLoad->size)) {
-            omm_free(sGfxTexturePreLoad->data);
-            sGfxTexturePreLoad->data = omm_new(u8, size);
+            mem_del(sGfxTexturePreLoad->data);
+            sGfxTexturePreLoad->data = mem_new(u8, size);
             sGfxTexturePreLoad->size = size;
         }
         if (fread(sGfxTexturePreLoad->data, sizeof(u8), size, sGfxTexturePreLoad->file) < size) {
@@ -374,7 +393,7 @@ static GfxTexture *gfx_texture_create(const char *texname, const u8 *data, s32 t
 
     // Create gfx texture entry
     GfxTexture *tex = &sGfxTexturePool->pool[sGfxTexturePool->index++];
-    tex->hash = string_hash(texname);
+    tex->hash = str_hash(texname);
     tex->id   = sGfxRapi->new_texture();
     tex->w    = texw;
     tex->h    = texh;
@@ -382,7 +401,7 @@ static GfxTexture *gfx_texture_create(const char *texname, const u8 *data, s32 t
     tex->cmt  = 0;
     tex->lin  = 0;
     tex->pal  = 0;
-    tex->data = (gfx_texture_has_palette(texname) ? omm_dup(data, texw * texh * 4) : NULL);
+    tex->data = (gfx_texture_has_palette(texname) ? mem_dup(data, texw * texh * 4) : NULL);
     omm_hmap_insert(sGfxTextureCache, tex->hash, tex);
 
     // Send it to the rendering api
@@ -400,7 +419,7 @@ static GfxTexture *gfx_texture_load_png(const char *texname, const char *filenam
     if (data) {
         gfx_texture_preload_write_raw(texname, data, texw, texh);
         GfxTexture *tex = gfx_texture_create(texname, data, texw, texh);
-        omm_free(data);
+        mem_del(data);
         return tex;
     }
 
@@ -412,7 +431,7 @@ static GfxTexture *gfx_texture_load_png(const char *texname, const char *filenam
 OMM_INLINE void gfx_texture_import() {
     GfxTexture *tex = gfx_texture_find(sGfxRdp->texLoaded);
     if (OMM_UNLIKELY(!tex)) {
-        omm_str_cat(filename, SYS_MAX_PATH, FS_TEXTUREDIR "/", sGfxRdp->texLoaded, ".png");
+        str_cat_sa(filename, SYS_MAX_PATH, FS_TEXTUREDIR "/", sGfxRdp->texLoaded, ".png");
         tex = gfx_texture_load_png(sGfxRdp->texLoaded, filename);
     }
     sGfxCurrTexture = tex;
@@ -430,7 +449,7 @@ static bool gfx_texture_precache(UNUSED void *user, const char *path) {
 
     // Check if it's a png file
     if (strstr(path, ".png") || strstr(path, ".PNG")) {
-        omm_str_cpy(texname, SYS_MAX_PATH, path);
+        str_cpy_sa(texname, SYS_MAX_PATH, path);
         texname[strlen(texname) - 4] = 0;
 
         // Check if it starts with "gfx/"
@@ -438,12 +457,13 @@ static bool gfx_texture_precache(UNUSED void *user, const char *path) {
             const char *name = texname + sizeof(FS_TEXTUREDIR "/") - 1;
 
             // Check if new hash
-            u32 hash = string_hash(name);
+            u32 hash = str_hash(name);
             if (omm_hmap_find(sGfxTexturePreLoad->pngs, hash) == -1) {
 
                 // Smart precache
                 // - No spaces or "unused"
                 // - Contains ".rgba16", ".rgba32", ".ia4", ".ia8" or ".ia16"
+                // - Don't precache "COURSE_"
                 // - If "textures/", don't precache "/intro_raw/", "/ipl3_raw/", "/skybox" or "/special/"
                 if (!strstr(name, " ") &&
                     !strstr(name, "unused") && (
@@ -451,16 +471,17 @@ static bool gfx_texture_precache(UNUSED void *user, const char *path) {
                      strstr(name, ".rgba32") ||
                      strstr(name, ".ia4") ||
                      strstr(name, ".ia8") ||
-                     strstr(name, ".ia16")) && (
+                     strstr(name, ".ia16")) && 
+                    !strstr(name, "COURSE_") && (
                     !strstr(name, "textures/") || (
                     !strstr(name, "/intro_raw/") &&
                     !strstr(name, "/ipl3_raw/") &&
                     !strstr(name, "/skybox") &&
                     !strstr(name, "/special/")))
                 ) {
-                    const char **entry = omm_new(const char *, 2);
-                    entry[0] = omm_dup(name, strlen(name) + 1);
-                    entry[1] = omm_dup(path, strlen(path) + 1);
+                    const char **entry = mem_new(const char *, 2);
+                    entry[0] = mem_dup(name, strlen(name) + 1);
+                    entry[1] = mem_dup(path, strlen(path) + 1);
                     omm_hmap_insert(sGfxTexturePreLoad->pngs, hash, entry);
                 }
             }
@@ -495,7 +516,7 @@ void gfx_precache_textures() {
         }
     } else if (gOmmPreloadTextures) {
         gfx_texture_preload_create_raw();
-        fs_walk(FS_TEXTUREDIR, gfx_texture_precache, NULL, true);
+        fs_walk(FS_TEXTUREDIR, gfx_texture_precache, NULL, true, FS_DIR_READ);
     }
 }
 
@@ -519,7 +540,7 @@ OMM_INLINE void gfx_flush() {
 }
 
 //
-// Color combiners
+// Shaders
 //
 
 static void *gfx_lookup_or_create_shader_program(u32 shaderId) {
@@ -527,10 +548,25 @@ static void *gfx_lookup_or_create_shader_program(u32 shaderId) {
     if (!prg) {
         sGfxRapi->unload_shader(sGfxShaderProgram->prg);
         prg = sGfxRapi->create_and_load_new_shader(shaderId);
+        sGfxRapi->shader_get_info(prg, &sGfxShaderProgram->numInputs, sGfxShaderProgram->usedTextures);
         sGfxShaderProgram->prg = prg;
     }
     return prg;
 }
+
+static void gfx_update_shader() {
+    if (sGfxColorCombiner->prg != sGfxShaderProgram->prg) {
+        gfx_flush();
+        sGfxRapi->unload_shader(sGfxShaderProgram->prg);
+        sGfxRapi->load_shader(sGfxColorCombiner->prg);
+        sGfxRapi->shader_get_info(sGfxColorCombiner->prg, &sGfxShaderProgram->numInputs, sGfxShaderProgram->usedTextures);
+        sGfxShaderProgram->prg = sGfxColorCombiner->prg;
+    }
+}
+
+//
+// Color combiners
+//
 
 static GfxColorCombiner *gfx_lookup_or_create_color_combiner(u32 id) {
     ASSERT(id); // just in case
@@ -553,7 +589,7 @@ static GfxColorCombiner *gfx_lookup_or_create_color_combiner(u32 id) {
     }
 
     // Create new color combiner
-    *cc = omm_new(GfxColorCombiner, 1);
+    *cc = mem_new(GfxColorCombiner, 1);
     u8 c[2][4];
     u32 shaderId = (id & 0xFF000000);
     for (s32 i = 0; i != 4; ++i) {
@@ -592,19 +628,6 @@ static GfxColorCombiner *gfx_lookup_or_create_color_combiner(u32 id) {
     return *cc;
 }
 
-//
-// Changes
-//
-
-#define if_changed(name, x, ...) { \
-    static u32 _##name = 0; \
-    u32 name = (x); \
-    if (_##name != name) { \
-        _##name = name; \
-        __VA_ARGS__ \
-    } \
-}
-
 static void gfx_update_color_combiner() {
     gfx_flush();
 
@@ -624,9 +647,7 @@ static void gfx_update_color_combiner() {
     if (sGfxRdp->fog) ccId |= SHADER_OPT_FOG;
     if (sGfxRdp->alpha) ccId |= SHADER_OPT_ALPHA;
     else ccId &= ~0xFFF000;
-    if_changed(alpha, sGfxRdp->alpha,
-        sGfxRapi->set_use_alpha(sGfxRdp->alpha);
-    )
+    sGfxRapi->set_use_alpha(sGfxRdp->alpha);
 
     // Color combiner
     sGfxColorCombiner = gfx_lookup_or_create_color_combiner(ccId);
@@ -641,16 +662,43 @@ static void gfx_update_color_combiner() {
         glDisable(GL_SAMPLE_ALPHA_TO_ONE);
     }
 #endif
+
+    // Update shader
+    gfx_update_shader();
 }
 
-OMM_INLINE void gfx_update_shader() {
-    if (sGfxColorCombiner->prg != sGfxShaderProgram->prg) {
-        gfx_flush();
-        sGfxRapi->unload_shader(sGfxShaderProgram->prg);
-        sGfxRapi->load_shader(sGfxColorCombiner->prg);
-        sGfxRapi->shader_get_info(sGfxColorCombiner->prg, &sGfxShaderProgram->numInputs, sGfxShaderProgram->usedTextures);
-        sGfxShaderProgram->prg = sGfxColorCombiner->prg;
+//
+// Lights
+//
+
+OMM_INLINE void gfx_compute_light_coeffs(Vec3f coeffs, Vec3f lightdir) {
+    vec3f_normalize(vec3f_mult_mtx(coeffs, lightdir, (void *) sGfxRsp->mtx));
+}
+
+static void gfx_update_light_coeffs() {
+    if (sGfxRsp->lightChanged && (sGfxRsp->geometryMode & G_LIGHTING)) {
+        Vec3f lightDir = { sGfxRsp->light.dir[0] / 127.f, sGfxRsp->light.dir[1] / 127.f, sGfxRsp->light.dir[2] / 127.f };
+        gfx_compute_light_coeffs(sGfxRsp->lightCoeffs, lightDir);
+        sGfxRsp->lightChanged = false;
     }
+    if (sGfxRsp->lookAtChanged && (sGfxRsp->geometryMode & G_TEXTURE_GEN)) {
+        gfx_compute_light_coeffs(sGfxRsp->lookAtXCoeffs, gVec3fX);
+        gfx_compute_light_coeffs(sGfxRsp->lookAtYCoeffs, gVec3fY);
+        sGfxRsp->lookAtChanged = false;
+    }
+}
+
+//
+// Changes
+//
+
+#define if_changed(name, x, ...) { \
+    static u32 _##name = 0; \
+    u32 name = (x); \
+    if (_##name != name) { \
+        _##name = name; \
+        __VA_ARGS__ \
+    } \
 }
 
 OMM_INLINE void gfx_geometry_mode_changed(u32 clr, u32 set) {
@@ -705,7 +753,7 @@ OMM_INLINE void gfx_tex_tile_changed(u16 uls, u16 ult, u16 lrs, u16 lrt) {
     sGfxRdp->texTile.lrt  = lrt;
     sGfxRdp->invTexWidth  = 1.f / ((lrs - uls + 4) >> 2);
     sGfxRdp->invTexHeight = 1.f / ((lrt - ult + 4) >> 2);
-    sGfxRdp->texTile.tti++;
+    // sGfxRdp->texTile.tti++;
 }
 
 OMM_INLINE void gfx_viewport_changed(u16 x, u16 y, u16 w, u16 h) {
@@ -736,24 +784,28 @@ static void gfx_sp_matrix_projection_mul(Mat4 mat) {
 
 static void gfx_sp_matrix_modelview_load_push(Mat4 mat) {
     mtx_stack_inc(1);
-    mtxf_copy(sGfxRsp->mtx, mat);
-    sGfxRsp->lightsChanged = true;
+    mtxf_copy(*sGfxRsp->mtx, mat);
+    sGfxRsp->lightChanged = true;
+    sGfxRsp->lookAtChanged = true;
 }
 
 static void gfx_sp_matrix_modelview_load_nopush(Mat4 mat) {
-    mtxf_copy(sGfxRsp->mtx, mat);
-    sGfxRsp->lightsChanged = true;
+    mtxf_copy(*sGfxRsp->mtx, mat);
+    sGfxRsp->lightChanged = true;
+    sGfxRsp->lookAtChanged = true;
 }
 
 static void gfx_sp_matrix_modelview_mul_push(Mat4 mat) {
     mtx_stack_inc(1);
-    mtx_mul(sGfxRsp->mtx, mat, sGfxRsp->mtx - mtx_stack_offset(1));
-    sGfxRsp->lightsChanged = true;
+    mtx_mul(*sGfxRsp->mtx, mat, *(sGfxRsp->mtx - 1));
+    sGfxRsp->lightChanged = true;
+    sGfxRsp->lookAtChanged = true;
 }
 
 static void gfx_sp_matrix_modelview_mul_nopush(Mat4 mat) {
-    mtx_mul(sGfxRsp->mtx, mat, sGfxRsp->mtx);
-    sGfxRsp->lightsChanged = true;
+    mtx_mul(*sGfxRsp->mtx, mat, *sGfxRsp->mtx);
+    sGfxRsp->lightChanged = true;
+    sGfxRsp->lookAtChanged = true;
 }
 
 static void (*gfx_sp_matrix_[])(Mat4) = {
@@ -771,13 +823,13 @@ static void gfx_sp_matrix() {
     u8 params = GFX_C0(0, 3) ^ G_MTX_PUSH;
     void *mtx = GFX_W1P;
     gfx_sp_matrix_[params](mtx);
-    mtx_mul(sGfxRsp->mtxMP, sGfxRsp->mtx, sGfxRsp->mtxP);
+    mtx_mul(sGfxRsp->mtxMP, *sGfxRsp->mtx, sGfxRsp->mtxP);
 }
 
 static void gfx_sp_pop_matrix() {
     u32 count = GFX_W1 >> 6;
     mtx_stack_dec(count);
-    mtx_mul(sGfxRsp->mtxMP, sGfxRsp->mtx, sGfxRsp->mtxP);
+    mtx_mul(sGfxRsp->mtxMP, *sGfxRsp->mtx, sGfxRsp->mtxP);
 }
 
 //
@@ -792,56 +844,27 @@ OMM_INLINE void gfx_sp_vertex_compute_tex_coords(Vertex *v) {
         tu = (dotx * sGfxRsp->texS) >> 9;
         tv = (doty * sGfxRsp->texT) >> 9;
     } else {
-        tu = (v->v->tc[0] * sGfxRsp->texS) >> 16;
-        tv = (v->v->tc[1] * sGfxRsp->texT) >> 16;
+        tu = (v->vtx->v.tc[0] * sGfxRsp->texS) >> 16;
+        tv = (v->vtx->v.tc[1] * sGfxRsp->texT) >> 16;
     }
     v->tc[0] = tex_u_normalize(tu);
     v->tc[1] = tex_v_normalize(tv);
-    v->tti = sGfxRdp->texTile.tti;
+    // v->tti = sGfxRdp->texTile.tti;
 }
 
-static void gfx_sp_vertex() {
-    s32 vtxCount = GFX_C0(12, 8);
-    s32 vtxDest = GFX_C0(1, 7) - vtxCount;
-    const Vtx *vtx = GFX_W1P;
-    Vertex *d = &sGfxRsp->vtx[vtxDest];
-
-    // If the lights changed, re-compute light coeffs
-    if (sGfxRsp->lightsChanged && (sGfxRsp->geometryMode & G_LIGHTING)) {
-        Vec3f lightDir = { sGfxRsp->light.dir[0] / 127.f, sGfxRsp->light.dir[1] / 127.f, sGfxRsp->light.dir[2] / 127.f };
-        vec3f_normalize(vec3f_mult_mtx(sGfxRsp->lightCoeffs, lightDir, (void *) sGfxRsp->mtx));
-        vec3f_normalize(vec3f_mult_mtx(sGfxRsp->lookAtXCoeffs, gVec3fX, (void *) sGfxRsp->mtx));
-        vec3f_normalize(vec3f_mult_mtx(sGfxRsp->lookAtYCoeffs, gVec3fY, (void *) sGfxRsp->mtx));
-        sGfxRsp->lightsChanged = false;
-    }
-
-    // Load current matrix into XMM registers
-    __m128 m0 = _mm_loadu_ps(sGfxRsp->mtxMP[0]);
-    __m128 m1 = _mm_loadu_ps(sGfxRsp->mtxMP[1]);
-    __m128 m2 = _mm_loadu_ps(sGfxRsp->mtxMP[2]);
-    __m128 m3 = _mm_loadu_ps(sGfxRsp->mtxMP[3]);
-
-    // Transform vertices
-    for (s32 i = vtxCount; i; --i, vtx++, d++) {
-        const Vtx_t *v = &vtx->v;
-        d->v = v;
-
-        // Load current vertex into XMM registers and transform
-        __m128 v0 = _mm_set1_ps(v->ob[0]);
-        __m128 v1 = _mm_set1_ps(v->ob[1]);
-        __m128 v2 = _mm_set1_ps(v->ob[2]);
-        __m128 v3 = _mm_set1_ps(1.f);
-        __m128 d3 = _mm_add_ps(
-            _mm_add_ps(_mm_mul_ps(m0, v0), _mm_mul_ps(m1, v1)),
-            _mm_add_ps(_mm_mul_ps(m2, v2), _mm_mul_ps(m3, v3))
-        );
-        _mm_storeu_ps(d->p, d3);
-        d->p[0] = gfx_adjust_x_for_aspect_ratio(d->p[0]);
+static void gfx_sp_vertex_compute_tex_coords_and_colors(Vertex *v) {
+    if (OMM_UNLIKELY(!v->done)) {
+        gfx_update_light_coeffs();
 
         // Vertex normal
-        d->n[0] = vtx->n.n[0];
-        d->n[1] = vtx->n.n[1];
-        d->n[2] = vtx->n.n[2];
+        v->n[0] = (f32) v->vtx->n.n[0];
+        v->n[1] = (f32) v->vtx->n.n[1];
+        v->n[2] = (f32) v->vtx->n.n[2];
+
+        // Texture coords
+        if (sGfxRsp->texOn) {
+            gfx_sp_vertex_compute_tex_coords(v);
+        }
 
         // Colors
         if (sGfxRsp->geometryMode & G_LIGHTING) {
@@ -853,24 +876,62 @@ static void gfx_sp_vertex() {
             s32 ba = sGfxRsp->lightAmb.col[2];
 
             // Performing integer operations makes things faster
-            s32 intensity = clamp_s(vec3f_dot(d->n, sGfxRsp->lightCoeffs), 0, 128);
+            s32 intensity = clamp_s(vec3f_dot(v->n, sGfxRsp->lightCoeffs), 0, 128);
             s32 r = (ra * (128 - intensity) + ((rl * intensity * 5) >> 2)) >> 7;
             s32 g = (ga * (128 - intensity) + ((gl * intensity * 5) >> 2)) >> 7;
             s32 b = (ba * (128 - intensity) + ((bl * intensity * 5) >> 2)) >> 7;
-            d->color[0] = clamp_s(r, 0, 256) * INV256;
-            d->color[1] = clamp_s(g, 0, 256) * INV256;
-            d->color[2] = clamp_s(b, 0, 256) * INV256;
+            v->color[0] = clamp_s(r, 0, 256) * INV256;
+            v->color[1] = clamp_s(g, 0, 256) * INV256;
+            v->color[2] = clamp_s(b, 0, 256) * INV256;
         } else {
-            d->color[0] = v->cn[0] * INV256;
-            d->color[1] = v->cn[1] * INV256;
-            d->color[2] = v->cn[2] * INV256;
+            v->color[0] = v->vtx->v.cn[0] * INV256;
+            v->color[1] = v->vtx->v.cn[1] * INV256;
+            v->color[2] = v->vtx->v.cn[2] * INV256;
         }
 
-        // Texture coords
-        if (sGfxRsp->texOn) {
-            gfx_sp_vertex_compute_tex_coords(d);
+        // Fog/Alpha
+        if ((sGfxRsp->geometryMode & G_FOG) && !GFX_NO_FOG) {
+            f32 winv = 1.f / max_f(v->p[3], 0.001f);
+            f32 fogz = clamp_f(v->p[2] * winv * sGfxRsp->fogMul + sGfxRsp->fogOff, 0, 256);
+            v->color[3] = fogz * INV256;
+        } else {
+            v->color[3] = v->vtx->v.cn[3] * INV256;
         }
-        
+
+        // Vertex computation is done
+        v->done = true;
+    }
+}
+
+static void gfx_sp_vertex_load(bool tc) {
+    s32 vtxCount = GFX_C0(12, 8);
+    s32 vtxDest = GFX_C0(1, 7) - vtxCount;
+    const Vtx *vtx = GFX_W1P;
+    Vertex *d = &sGfxRsp->vtx[vtxDest];
+
+    // Load current matrix into XMM registers
+    __m128 m0 = _mm_loadu_ps(sGfxRsp->mtxMP[0]);
+    __m128 m1 = _mm_loadu_ps(sGfxRsp->mtxMP[1]);
+    __m128 m2 = _mm_loadu_ps(sGfxRsp->mtxMP[2]);
+    __m128 m3 = _mm_loadu_ps(sGfxRsp->mtxMP[3]);
+
+    // Transform vertices
+    for (s32 i = vtxCount; i; --i, vtx++, d++) {
+        d->vtx = vtx;
+        d->done = false;
+
+        // Load current vertex into XMM registers and transform
+        __m128 v0 = _mm_set1_ps(vtx->v.ob[0]);
+        __m128 v1 = _mm_set1_ps(vtx->v.ob[1]);
+        __m128 v2 = _mm_set1_ps(vtx->v.ob[2]);
+        __m128 v3 = _mm_set1_ps(1.f);
+        __m128 d3 = _mm_add_ps(
+            _mm_add_ps(_mm_mul_ps(m0, v0), _mm_mul_ps(m1, v1)),
+            _mm_add_ps(_mm_mul_ps(m2, v2), _mm_mul_ps(m3, v3))
+        );
+        _mm_storeu_ps(d->p, d3);
+        d->p[0] = gfx_adjust_x_for_aspect_ratio(d->p[0]);
+
         // Trivial clip rejection
         d->rej = (
             ((d->p[0] < -d->p[3]) << 0) |
@@ -880,19 +941,25 @@ static void gfx_sp_vertex() {
             ((d->p[2] < -d->p[3]) << 4) |
             ((d->p[2] > +d->p[3]) << 5)
         );
-        
-        // Fog/Alpha
-        if ((sGfxRsp->geometryMode & G_FOG) && !GFX_NO_FOG) {
-            f32 winv = 1.f / max_f(d->p[3], 0.001f);
-            f32 fogz = clamp_f(d->p[2] * winv * sGfxRsp->fogMul + sGfxRsp->fogOff, 0, 256);
-            d->color[3] = fogz * INV256;
-        } else {
-            d->color[3] = v->cn[3] * INV256;
+
+        // Tex coords and colors
+        if (tc) {
+            gfx_sp_vertex_compute_tex_coords_and_colors(d);
         }
     }
 
-    // Update shader program now
+#if OMM_GFX_API_DX
+    // Update shader program
     gfx_update_shader();
+#endif
+}
+
+static void gfx_sp_vertex() {
+    gfx_sp_vertex_load(OMM_GFX_API_DX);
+}
+
+static void gfx_sp_vertex_tc() {
+    gfx_sp_vertex_load(true);
 }
 
 //
@@ -923,11 +990,19 @@ static void gfx_sp_tri(u8 v1i, u8 v2i, u8 v3i) {
             cross = -cross;
         }
 
+        // Front culling, remove triangles that are facing the camera
+        // Back culling, remove triangles that point to the focus
         if (((sGfxRsp->geometryMode & G_CULL_FRONT) && cross <= 0) ||
             ((sGfxRsp->geometryMode & G_CULL_BACK ) && cross >= 0)) {
             return;
         }
     }
+
+    // Finish computing lights and vertices
+    gfx_update_light_coeffs();
+    gfx_sp_vertex_compute_tex_coords_and_colors(v1);
+    gfx_sp_vertex_compute_tex_coords_and_colors(v2);
+    gfx_sp_vertex_compute_tex_coords_and_colors(v3);
 
     // Textures
     bool useTexture = *(sGfxShaderProgram->usedTextures);
@@ -980,16 +1055,16 @@ static void gfx_sp_tri(u8 v1i, u8 v2i, u8 v3i) {
 
         // x, y, z, w
         vec4f_copy(buffer, va[i]->p);
-#if OMM_RAPI_D3D
+#if OMM_GFX_API_DX
         buffer[2] = (buffer[2] + buffer[3]) / 2.f;
 #endif
         buffer += 4;
         
         // Texture coords
         if (useTexture) {
-            if (OMM_UNLIKELY(va[i]->tti != sGfxRdp->texTile.tti)) {
-                gfx_sp_vertex_compute_tex_coords(va[i]);
-            }
+            // if (OMM_UNLIKELY(va[i]->tti != sGfxRdp->texTile.tti)) {
+            //     gfx_sp_vertex_compute_tex_coords(va[i]);
+            // }
             vec2f_copy(buffer, va[i]->tc);
             buffer += 2;
         }
@@ -1019,12 +1094,12 @@ static void gfx_sp_tri(u8 v1i, u8 v2i, u8 v3i) {
 }
 
 static void gfx_sp_tri1() {
-    gfx_sp_tri(GFX_C0(16, 8) / 2, GFX_C0(8, 8) / 2, GFX_C0(0, 8) / 2);
+    gfx_sp_tri(GFX_C0(16, 8) >> 1, GFX_C0(8, 8) >> 1, GFX_C0(0, 8) >> 1);
 }
 
 static void gfx_sp_tri2() {
-    gfx_sp_tri(GFX_C0(16, 8) / 2, GFX_C0(8, 8) / 2, GFX_C0(0, 8) / 2);
-    gfx_sp_tri(GFX_C1(16, 8) / 2, GFX_C1(8, 8) / 2, GFX_C1(0, 8) / 2);
+    gfx_sp_tri(GFX_C0(16, 8) >> 1, GFX_C0(8, 8) >> 1, GFX_C0(0, 8) >> 1);
+    gfx_sp_tri(GFX_C1(16, 8) >> 1, GFX_C1(8, 8) >> 1, GFX_C1(0, 8) >> 1);
 }
 
 //
@@ -1064,19 +1139,20 @@ static void gfx_sp_movemem() {
 
         case G_MV_LIGHT: {
             if (GFX_C0(8, 8) == 6) {
-                omm_copy(&sGfxRsp->light, data, sizeof(Light_t));
+                mem_cpy(&sGfxRsp->light, data, sizeof(Light_t));
             } else {
-                omm_copy(&sGfxRsp->lightAmb, data, sizeof(Light_t));
+                mem_cpy(&sGfxRsp->lightAmb, data, sizeof(Light_t));
             }
 #if LEVEL_PALETTES
             // Why isn't SA using white lights when everything else in the game does?...
             static const Lights1 sa_lights = gdSPDefLights1(0x00, 0x7f, 0x99, 0x00, 0xd4, 0xff, 0x28, 0x28, 0x28);
             static const Lights1 sa_lights_frozen = gdSPDefLights1(0x99, 0x99, 0x99, 0xff, 0xff, 0xff, 0x28, 0x28, 0x28);
             if (omm_world_is_frozen()) {
-                if (omm_same(data, &sa_lights.l, sizeof(Light_t))) omm_copy(&sGfxRsp->light, &sa_lights_frozen.l, sizeof(Light_t));
-                if (omm_same(data, &sa_lights.a, sizeof(Ambient_t))) omm_copy(&sGfxRsp->lightAmb, &sa_lights_frozen.a, sizeof(Light_t));
+                if (mem_eq(data, &sa_lights.l, sizeof(Light_t))) mem_cpy(&sGfxRsp->light, &sa_lights_frozen.l, sizeof(Light_t));
+                if (mem_eq(data, &sa_lights.a, sizeof(Ambient_t))) mem_cpy(&sGfxRsp->lightAmb, &sa_lights_frozen.a, sizeof(Light_t));
             }
 #endif
+            sGfxRsp->lightChanged = true;
             break;
         }
     }
@@ -1256,10 +1332,10 @@ static void gfx_dp_draw_rectangle(s32 ulx, s32 uly, s32 lrx, s32 lry) {
     Vertex* ll = &sGfxRsp->vtx[GFX_MAX_VERTS + 1];
     Vertex* lr = &sGfxRsp->vtx[GFX_MAX_VERTS + 2];
     Vertex* ur = &sGfxRsp->vtx[GFX_MAX_VERTS + 3];
-    ul->p[0] = ulxf; ul->p[1] = ulyf; ul->p[2] = -1.f; ul->p[3] = 1.f;
-    ll->p[0] = ulxf; ll->p[1] = lryf; ll->p[2] = -1.f; ll->p[3] = 1.f;
-    lr->p[0] = lrxf; lr->p[1] = lryf; lr->p[2] = -1.f; lr->p[3] = 1.f;
-    ur->p[0] = lrxf; ur->p[1] = ulyf; ur->p[2] = -1.f; ur->p[3] = 1.f;
+    ul->p[0] = ulxf; ul->p[1] = ulyf; ul->p[2] = -1.f; ul->p[3] = 1.f; ul->done = true;
+    ll->p[0] = ulxf; ll->p[1] = lryf; ll->p[2] = -1.f; ll->p[3] = 1.f; ll->done = true;
+    lr->p[0] = lrxf; lr->p[1] = lryf; lr->p[2] = -1.f; lr->p[3] = 1.f; lr->done = true;
+    ur->p[0] = lrxf; ur->p[1] = ulyf; ur->p[2] = -1.f; ur->p[3] = 1.f; ur->done = true;
     
     // The coordinates for texture rectangle shall bypass the viewport setting
     XYWH lastViewport = sGfxRdp->viewport;
@@ -1270,7 +1346,6 @@ static void gfx_dp_draw_rectangle(s32 ulx, s32 uly, s32 lrx, s32 lry) {
     gfx_geometry_mode_changed(0, 0);
     gfx_other_mode_h_changed((sGfxRdp->otherModeH & ~(3U << G_MDSFT_TEXTFILT)) | G_TF_POINT);
     gfx_viewport_changed(0, 0, gfx_current_dimensions.width, gfx_current_dimensions.height);
-    gfx_update_shader();
     gfx_sp_tri(GFX_MAX_VERTS + 0, GFX_MAX_VERTS + 1, GFX_MAX_VERTS + 3);
     gfx_sp_tri(GFX_MAX_VERTS + 1, GFX_MAX_VERTS + 2, GFX_MAX_VERTS + 3);
 
@@ -1325,7 +1400,7 @@ static void gfx_dp_texture_rectangle() {
     ll->tc[1] = flip ? ultf : lrtf;
     ur->tc[0] = flip ? ulsf : lrsf;
     ur->tc[1] = flip ? lrtf : ultf;
-    ul->tti = lr->tti = ll->tti = ur->tti = sGfxRdp->texTile.tti;
+    // ul->tti = lr->tti = ll->tti = ur->tti = sGfxRdp->texTile.tti;
 
     gfx_dp_draw_rectangle(ulx, uly, lrx, lry);
     gfx_combine_mode_changed(lastCombineMode);
@@ -1384,7 +1459,7 @@ static void gfx_xp_swap_cmd() {
 static GfxCmdFunc sGfxCmdTable[] = {
     gfx_noop,
     gfx_sp_vertex,
-    gfx_noop,
+    gfx_sp_vertex_tc,
     gfx_noop,
     gfx_noop,
     gfx_sp_tri1,
@@ -1471,12 +1546,12 @@ static void gfx_run_dl(Gfx *cmd) {
 static s32 gfx_get_refresh_rate() {
     static s32 sWindowRefreshRate = 0;
     if (!sWindowRefreshRate) {
-#if OMM_WAPI_DXGI
+#if OMM_GFX_API_DX
         DEVMODE mode;
         if (EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &mode)) {
             sWindowRefreshRate = (s32) mode.dmDisplayFrequency;
         }
-#elif OMM_WAPI_SDL
+#elif OMM_GFX_API_GL
         SDL_DisplayMode mode;
         if (SDL_GetCurrentDisplayMode(0, &mode) == 0) {
             sWindowRefreshRate = (s32) mode.refresh_rate;
@@ -1490,24 +1565,24 @@ static s32 gfx_get_refresh_rate() {
 
 static s32 gfx_get_target_frame_rate() {
     switch (gOmmFrameRate) {
-        case OMM_FPS_30:   return GAME_UPDATES_PER_SECOND;
-        case OMM_FPS_60:   return GAME_UPDATES_PER_SECOND * 2;
+        case OMM_FPS_30:   return 30;
+        case OMM_FPS_60:   return 60;
         case OMM_FPS_AUTO: return gfx_get_refresh_rate();
         case OMM_FPS_INF:  return UNLIMITED_FPS;
     }
     ASSERT(0);
-    return GAME_UPDATES_PER_SECOND;
+    return 30;
 }
 
 static s32 gfx_get_num_frames_to_draw() {
-    s32 i = (s32) ((sStartTime - ((s64) sStartTime)) * GAME_UPDATES_PER_SECOND);
-    return ((sTargetFps * (i + 1)) / GAME_UPDATES_PER_SECOND) - ((sTargetFps * i) / GAME_UPDATES_PER_SECOND);
+    s32 i = (s32) ((sStartTime - ((s64) sStartTime)) * gGameUpdatesPerSecond);
+    return (s32) ((sTargetFps * (i + 1)) / gGameUpdatesPerSecond) - (s32) ((sTargetFps * i) / gGameUpdatesPerSecond);
 }
 
 bool gFrameInterpolation = false;
 static void gfx_init_frame_interpolation() {
     if (gOmmFrameRate == OMM_FPS_30 || omm_is_main_menu() || gMenuMode == 0 || gMenuMode == 1) {
-        sTargetFps = GAME_UPDATES_PER_SECOND;
+        sTargetFps = 30;
         sDeltaTime = GAME_UPDATE_DURATION;
         gFrameInterpolation = false;
     } else {
@@ -1545,16 +1620,19 @@ static void gfx_render_interpolated_frames() {
         sGfxWapi->handle_events();
         sGfxWapi->get_dimensions(&gfx_current_dimensions.width, &gfx_current_dimensions.height);
         gfx_current_dimensions.aspect_ratio = (f32) gfx_current_dimensions.width / (f32) gfx_current_dimensions.height;
-        gfx_adjust_for_aspect_ratio = (4.f / 3.f) / gfx_current_dimensions.aspect_ratio;
+        sGfxAdjustForAspectRatio = (4.f / 3.f) / gfx_current_dimensions.aspect_ratio;
+        struct Object *gfxPaletteModifier = obj_get_first_with_behavior(bhvOmmGfxPaletteModifier);
+        sGfxPaletteModifiers = (gfxPaletteModifier ? &gfxPaletteModifier->oVelX : NULL);
 
         // Start frame
         omm_profiler_start(OMM_PRF_FRM);
-        sGfxRsp->mtx = (f32 *) &sGfxRsp->mtxStack[8];
-        sGfxRsp->lightsChanged = true;
+        sGfxRsp->mtx = &sGfxRsp->mtxStack[8];
+        sGfxRsp->lightChanged = true;
+        sGfxRsp->lookAtChanged = true;
         if (sGfxWapi->start_frame()) {
 
             // Patch interpolations
-            sLerpDelta = (f32) ((sCurrTime - tStartTime) * GAME_UPDATES_PER_SECOND);
+            sLerpDelta = (f32) ((sCurrTime - tStartTime) * gGameUpdatesPerSecond);
             gfx_patch_interpolated_frame(sLerpDelta);
             
             // Fill drawing buffer
@@ -1611,16 +1689,17 @@ static void gfx_set_config() {
     configInternalResolutionBool = false;
     configCustomInternalResolution = 1;
     configForce4by3 = false;
+    configDrawDistance = 509;
 #endif
 }
 
-#if OMM_WAPI_DXGI
+#if OMM_GFX_API_DX
 static void gfx_dxgi_handle_events() {
     extern f64 FRAME_INTERVAL_US_DENOMINATOR;
     extern u64 *frame_timestamp;
     static s32 sCurrTargetFps = 0;
     if (sCurrTargetFps != sTargetFps) {
-        FRAME_INTERVAL_US_DENOMINATOR = (3.0 * sTargetFps) / GAME_UPDATES_PER_SECOND;
+        FRAME_INTERVAL_US_DENOMINATOR = (3.0 * sTargetFps) / 30;
         *frame_timestamp = 0;
         sCurrTargetFps = sTargetFps;
     }
@@ -1640,7 +1719,7 @@ void gfx_init(struct GfxWindowManagerAPI *wapi, struct GfxRenderingAPI *rapi, co
     sGfxRapi = rapi;
     sGfxWapi->init(window_title);
     sGfxRapi->init();
-#if OMM_WAPI_DXGI
+#if OMM_GFX_API_DX
     sGfxWapi->handle_events = gfx_dxgi_handle_events;
 #endif
     vec4f_copy(sGfxRdp->envColor, gVec4fOne);
@@ -1666,7 +1745,7 @@ void gfx_init(struct GfxWindowManagerAPI *wapi, struct GfxRenderingAPI *rapi, co
         0x07a00a00, 0x05200200, 0x03200200, 0x09200200,
         0x0920038d, 0x09200045
     };
-    for (s32 i = 0; i != (s32) omm_static_array_length(sPrecompiledShaders); ++i) {
+    for (s32 i = 0; i != (s32) array_length(sPrecompiledShaders); ++i) {
         gfx_lookup_or_create_shader_program(sPrecompiledShaders[i]);
     }
     configPrecacheRes = (gOmmPreloadTextures != 0);
@@ -1701,6 +1780,8 @@ void gfx_shutdown() {
 // Extra
 //
 
+#include "data/omm/mario/omm_shadow_mario.inl"
+#include "data/omm/cappy/omm_cappy_gfx.inl"
 #include "data/omm/peachy/omm_sparkly_bowser_4_gfx.inl"
 #include "data/omm/peachy/omm_peach_tiara_gfx.inl"
 #include "data/omm/level/omm_level_peachy.c"

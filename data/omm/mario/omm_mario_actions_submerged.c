@@ -51,6 +51,46 @@ static s32 omm_act_knockback_water(struct MarioState *m, s32 animID) {
     return OMM_MARIO_ACTION_RESULT_BREAK;
 }
 
+static s32 omm_act_water_shell_swimming(struct MarioState *m) {
+    if (OMM_MOVESET_ODYSSEY) {
+        action_init(0, 0, 0, 0, audio_play_shell_music(););
+        action_condition(m->marioObj->oInteractStatus & INT_STATUS_MARIO_DROP_OBJECT, ACT_WATER_IDLE, 0, RETURN_CANCEL, mario_stop_riding_and_holding(m););
+        action_z_pressed(1, ACT_OMM_WATER_GROUND_POUND, 0, RETURN_CANCEL, mario_stop_riding_and_holding(m););
+        action_b_pressed(1, ACT_WATER_THROW, 0, RETURN_CANCEL, mario_stop_riding_and_holding(m););
+
+        // Step
+        m->forwardVel = approach_f32(m->forwardVel, 60, 4, 1);
+        m->vel[0] = m->forwardVel * coss(m->faceAngle[0]) * sins(m->faceAngle[1]);
+        m->vel[1] = m->forwardVel * sins(m->faceAngle[0]);
+        m->vel[2] = m->forwardVel * coss(m->faceAngle[0]) * coss(m->faceAngle[1]);
+
+        // Pitch
+        s16 targetPitch = (s16) (-250.f * m->controller->stickY);
+        m->faceAngle[0] = targetPitch - approach_s32((s16) (targetPitch - m->faceAngle[0]), 0, 0x200, 0x200);
+
+        // Yaw
+        s16 yawVel = (s16) (0x300 * abs_f(m->controller->stickX / 64.f));
+        m->faceAngle[1] = m->intendedYaw - approach_s32((s16) (m->intendedYaw - m->faceAngle[1]), 0, yawVel, yawVel);
+
+        // Perform step
+        switch (perform_water_step(m)) {
+            case WATER_STEP_HIT_FLOOR: m->faceAngle[0] += 0x100; break;
+            case WATER_STEP_HIT_CEILING: m->faceAngle[0] -= 0x100; break;
+        }
+
+        // Animation and sound
+        m->particleFlags |= ((m->pos[1] >= m->waterLevel - 130) ? PARTICLE_WAVE_TRAIL : (PARTICLE_BUBBLE | (PARTICLE_PLUNGE_BUBBLE * ((gGlobalTimer % 3) == 0))));
+        m->marioBodyState->headAngle[0] = approach_s32(m->marioBodyState->headAngle[0], 0, 0x200, 0x200);
+        obj_anim_play(m->marioObj, MARIO_ANIM_FLUTTERKICK_WITH_OBJ, 2);
+        s32 frame = obj_anim_get_frame(m->marioObj);
+        if (frame == 0 || frame == 12) {
+            obj_play_sound(m->marioObj, SOUND_ACTION_UNKNOWN434);
+        }
+        return OMM_MARIO_ACTION_RESULT_BREAK;
+    }
+    return OMM_MARIO_ACTION_RESULT_CONTINUE;
+}
+
 static s32 omm_act_water_throw(struct MarioState *m) {
     if (m->heldObj) return OMM_MARIO_ACTION_RESULT_CONTINUE;
     return omm_act_submerged_cancels__cappy_dash_pound(m);
@@ -101,7 +141,7 @@ static s32 omm_act_water_dash(struct MarioState *m) {
     m->marioBodyState->headAngle[0] = approach_s32(m->marioBodyState->headAngle[0], 0, 0x200, 0x200);
     m->particleFlags |= (PARTICLE_PLUNGE_BUBBLE | PARTICLE_BUBBLE);
     if ((m->actionTimer++ % 4) == 0) {
-        play_sound(SOUND_ACTION_UNKNOWN434, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_ACTION_UNKNOWN434);
     }
 
     return OMM_MARIO_ACTION_RESULT_CONTINUE;
@@ -116,15 +156,15 @@ static s32 omm_act_water_ground_pound(struct MarioState *m) {
         vec3f_set(m->vel, 0, 0, 0);
         obj_anim_play(m->marioObj, MARIO_ANIM_START_GROUND_POUND, 1.25f);
         if (m->actionTimer == 0) {
-            play_sound(SOUND_ACTION_SPIN, m->marioObj->oCameraToObject);
+            obj_play_sound(m->marioObj, SOUND_ACTION_SPIN);
         }
 
         if (m->actionTimer < 10) {
             m->pos[1] += (20 - 2 * m->actionTimer);
             vec3f_copy(m->marioObj->oGfxPos, m->pos);
         } else if (m->actionTimer >= m->marioObj->oCurrAnim->mLoopEnd + 1) {
-            play_sound(SOUND_MARIO_GROUND_POUND_WAH, m->marioObj->oCameraToObject);
-            play_sound(SOUND_ACTION_UNKNOWN430, m->marioObj->oCameraToObject);
+            obj_play_sound(m->marioObj, SOUND_MARIO_GROUND_POUND_WAH);
+            obj_play_sound(m->marioObj, SOUND_ACTION_UNKNOWN430);
             vec3s_set(m->faceAngle, 0, m->faceAngle[1], 0);
             vec3s_set(m->marioObj->oGfxAngle, 0, m->faceAngle[1], 0);
             m->vel[1] = -105.f;
@@ -226,6 +266,9 @@ static bool omm_check_common_submerged_cancels(struct MarioState *m) {
     // Water surface
     if (m->pos[1] > m->waterLevel - 80) {
         if (m->floorHeight >= m->waterLevel - 80) {
+            if (OMM_MOVESET_ODYSSEY && m->action == ACT_WATER_SHELL_SWIMMING) {
+                audio_stop_shell_music();
+            }
             transition_submerged_to_walking(m);
             return true;
         }
@@ -235,6 +278,12 @@ static bool omm_check_common_submerged_cancels(struct MarioState *m) {
     // Dead
     if (omm_mario_is_dead(m) && !(m->action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE))) {
         drop_and_set_mario_action(m, ACT_DROWNING, 0);
+        return true;
+    }
+
+    // Entering water with an underwater koopa shell
+    if (OMM_MOVESET_ODYSSEY && m->heldObj && m->heldObj->behavior == bhvKoopaShellUnderwater && m->prevAction == ACT_WATER_PLUNGE) {
+        omm_mario_set_action(m, ACT_WATER_SHELL_SWIMMING, 0, 0);
         return true;
     }
 
@@ -275,7 +324,7 @@ s32 omm_mario_execute_submerged_action(struct MarioState *m) {
         case ACT_HOLD_BREASTSTROKE:                 return OMM_MARIO_ACTION_RESULT_CONTINUE;
         case ACT_HOLD_SWIMMING_END:                 return OMM_MARIO_ACTION_RESULT_CONTINUE;
         case ACT_HOLD_FLUTTER_KICK:                 return OMM_MARIO_ACTION_RESULT_CONTINUE;
-        case ACT_WATER_SHELL_SWIMMING:              return OMM_MARIO_ACTION_RESULT_CONTINUE;
+        case ACT_WATER_SHELL_SWIMMING:              return omm_act_water_shell_swimming(m);
         case ACT_WATER_THROW:                       return omm_act_water_throw(m);
         case ACT_WATER_PUNCH:                       return omm_act_submerged_cancels__cappy_dash_pound(m);
         case ACT_WATER_PLUNGE:                      return OMM_MARIO_ACTION_RESULT_CONTINUE;

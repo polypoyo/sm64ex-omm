@@ -376,9 +376,9 @@ static const Gfx omm_shockwave_fire_gfx[] = {
 //
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_shockwave_fire_gfx)];
-    Gfx tri[omm_static_array_length(omm_shockwave_fire_wave_triangles) + omm_static_array_length(omm_shockwave_fire_fire_triangles)];
-    Vtx vtx[omm_static_array_length(omm_shockwave_fire_vertices)];
+    Gfx gfx[array_length(omm_shockwave_fire_gfx)];
+    Gfx tri[array_length(omm_shockwave_fire_wave_triangles) + array_length(omm_shockwave_fire_fire_triangles)];
+    Vtx vtx[array_length(omm_shockwave_fire_vertices)];
 } OmmShockwaveFireGeoData;
 
 //
@@ -401,7 +401,7 @@ const GeoLayout omm_geo_shockwave_fire[] = {
 static bool is_mario_in_range(struct Object *o, struct MarioState *m) {
 
     // Lateral distance
-    f32 marioRadius = (m->action == ACT_OMM_POSSESSION ? omm_capture_get_wall_hitbox_radius(gOmmCapture) : (50.f * m->marioObj->oScaleX));
+    f32 marioRadius = (omm_mario_is_capture(m) ? omm_capture_get_wall_hitbox_radius(gOmmCapture) : (50.f * m->marioObj->oScaleX));
     f32 waveRadius = (o->oShockwaveFireRadius * o->oScaleX);
     f32 waveWidth = (o->oShockwaveFireWidth / 2.5f) + marioRadius;
     f32 distMin = waveRadius - waveWidth;
@@ -510,7 +510,7 @@ static void bhv_omm_shockwave_fire_update() {
 
     // Unused vtx
     for (s32 i = n + 1; i <= 256; ++i, vfire += 2) {
-        omm_move(vfire, vfire - 1, sizeof(Vtx));
+        mem_mov(vfire, vfire - 1, sizeof(Vtx));
     }
 
     // Hitbox
@@ -552,33 +552,33 @@ struct Object *omm_spawn_shockwave_fire(struct Object *o, f32 radius, f32 width,
 
     // Init geo data
     OmmShockwaveFireGeoData *data = omm_memory_new(gOmmMemoryPoolGeoData, sizeof(OmmShockwaveFireGeoData), fire);
-    omm_copy(data->tri, omm_shockwave_fire_wave_triangles, sizeof(omm_shockwave_fire_wave_triangles));
-    omm_copy(data->tri + omm_static_array_length(omm_shockwave_fire_wave_triangles), omm_shockwave_fire_fire_triangles, sizeof(omm_shockwave_fire_fire_triangles));
-    omm_copy(data->gfx, omm_shockwave_fire_gfx, sizeof(omm_shockwave_fire_gfx));
+    mem_cpy(data->tri, omm_shockwave_fire_wave_triangles, sizeof(omm_shockwave_fire_wave_triangles));
+    mem_cpy(data->tri + array_length(omm_shockwave_fire_wave_triangles), omm_shockwave_fire_fire_triangles, sizeof(omm_shockwave_fire_fire_triangles));
+    mem_cpy(data->gfx, omm_shockwave_fire_gfx, sizeof(omm_shockwave_fire_gfx));
 
     // Update vertex pointers
-    for (s32 i = 0, n = omm_static_array_length(data->tri); i != n; ++i) {
+    for (s32 i = 0, n = array_length(data->tri); i != n; ++i) {
         if (_SHIFTR(data->tri[i].words.w0, 24, 8) == G_VTX) {
-            omm_relocate(data->tri[i].words.w1, data->tri[i].words.w1, omm_shockwave_fire_vertices, data->vtx, uintptr_t);
+            mem_rel(data->tri[i].words.w1, data->tri[i].words.w1, omm_shockwave_fire_vertices, data->vtx, uintptr_t);
         }
     }
 
     // Update triangle pointers
-    for (s32 i = 0, j = 0, n = omm_static_array_length(data->gfx); i != n; ++i) {
+    for (s32 i = 0, j = 0, n = array_length(data->gfx); i != n; ++i) {
         if (_SHIFTR(data->gfx[i].words.w0, 24, 8) == G_DL) {
             switch (j++) {
-                case 0: omm_relocate(data->gfx[i].words.w1, data->gfx[i].words.w1, omm_shockwave_fire_wave_triangles, data->tri, uintptr_t); break;
-                case 1: omm_relocate(data->gfx[i].words.w1, data->gfx[i].words.w1, omm_shockwave_fire_fire_triangles, (data->tri + omm_static_array_length(omm_shockwave_fire_wave_triangles)), uintptr_t); break;
+                case 0: mem_rel(data->gfx[i].words.w1, data->gfx[i].words.w1, omm_shockwave_fire_wave_triangles, data->tri, uintptr_t); break;
+                case 1: mem_rel(data->gfx[i].words.w1, data->gfx[i].words.w1, omm_shockwave_fire_fire_triangles, (data->tri + array_length(omm_shockwave_fire_wave_triangles)), uintptr_t); break;
             }
         }
     }
 
     // Update texture pointers
-    for (s32 i = 0, j = 0, n = omm_static_array_length(data->gfx); i != n; ++i) {
+    for (s32 i = 0, j = 0, n = array_length(data->gfx); i != n; ++i) {
         if (_SHIFTR(data->gfx[i].words.w0, 24, 8) == G_SETTIMG) {
             switch (j++) {
-                case 0: omm_relocate(data->gfx[i].words.w1, data->gfx[i].words.w1, OMM_TEXTURE_BOWSER_FIRE_RED_1, textureWave, uintptr_t); break;
-                case 1: omm_relocate(data->gfx[i].words.w1, data->gfx[i].words.w1, OMM_TEXTURE_BOWSER_FIRE_RED_2, textureFire, uintptr_t); break;
+                case 0: mem_rel(data->gfx[i].words.w1, data->gfx[i].words.w1, OMM_TEXTURE_BOWSER_FIRE_RED_1, textureWave, uintptr_t); break;
+                case 1: mem_rel(data->gfx[i].words.w1, data->gfx[i].words.w1, OMM_TEXTURE_BOWSER_FIRE_RED_2, textureFire, uintptr_t); break;
             }
         }
     }

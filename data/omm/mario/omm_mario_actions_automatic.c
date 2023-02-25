@@ -118,8 +118,59 @@ static s32 omm_act_ledge_climb_slow(struct MarioState *m) {
 }
 
 static s32 omm_act_in_cannon(struct MarioState *m) {
-    if (OMM_MOVESET_ODYSSEY && m->actionState == 2 && (m->controller->buttonPressed & B_BUTTON)) {
-        m->input |= INPUT_A_PRESSED;
+    if (OMM_MOVESET_ODYSSEY) {
+        switch (m->actionState) {
+
+            // Entering cannon
+            case 0: {
+                m->marioObj->oNodeFlags &= ~GRAPH_RENDER_ACTIVE;
+                m->usedObj->oInteractStatus = INT_STATUS_INTERACTED;
+                m->statusForCamera->cameraEvent = CAM_EVENT_CANNON;
+                m->statusForCamera->usedObj = m->usedObj;
+                vec3f_zero(m->vel);
+                m->pos[0] = m->usedObj->oPosX;
+                m->pos[1] = m->usedObj->oPosY + 350;
+                m->pos[2] = m->usedObj->oPosZ;
+                m->forwardVel = 0;
+                m->actionState = 1;
+            } break;
+
+            // Cannon cutscene
+            case 1: {
+                if (m->usedObj->oAction == 1) {
+                    m->faceAngle[0] = m->usedObj->oMoveAnglePitch;
+                    m->faceAngle[1] = m->usedObj->oMoveAngleYaw;
+                    m->actionState = 2;
+                }
+            } break;
+
+            // Aiming and fire
+            case 2: {
+                m->faceAngle[0] = clamp_s(m->faceAngle[0] - CAMERA_Y_FIRST_PERSON_VIEW * ((m->controller->stickY * 10) - (BETTER_CAM_MOUSE_CAM * gMouseY * 16)), 0x0000, 0x3C00);
+                m->faceAngle[1] =         m->faceAngle[1] + CAMERA_X_FIRST_PERSON_VIEW * ((m->controller->stickX * 10) - (BETTER_CAM_MOUSE_CAM * gMouseX * 16));
+                if (m->controller->buttonPressed & (A_BUTTON | B_BUTTON)) {
+                    mario_set_forward_vel(m, 100 * coss(m->faceAngle[0]));
+                    m->vel[1]  = 100 * sins(m->faceAngle[0]);
+                    m->pos[0] += 120 * coss(m->faceAngle[0]) * sins(m->faceAngle[1]);
+                    m->pos[1] += 120 * sins(m->faceAngle[0]);
+                    m->pos[2] += 120 * coss(m->faceAngle[0]) * coss(m->faceAngle[1]);
+                    m->marioObj->oNodeFlags |= GRAPH_RENDER_ACTIVE;
+                    obj_play_sound(m->marioObj, SOUND_ACTION_FLYING_FAST);
+                    obj_play_sound(m->marioObj, SOUND_OBJ_POUNDING_CANNON);
+                    omm_mario_set_action(m, ACT_SHOT_FROM_CANNON, 0, A_BUTTON | B_BUTTON);
+                    set_camera_mode(m->area->camera, CAMERA_MODE_BEHIND_MARIO, 1);
+                    m->usedObj->oAction = 2;
+                    return OMM_MARIO_ACTION_RESULT_BREAK;
+                }
+                if (m->controller->stickX || m->controller->stickY) {
+                    obj_play_sound(m->marioObj, SOUND_MOVING_AIM_CANNON);
+                }
+            } break;
+        }
+        vec3f_copy(m->marioObj->oGfxPos, m->pos);
+        vec3s_set(m->marioObj->oGfxAngle, 0, m->faceAngle[1], 0);
+        obj_anim_play(m->marioObj, MARIO_ANIM_DIVE, 1);
+        return OMM_MARIO_ACTION_RESULT_BREAK;
     }
     return OMM_MARIO_ACTION_RESULT_CONTINUE;
 }
@@ -204,7 +255,7 @@ static s32 omm_act_hold_bowser(struct MarioState *m) {
     } else {
     
         // Spin accel
-        if (m->intendedMag > 20.0f) {
+        if (m->intendedMag > 20.f) {
             if (m->actionArg == 0) {
                 m->actionArg = 1;
                 m->twirlYaw = m->intendedYaw;
@@ -224,7 +275,7 @@ static s32 omm_act_hold_bowser(struct MarioState *m) {
     m->faceAngle[1] += m->angleVel[1];
     if ((m->angleVel[1] < 0 && prevAngle < m->faceAngle[1]) ||
         (m->angleVel[1] > 0 && prevAngle > m->faceAngle[1])) {
-        play_sound(SOUND_OBJ_BOWSER_SPINNING, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_OBJ_BOWSER_SPINNING);
     }
     stationary_ground_step(m);
 
@@ -266,7 +317,7 @@ s32 omm_mario_execute_automatic_action(struct MarioState *m) {
     gOmmMario->cappy.bounced = false;
     gOmmMario->state.airCombo = 0;
     gOmmMario->midairSpin.counter = 0;
-    m->quicksandDepth = 0.0f;
+    m->quicksandDepth = 0;
 
     // Cancels
     if (omm_check_common_automatic_cancels(m)) {

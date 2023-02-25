@@ -215,13 +215,17 @@ void pobj_decelerate(struct Object *o, f32 decel, f32 decelIce) {
 
 void pobj_apply_gravity(struct Object *o, f32 mult) {
     o->oVelY = max_f(
-        o->oVelY + (OMM_CHEAT_MOON_JUMP && (gMarioState->controller->buttonDown & L_TRIG) ? (25.f - o->oVelY) : (omm_capture_get_gravity(o) * mult * (o->oVelY <= 0.f ? POBJ_PHYSICS_GRAVITY : 1.f))),
+        o->oVelY + (OMM_CHEAT_MOON_JUMP && (gMarioState->controller->buttonDown & L_TRIG) ? (30.f - o->oVelY) : (omm_capture_get_gravity(o) * mult * (o->oVelY <= 0.f ? POBJ_PHYSICS_GRAVITY : 1.f))),
         omm_capture_get_terminal_velocity(o) * mult * POBJ_PHYSICS_GRAVITY
     );
 }
 
 void pobj_handle_special_floors(struct Object *o) {
     o->oFloorType = OBJ_FLOOR_TYPE_NONE;
+    f32 waterLevel = find_water_level(o->oPosX, o->oPosZ);
+    bool isOnGround = obj_is_on_ground(o);
+    bool isUnderwater = obj_is_underwater(o, waterLevel);
+    bool wasUnderwater = obj_is_underwater(o, waterLevel + (o->oPosY - o->oPrevPosY));
 
     // Out of bounds
     if (!o->oFloor) {
@@ -238,14 +242,12 @@ void pobj_handle_special_floors(struct Object *o) {
     }
 
     // On ground
-    bool isOnGround = obj_is_on_ground(o);
     if (isOnGround) {
         o->oFloorType = OBJ_FLOOR_TYPE_GROUND;
     }
 
     // Above water
-    f32 waterLevel = find_water_level(o->oPosX, o->oPosZ);
-    if (!obj_is_underwater(o, waterLevel) && !POBJ_IS_ABOVE_WATER) {
+    if (!isUnderwater && !POBJ_IS_ABOVE_WATER) {
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 6);
         obj_destroy(o);
         return;
@@ -257,42 +259,49 @@ void pobj_handle_special_floors(struct Object *o) {
         o->oVelY = max_f(o->oVelY, 0.f);
         o->oFloorHeight = waterLevel;
         o->oFloorType = OBJ_FLOOR_TYPE_WATER;
+        isUnderwater = wasUnderwater = false;
     }
 
     // Underwater
-    if (obj_is_underwater(o, waterLevel) && !POBJ_IS_UNDER_WATER) {
+    else if (isUnderwater && !POBJ_IS_UNDER_WATER) {
         o->oPosY = waterLevel + max_f(((o->hitboxHeight / 2) - o->hitboxDownOffset), 60.f);
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 6);
         obj_destroy(o);
         return;
     }
 
+    // Transition above/under water
+    if (isUnderwater != wasUnderwater) {
+        obj_spawn_particle_preset(o, PARTICLE_WATER_SPLASH, false);
+        obj_play_sound(o, SOUND_ACTION_UNKNOWN430);
+    }
+
     // Special floors
     switch (o->oFloor->type) {
         case SURFACE_DEATH_PLANE:
-        case SURFACE_VERTICAL_WIND:
-            if (o->oDistToFloor <= 2048.f) {
+        case SURFACE_VERTICAL_WIND: {
+            if (o->oDistToFloor < 2048.f) {
                 omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 6);
                 obj_destroy(o);
             }
-            break;
+        } break;
 
         case SURFACE_INSTANT_QUICKSAND:
-        case SURFACE_INSTANT_MOVING_QUICKSAND:
-            if (o->oDistToFloor <= 10.f && !POBJ_IS_IMMUNE_TO_SAND) {
+        case SURFACE_INSTANT_MOVING_QUICKSAND: {
+            if (o->oDistToFloor < 10.f && !POBJ_IS_IMMUNE_TO_SAND) {
                 omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 6);
                 obj_destroy(o);
             }
-            break;
+        } break;
 
-        case SURFACE_BURNING:
-            if (o->oDistToFloor <= 10.f && !OMM_CHEAT_WALK_ON_LAVA && !POBJ_IS_IMMUNE_TO_LAVA) {
+        case SURFACE_BURNING: {
+            if (o->oDistToFloor < 10.f && !OMM_CHEAT_WALK_ON_LAVA && !POBJ_IS_IMMUNE_TO_LAVA) {
                 omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 6);
                 obj_destroy(o);
             } else if (isOnGround) {
                 o->oFloorType = OBJ_FLOOR_TYPE_LAVA;
             }
-            break;
+        } break;
     }
 }
 
@@ -397,7 +406,7 @@ static bool pobj_interact_bounce_top() {
             sObj->oInteractStatus = INT_STATUS_HIT_FROM_ABOVE;
             sPObj->oPosY = sObj->oPosY + sObj->hitboxHeight - sObj->hitboxDownOffset + 20.f;
             sPObj->oVelY = omm_capture_get_jump_velocity(sPObj) * POBJ_PHYSICS_JUMP * 1.2f;
-            play_sound(SOUND_ACTION_BOUNCE_OFF_OBJECT, sPObj->oCameraToObject);
+            obj_play_sound(sPObj, SOUND_ACTION_BOUNCE_OFF_OBJECT);
             return true;
         }
     }
@@ -425,7 +434,7 @@ static bool pobj_interact_hit_from_below() {
         if (obj_is_object2_hit_from_below(sPObj, sObj)) {
             sObj->oInteractStatus = INT_STATUS_HIT_FROM_BELOW;
             sPObj->oVelY = 0;
-            play_sound(SOUND_ACTION_BOUNCE_OFF_OBJECT, sPObj->oCameraToObject);
+            obj_play_sound(sPObj, SOUND_ACTION_BOUNCE_OFF_OBJECT);
             set_camera_shake_from_hit(SHAKE_HIT_FROM_BELOW);
             return true;
         }
@@ -452,7 +461,7 @@ static bool pobj_mario_burn_and_unpossess() {
         sObj->oInteractStatus = INT_STATUS_INTERACTED;
         gMarioState->interactObj = sObj;
         gMarioState->marioObj->oMarioBurnTimer = 0;
-        play_sound(SOUND_MARIO_ON_FIRE, gMarioState->marioObj->oCameraToObject);
+        obj_play_sound(gMarioState->marioObj, SOUND_MARIO_ON_FIRE);
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_BURNT, false, 15);
         return true;
     }
@@ -482,7 +491,7 @@ static bool pobj_interact_bully() {
             sObj->oMoveAngleYaw = angle;
             sObj->oForwardVel = knockback;
             sObj->oInteractStatus = INT_STATUS_ATTACKED;
-            play_sound(SOUND_OBJ_BULLY_METAL, sObj->oCameraToObject);
+            obj_play_sound(sObj, SOUND_OBJ_BULLY_METAL);
 
         } else {
 
@@ -570,7 +579,7 @@ static bool pobj_interact_grabbable() {
             sPObj->oFaceAngleYaw = sObj->oMoveAngleYaw;
             gMarioState->interactObj = sObj;
             gMarioState->usedObj = sObj;
-            play_sound(SOUND_MARIO_OOOF, gMarioState->marioObj->oCameraToObject);
+            obj_play_sound(gMarioState->marioObj, SOUND_MARIO_OOOF);
             omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_GRABBED, false, 15);
             return true;
         }
@@ -622,7 +631,7 @@ static bool pobj_interact_strong_wind() {
         gMarioState->usedObj = sObj;
         gMarioState->unkC4 = 0.4f;
         sPObj->oFaceAngleYaw = sObj->oMoveAngleYaw + 0x8000;
-        play_sound(SOUND_MARIO_WAAAOOOW, gMarioState->marioObj->oCameraToObject);
+        obj_play_sound(gMarioState->marioObj, SOUND_MARIO_WAAAOOOW);
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_BLOWN, false, 15);
         return true;
     }
@@ -645,7 +654,7 @@ static bool pobj_interact_tornado() {
         gMarioState->usedObj = sObj;
         gMarioState->marioObj->oMarioTornadoYawVel = 0x400;
         gMarioState->marioObj->oMarioTornadoPosY = sPObj->oPosY - sObj->oPosY;
-        play_sound(SOUND_MARIO_WAAAOOOW, gMarioState->marioObj->oCameraToObject);
+        obj_play_sound(gMarioState->marioObj, SOUND_MARIO_WAAAOOOW);
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_TORNADO, false, 15);
         return true;
     }

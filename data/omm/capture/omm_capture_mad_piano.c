@@ -86,11 +86,19 @@ s32 omm_cappy_mad_piano_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
+    omm_obj_process_interactions(o, POBJ_INT_PRESET_MAD_PIANO);
+
+    // Break doors
+    if (o->oWall && o->oWall->object && o->oWall->object->behavior == bhvDoor) {
+        obj_spawn_white_puff(o->oWall->object, SOUND_GENERAL_BREAK_BOX);
+        obj_spawn_triangle_break_particles(o->oWall->object, OBJ_SPAWN_TRI_BREAK_PRESET_TRIANGLES_30);
+        obj_mark_for_deletion(o->oWall->object);
+    }
 
     // Gfx
     if (!obj_is_on_ground(o)) {
@@ -110,5 +118,5 @@ s32 omm_cappy_mad_piano_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.5f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

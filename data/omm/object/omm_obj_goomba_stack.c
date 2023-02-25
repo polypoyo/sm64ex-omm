@@ -12,8 +12,7 @@ static void bhv_omm_goomba_stack_update() {
 
     // If the parent is dead, reset Goomba's state
     if (!p || !p->activeFlags || !omm_obj_is_goomba(p)) {
-        gCurBhvCommand = o->behavior - 2;
-        o->curBhvCommand = o->behavior;
+        o->curBhvCommand = o->behavior - 2;
         o->bhvStackIndex = 0;
         o->oAction = 0;
         return;
@@ -58,9 +57,9 @@ const BehaviorScript bhvOmmGoombaStackCapture[] = {
 
 bool omm_obj_is_goomba_stack(struct Object *o) {
     return (o->curBhvCommand >= bhvOmmGoombaStack &&
-            o->curBhvCommand <  bhvOmmGoombaStack + omm_static_array_length(bhvOmmGoombaStack)) || (
+            o->curBhvCommand <  bhvOmmGoombaStack + array_length(bhvOmmGoombaStack)) || (
             o->curBhvCommand >= bhvOmmGoombaStackCapture &&
-            o->curBhvCommand <  bhvOmmGoombaStackCapture + omm_static_array_length(bhvOmmGoombaStackCapture));
+            o->curBhvCommand <  bhvOmmGoombaStackCapture + array_length(bhvOmmGoombaStackCapture));
 }
 
 //

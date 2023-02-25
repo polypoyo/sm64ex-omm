@@ -4,20 +4,19 @@
 
 #define __bits(type)                ((1llu << (8llu * sizeof(type))) - 1llu)
 #define __shift(type, j)            (32llu - ((8llu * sizeof(type)) * ((j) + 1llu)))
-#define bhv_cmd_get(type, i, j)     (type) ((gCurBhvCommand[i] >> __shift(type, j)) & __bits(type))
-#define bhv_cmd_get_ptr(type, i)    (type) (gCurBhvCommand[i])
-#define bhv_cmd_get_addr(i)         (uintptr_t) (&gCurBhvCommand[i])
-#define o                           gCurrentObject
+#define bhv_cmd_get(o, type, i, j)  (type) ((o->curBhvCommand[i] >> __shift(type, j)) & __bits(type))
+#define bhv_cmd_get_ptr(o, type, i) (type) (o->curBhvCommand[i])
+#define bhv_cmd_get_addr(o, i)      (uintptr_t) (&(o->curBhvCommand[i]))
 
 typedef void (*NativeBhvFunc)(void);
 
 void stub_behavior_script_2(void) {}
 
-OMM_INLINE void stack_push(uintptr_t bhvAddr) {
+OMM_INLINE void stack_push(struct Object *o, uintptr_t bhvAddr) {
     o->bhvStack[(o->bhvStackIndex)++] = bhvAddr;
 }
 
-OMM_INLINE uintptr_t stack_pop(void) {
+OMM_INLINE uintptr_t stack_pop(struct Object *o) {
     return o->bhvStack[--(o->bhvStackIndex)];
 }
 
@@ -25,7 +24,7 @@ OMM_INLINE uintptr_t stack_pop(void) {
 // Knockback
 //
 
-static bool cur_obj_update_knockback() {
+static bool obj_update_knockback(struct Object *o) {
     if (obj_is_knocked_back(o)) {
 
         // Check the timestamp to not apply knockback multiple times per frame
@@ -93,7 +92,7 @@ static bool cur_obj_update_knockback() {
 // Various fixes
 //
 
-static void cur_obj_fix_hitbox() {
+static void obj_fix_hitbox(struct Object *o) {
     if (OMM_MOVESET_ODYSSEY) {
         const OmmBhvDataHitbox *hitbox = omm_behavior_data_get_hitbox(o->behavior);
         if (hitbox) {
@@ -106,7 +105,7 @@ static void cur_obj_fix_hitbox() {
     }
 }
 
-static void cur_obj_path_failsafe() {
+static void obj_path_failsafe(struct Object *o) {
     const Trajectory *traj = (const Trajectory *) o->oPathedPrevWaypoint;
     if (traj && traj[0] != TRAJECTORY_END() && traj[4] != TRAJECTORY_END()) {
         Vec3f p0 = { traj[1], traj[2], traj[3] };
@@ -130,6 +129,7 @@ static OmmHMap sBhvUpdateMap = omm_hmap_zero;
 
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#define o gCurrentObject
 #define m gMarioState
 #define mo gMarioObject
 
@@ -160,6 +160,7 @@ static bool bhv_1up__life_up(NativeBhvFunc func) {
 #endif
             omm_health_life_up(m);
             obj_mark_for_deletion(o);
+            gOmmStats->mushrooms1upCollected++;
             return true;
         }
     }
@@ -176,7 +177,7 @@ static bool bhv_blue_coin_switch__show_coins_and_respawn(NativeBhvFunc func) {
             o->oHomeY = o->oPosY;
             if (mo->platform == o) {
                 if (omm_mario_is_ground_pound_landing(m)) {
-                    play_sound(SOUND_GENERAL_SWITCH_DOOR_OPEN, o->oCameraToObject);
+                    obj_play_sound(o, SOUND_GENERAL_SWITCH_DOOR_OPEN);
                     o->oAction = BLUE_COIN_SWITCH_ACT_RECEDING;
                     o->oVelY = -20.f;
                     o->oGravity = 0.f;
@@ -191,7 +192,7 @@ static bool bhv_blue_coin_switch__show_coins_and_respawn(NativeBhvFunc func) {
         // Change action instead of unloading after timer ends
         case BLUE_COIN_SWITCH_ACT_TICKING: {
             if (o->oTimer >= 239) {
-                play_sound(SOUND_GENERAL_SWITCH_DOOR_OPEN, o->oCameraToObject);
+                obj_play_sound(o, SOUND_GENERAL_SWITCH_DOOR_OPEN);
                 o->oAction = 3;
                 o->oPosY = o->oHomeY - 100.f;
                 o->oNodeFlags &= ~GRAPH_RENDER_INVISIBLE;
@@ -273,6 +274,7 @@ static bool bhv_bowser__pre_update(NativeBhvFunc func) {
 
         // Bowser defeated
         case 4: {
+            gOmmStats->bowsersDefeated += (o->oSubAction == 0);
             if (o->oBowserCameraState == 10) {
                 if (o->oSubAction == 0) {
                     cur_obj_init_animation_with_sound(16);
@@ -301,13 +303,13 @@ static bool bhv_bowser__pre_update(NativeBhvFunc func) {
 
 // Flag the red coins star and don't respawn it if already collected
 static bool bhv_red_coin_star__set_flag_and_dont_respawn(NativeBhvFunc func) {
-    if (!omm_stars_is_collected(o->oBhvArgs >> 24)) {
+    if (!omm_stars_is_collected(o->oBehParams >> 24)) {
         func();
         if (!o->activeFlags) {
-            u8 starIndex = (o->oBhvArgs >> 24) & 0xFF;
-            for_each_until_null(const BehaviorScript *, bhv, omm_static_array_of(const BehaviorScript *) { bhvStar, bhvStarSpawnCoordinates, NULL }) {
+            u8 starIndex = (o->oBehParams >> 24) & 0xFF;
+            for_each_until_null(const BehaviorScript *, bhv, array_of(const BehaviorScript *) { bhvStar, bhvStarSpawnCoordinates, NULL }) {
                 for_each_object_with_behavior(star, *bhv) {
-                    if (((star->oBhvArgs >> 24) & 0xFF) == starIndex) {
+                    if (((star->oBehParams >> 24) & 0xFF) == starIndex) {
                         star->activeFlags |= ACTIVE_FLAG_RED_COIN_STAR;
                     }
                 }
@@ -321,7 +323,7 @@ static bool bhv_red_coin_star__set_flag_and_dont_respawn(NativeBhvFunc func) {
 
 // Don't respawn a star if already collected
 static bool bhv_star__dont_respawn(NativeBhvFunc func) {
-    if (omm_stars_is_collected(o->oBhvArgs >> 24)) {
+    if (omm_stars_is_collected(o->oBehParams >> 24)) {
         obj_mark_for_deletion(o);
         return true;
     }
@@ -329,7 +331,7 @@ static bool bhv_star__dont_respawn(NativeBhvFunc func) {
 }
 
 // Fix Bowser's electric shockwave hitbox
-static bool bhv_bowser_shock_wave__hitbox_fix(NativeBhvFunc func) {
+static bool bhv_bowser_shock_wave__fix_hitbox(NativeBhvFunc func) {
     o->oDistanceToMario = 0.f;
     func();
     if (m->invincTimer == 0 && m->action != ACT_SHOCKED && o->oBowserShockwaveScale > 0.f && o->oTimer < 70) {
@@ -350,7 +352,7 @@ static bool bhv_bowser_shock_wave__hitbox_fix(NativeBhvFunc func) {
 }
 
 // Fix Bowser's tail anchor position, hitbox and grab properties
-static bool bhv_bowser_tail_anchor__hitbox_fix(NativeBhvFunc func) {
+static bool bhv_bowser_tail_anchor__fix_hitbox(NativeBhvFunc func) {
     if (OMM_MOVESET_ODYSSEY) {
         struct Object *bowser = o->parentObj;
         o->oPosX = bowser->oPosX - 200.f * bowser->oScaleX * sins(bowser->oFaceAngleYaw);
@@ -383,10 +385,42 @@ static bool bhv_bowsers_sub__non_stop_always_spawn(NativeBhvFunc func) {
     return false;
 }
 
+// Fix glitched interactions with Bullies
+static bool bhv_bully__fix_interactions(NativeBhvFunc func) {
+    switch (o->oAction) {
+        case BULLY_ACT_LAVA_DEATH:
+        case BULLY_ACT_DEATH_PLANE_DEATH: {
+            o->oInteractStatus = 0;
+        } break;
+
+        case BULLY_ACT_BACK_UP: {
+            if (o->oTimer >= 15) {
+                o->oMoveAngleYaw = o->oFaceAngleYaw;
+                o->oFlags |= OBJ_FLAG_SET_FACE_YAW_TO_MOVE_YAW;
+                o->oAction = BULLY_ACT_PATROL;
+            }
+        } break;
+    }
+    return false;
+}
+
 // Fix the checkerboard elevator group object crash
-static bool bhv_checkerboard_elevator_group__crash_fix(NativeBhvFunc func) {
+static bool bhv_checkerboard_elevator_group__fix_crash(NativeBhvFunc func) {
     o->oGraphNode = NULL;
     return false;
+}
+
+// Clams don't deal damage and can't interact with captures
+static bool bhv_clam__no_damage_no_capture_interact(NativeBhvFunc func) {
+    extern struct ObjectHitbox sClamShellHitbox;
+    sClamShellHitbox.damageOrCoinValue = 0;
+    func();
+    if (omm_mario_is_capture(m)) {
+        cur_obj_become_intangible();
+    } else if (o->oAction == 0 || obj_anim_get_frame(o) < 30) {
+        cur_obj_become_tangible();
+    }
+    return true;
 }
 
 // Boos always carry blue coins, unless inside Castle grounds
@@ -407,7 +441,7 @@ static bool bhv_coin_inside_boo__always_blue(NativeBhvFunc func) {
 static bool bhv_ddd_pole__non_stop_always_spawn(NativeBhvFunc func) {
     if (OMM_STARS_NON_STOP_NOT_ENDING_CUTSCENE) {
         o->hitboxDownOffset = 100.f;
-        o->oDDDPoleMaxOffset = 100.f * o->oBhvArgs2ndByte;
+        o->oDDDPoleMaxOffset = 100.f * o->oBehParams2ndByte;
         return true;
     }
     return false;
@@ -415,22 +449,74 @@ static bool bhv_ddd_pole__non_stop_always_spawn(NativeBhvFunc func) {
 
 // Fix the exclamation box hitbox
 // Make koopa shells respawn
-static bool bhv_exclamation_box__hitbox_fix_and_respawn_koopa_shells(NativeBhvFunc func) {
+static bool bhv_exclamation_box__fix_hitbox_and_respawn_koopa_shells(NativeBhvFunc func) {
     func();
     if (o->oAction == 2) {
         o->hitboxHeight *= 2.f;
     }
-    if (o->oAction == 4 && o->oBhvArgs2ndByte == 3 && !o->activeFlags) {
-        o->activeFlags = ACTIVE_FLAG_ACTIVE;
-        o->oAction = 5;
-        cur_obj_hide();
+    if (o->oAction == 4) {
+        if (o->activeFlags) {
+            gOmmStats->exclamationBoxesBroken++;
+        } else if (o->oBehParams2ndByte == 3) {
+            o->activeFlags = ACTIVE_FLAG_ACTIVE;
+            o->oAction = 5;
+            cur_obj_hide();
+        }
     }
     return true;
 }
 
+// Unload the falling platform if it goes under the floor lowest point
+// Fix the collision vertex underflow
+static bool bhv_falling_bowser_platform__unload_under_floor_limit(NativeBhvFunc func) {
+    if (o->oPosY < FLOOR_LOWER_LIMIT) {
+        obj_mark_for_deletion(o);
+        return true;
+    }
+    return false;
+}
+
 // Fix the falling pillar displacement
-static bool bhv_falling_pillar__move_yaw_fix(NativeBhvFunc func) {
+static bool bhv_falling_pillar__fix_move_yaw(NativeBhvFunc func) {
     o->oMoveAngleYaw = o->oFaceAngleYaw;
+    return false;
+}
+
+// Remove the limit of active fire piranha plants
+// Make the fire piranha plants die faster (use the regular piranha plant death animation)
+extern s32 sNumActiveFirePiranhaPlants;
+static bool bhv_fire_piranha_plant__no_active_limit_and_die_faster(NativeBhvFunc func) {
+    sNumActiveFirePiranhaPlants = 0;
+    if (o->oAction == FIRE_PIRANHA_PLANT_ACT_HIDE && o->oFirePiranhaPlantDeathSpinTimer) {
+        if (o->oFirePiranhaPlantDeathSpinTimer > 0) {
+            if (o->oSubAction == 0) {
+                obj_play_sound(o, SOUND_OBJ2_PIRANHA_PLANT_DYING);
+                for (s32 i = 0; i != 20; ++i) {
+                    spawn_object(o, MODEL_PURPLE_MARBLE, bhvPurpleParticle);
+                }
+                o->oSubAction = 1;
+            }
+            cur_obj_become_intangible();
+            obj_anim_play(o, 2, 1.5f);
+            o->oInteractStatus = 0;
+            if (obj_anim_is_near_end(o)) {
+                obj_play_sound(o, SOUND_OBJ_ENEMY_DEFEAT_SHRINK);
+                o->oFirePiranhaPlantDeathSpinTimer = -1;
+                o->oTimer = 0;
+            }
+        } else {
+            cur_obj_become_intangible();
+            o->oFirePiranhaPlantScale -= 0.1f;
+            if (o->oFirePiranhaPlantScale <= 0) {
+                o->oFirePiranhaPlantDeathSpinTimer = 0;
+                o->oFirePiranhaPlantActive = TRUE;
+                o->oHealth = 0;
+                return false;
+            }
+            obj_scale(o, o->oFirePiranhaPlantScale);
+        }
+        return true;
+    }
     return false;
 }
 
@@ -443,10 +529,10 @@ static bool bhv_flamethrower__always_active(NativeBhvFunc func) {
 // Make all goombas independent and defeat them if they reach the death barrier
 static bool bhv_goomba__make_standalone_and_destroy_at_death_barrier(NativeBhvFunc func) {
     if (o->parentObj && o->parentObj != o) {
-        set_object_respawn_info_bits(o->parentObj, (o->oBhvArgs2ndByte & GOOMBA_BP_TRIPLET_FLAG_MASK) >> 2);
-        o->parentObj->oBhvArgs = o->parentObj->oBhvArgs | (o->oBhvArgs2ndByte & GOOMBA_BP_TRIPLET_FLAG_MASK) << 6;
-        o->oBhvArgs = (o->oGoombaSize & GOOMBA_BP_SIZE_MASK) << 16;
-        o->oBhvArgs2ndByte = (o->oGoombaSize & GOOMBA_BP_SIZE_MASK);
+        set_object_respawn_info_bits(o->parentObj, (o->oBehParams2ndByte & GOOMBA_BP_TRIPLET_FLAG_MASK) >> 2);
+        o->parentObj->oBehParams = o->parentObj->oBehParams | (o->oBehParams2ndByte & GOOMBA_BP_TRIPLET_FLAG_MASK) << 6;
+        o->oBehParams = (o->oGoombaSize & GOOMBA_BP_SIZE_MASK) << 16;
+        o->oBehParams2ndByte = (o->oGoombaSize & GOOMBA_BP_SIZE_MASK);
         o->parentObj = o;
         o->prevObj = NULL;
     }
@@ -492,8 +578,10 @@ static bool bhv_hidden_object__indestructible(NativeBhvFunc func) {
     return true;
 }
 
-// Make secrets visible
-static bool bhv_hidden_star_trigger__reveal(NativeBhvFunc func) {
+// Fix secret count, display and sound effect and make secrets visible
+#define oHiddenStarTriggerCollected OBJECT_FIELD_S32(0x1C)
+static bool bhv_hidden_star_trigger__fix_count_display_sound_and_reveal(NativeBhvFunc func) {
+#if !OMM_GAME_IS_SMGS
     if (OMM_EXTRAS_REVEAL_SECRETS) {
         o->oGraphNode = gLoadedGraphNodes[MODEL_PURPLE_MARBLE];
         o->oNodeFlags |= GRAPH_RENDER_BILLBOARD;
@@ -501,11 +589,31 @@ static bool bhv_hidden_star_trigger__reveal(NativeBhvFunc func) {
         o->oGraphNode = NULL;
         o->oNodeFlags &= ~GRAPH_RENDER_BILLBOARD;
     }
+#endif
+    if (obj_check_if_collided_with_object(o, gMarioObject)) {
+        struct Object *hiddenStar = obj_get_first_with_behavior(bhvHiddenStar);
+        if (hiddenStar) {
+            hiddenStar->oHiddenStarTriggerCounter++;
+            hiddenStar->oHiddenStarTriggerCollected++;
+            omm_spawn_orange_number(o, hiddenStar->oHiddenStarTriggerCollected);
+            play_sound(SOUND_MENU_COLLECT_SECRET + (max_s(0, hiddenStar->oHiddenStarTriggerCounter - 1) << 16), gGlobalSoundArgs);
+        }
+        obj_mark_for_deletion(o);
+        gOmmStats->secretsCollected++;
+    }
+    return true;
+}
+
+// Skip Hoot dialog
+static bool bhv_hoot__skip_dialog(NativeBhvFunc func) {
+    if (o->oHootAvailability == HOOT_AVAIL_WANTS_TO_TALK) {
+        o->oHootAvailability = HOOT_AVAIL_READY_TO_FLY;
+    }
     return false;
 }
 
 // Fix intro Lakitu's model
-static bool bhv_intro_lakitu__model_fix(NativeBhvFunc func) {
+static bool bhv_intro_lakitu__fix_model(NativeBhvFunc func) {
     o->oGraphNode = geo_layout_to_graph_node(NULL, lakitu_geo);
     return false;
 }
@@ -523,9 +631,9 @@ static bool bhv_jumping_box__always_spawn_coins(NativeBhvFunc func) {
 // Teleports KtQ back to his path if he falls off
 static bool bhv_koopa_the_quick__path_failsafe(NativeBhvFunc func) {
     func();
-    if (o->oBhvArgs2ndByte == KOOPA_BP_KOOPA_THE_QUICK_BOB ||
-        o->oBhvArgs2ndByte == KOOPA_BP_KOOPA_THE_QUICK_THI) {
-        cur_obj_path_failsafe();
+    if (o->oBehParams2ndByte == KOOPA_BP_KOOPA_THE_QUICK_BOB ||
+        o->oBehParams2ndByte == KOOPA_BP_KOOPA_THE_QUICK_THI) {
+        obj_path_failsafe(o);
     }
     return true;
 }
@@ -555,6 +663,30 @@ static bool bhv_koopa_shell__dont_destroy(NativeBhvFunc func) {
     return false;
 }
 
+// Don't destroy the underwater Koopa shell after leaving it, and make it fall to the ground
+static bool bhv_koopa_shell_underwater__dont_destroy_and_fall(NativeBhvFunc func) {
+    if ((o->oInteractStatus & INT_STATUS_STOP_RIDING) || o->oHeldState == HELD_DROPPED || o->oHeldState == HELD_THROWN) {
+        o->oInteractStatus = 0;
+        o->oHeldState = HELD_FREE;
+        cur_obj_become_tangible();
+        cur_obj_enable_rendering();
+        obj_set_pos(o, m->pos[0], m->pos[1], m->pos[2]);
+    }
+    func();
+    if (o->oHeldState == HELD_FREE) {
+        o->oVelY = (obj_is_underwater(o, find_water_level(o->oPosX, o->oPosZ)) ? max_f(o->oVelY - 2, -20) : max_f(o->oVelY - 4, -75));
+        f32 prevVel = o->oVelY;
+        perform_object_step(o, 0);
+        if (obj_is_on_ground(o) && abs_f(prevVel) > 5.f) {
+            o->oVelY = abs_f(prevVel) / 2.f;
+        }
+        obj_update_gfx(o);
+    } else {
+        obj_set_vel(o, 0, 0, 0);
+    }
+    return true;
+}
+
 // Make Mad pianos always tangible
 static bool bhv_mad_piano__always_tangible(NativeBhvFunc func) {
     static struct ObjectHitbox sMadPianoHitbox = { INTERACT_MR_BLIZZARD, 0, 3, 99, 0, 200, 150, 200, 150 };
@@ -564,7 +696,7 @@ static bool bhv_mad_piano__always_tangible(NativeBhvFunc func) {
 }
 
 // Fix the water ring hitbox
-static bool bhv_manta_ray_water_ring__hitbox_fix(NativeBhvFunc func) {
+static bool bhv_manta_ray_water_ring__fix_hitbox(NativeBhvFunc func) {
     cur_obj_init_animation(0);
     o->oWaterRingScalePhaseX = (s32) (random_u16() & 0xFFF) + 0x1000;
     o->oWaterRingScalePhaseY = (s32) (random_u16() & 0xFFF) + 0x1000;
@@ -584,54 +716,10 @@ static bool bhv_manta_ray_water_ring__hitbox_fix(NativeBhvFunc func) {
     return true;
 }
 
-// Fix Monty moles interaction status to prevent a crash
-static bool bhv_monty_mole__crash_fix(NativeBhvFunc func) {
-    if (o->oAction == MONTY_MOLE_ACT_SELECT_HOLE) {
-        o->oInteractStatus = 0;
-    }
-    return false;
-}
-
-// Remove the sound button on file select screen
-static bool bhv_menu_button__replace_sound_button_by_character_select_button(NativeBhvFunc func) {
-    if (obj_check_model(o, MODEL_MAIN_MENU_PURPLE_SOUND_BUTTON)) {
-        struct Object *characterSelectButton = obj_get_first_with_behavior(bhvOmmMenuCharacterSelectButton);
-        if (characterSelectButton) {
-            characterSelectButton->oPosX = o->oParentRelativePosX;
-            characterSelectButton->oPosY = o->oParentRelativePosY;
-            o->oPosX = 30000.f;
-            o->oPosY = 30000.f;
-            o->oParentRelativePosX = 30000.f;
-            o->oParentRelativePosY = 30000.f;
-            o->oMenuButtonOrigPosX = 30000.f;
-            o->oMenuButtonOrigPosY = 30000.f;
-            o->oMenuButtonScale = 0.f;
-            obj_set_dormant(o, true);
-            return true;
-        }
-    }
-    return false;
-}
-
-// Spawn the character select button on the file select screen
-static bool bhv_menu_button_manager__spawn_character_select_button(NativeBhvFunc func) {
-    struct Object *charSelButton = spawn_object_rel_with_rot(o, MODEL_NONE, bhvOmmMenuCharacterSelectButton, 6400.f, -3500.f, 0, 0, 0, 0);
-    charSelButton->oMenuButtonScale = 1.f;
-    charSelButton->oAnimState = 0;
-    switch (omm_player_get_selected_index()) {
-        case OMM_PLAYER_MARIO: charSelButton->oGraphNode = geo_layout_to_graph_node(NULL, omm_geo_menu_button_mario); break;
-        case OMM_PLAYER_PEACH: charSelButton->oGraphNode = geo_layout_to_graph_node(NULL, omm_geo_menu_button_peach); break;
-        case OMM_PLAYER_LUIGI: charSelButton->oGraphNode = geo_layout_to_graph_node(NULL, omm_geo_menu_button_luigi); break;
-        case OMM_PLAYER_WARIO: charSelButton->oGraphNode = geo_layout_to_graph_node(NULL, omm_geo_menu_button_wario); break;
-        default:               charSelButton->oGraphNode = geo_layout_to_graph_node(NULL, omm_geo_menu_button_mario); break;
-    }
-    return false;
-}
-
 // Always spawn Mips past 120 stars
 static bool bhv_mips__spawn_at_120_stars(NativeBhvFunc func) {
     if (m->numStars >= 120) {
-        o->oBhvArgs2ndByte = (OMM_GAME_IS_SMSR ? 0 : 1);
+        o->oBehParams2ndByte = (OMM_GAME_IS_SMSR ? 0 : 1);
         o->oMipsForwardVelocity = 50.f;
         o->oInteractionSubtype = INT_SUBTYPE_HOLDABLE_NPC;
         o->oGravity = 15.f;
@@ -643,8 +731,8 @@ static bool bhv_mips__spawn_at_120_stars(NativeBhvFunc func) {
     return false;
 }
 
-// Extra action for Motos when being attacked
-static bool bhv_motos__attacked(NativeBhvFunc func) {
+// Fix idle animation and add an extra action for Motos when being attacked
+static bool bhv_motos__fix_animation_and_handle_attacked(NativeBhvFunc func) {
     s32 attackFlags = (o->oInteractStatus >> 24) & (OBJ_INT_ATTACK_STRONG | OBJ_INT_ATTACK_WEAK);
     if (attackFlags) {
         if (attackFlags & OBJ_INT_ATTACK_STRONG) {
@@ -657,9 +745,13 @@ static bool bhv_motos__attacked(NativeBhvFunc func) {
             o->oChuckyaUnk88 = 2;
         }
         o->oInteractStatus = 0;
-        play_sound(SOUND_OBJ2_LARGE_BULLY_ATTACKED, o->oCameraToObject);
+        obj_play_sound(o, SOUND_OBJ2_LARGE_BULLY_ATTACKED);
     }
-    return false;
+    func();
+    if (o->oHeldState == HELD_FREE && o->oAction == 0) {
+        cur_obj_init_animation_with_sound(9);
+    }
+    return true;
 }
 
 // Reduce moving yellow coin RNG
@@ -668,9 +760,24 @@ static bool bhv_moving_yellow_coin__less_rng(NativeBhvFunc func) {
     return false;
 }
 
+// Make Mr. Blizzard spin and die faster
+static bool bhv_mr_blizzard__die_faster(NativeBhvFunc func) {
+    f32 prevDizziness = o->oMrBlizzardDizziness;
+    func();
+    if (o->oMrBlizzardDizziness != 0.f) {
+        o->oMrBlizzardDizziness = clamp_f(o->oMrBlizzardDizziness + (o->oMrBlizzardDizziness - prevDizziness) * 0.75f, -0x4000, +0x4000);
+    }
+    if (o->oAction == MR_BLIZZARD_ACT_DEATH) {
+        o->oTimer++;
+        return false;
+    }
+    return true;
+}
+
 // Make Mr. I instantly target Mario if he's close enough
-static bool bhv_mr_i__target_mario_if_near(NativeBhvFunc func) {
-    if (o->oAction <= 1 && obj_get_distance(o, mo) < 300.f) {
+// Make Mr. I die faster by calling its update twice
+static bool bhv_mr_i__target_mario_if_near_and_die_faster(NativeBhvFunc func) {
+    if (o->oAction <= 1 && obj_get_distance(o, mo) < 300.f * o->oScaleX) {
         s16 angleToMario = obj_get_object1_angle_yaw_to_object2(o, mo);
         o->oFaceAngleYaw = angleToMario;
         o->oMoveAngleYaw = angleToMario;
@@ -679,12 +786,15 @@ static bool bhv_mr_i__target_mario_if_near(NativeBhvFunc func) {
         o->oMrIUnk100 = 0;
         o->oMrIUnk104 = 0;
         o->oMrIUnk108 = (s32) (random_float() * 50.f + 50.f);
+    } else if (o->oAction == 3) {
+        func();
+        o->oTimer++;
     }
     return false;
 }
 
 // Fix the glitchy camera when Mario is holding a pole due to it being slightly above the ground
-static bool bhv_pole_base__camera_fix(NativeBhvFunc func) {
+static bool bhv_pole_base__fix_camera(NativeBhvFunc func) {
     f32 fy = find_floor_height(o->oPosX, o->oPosY, o->oPosZ);
     if (fy < o->oPosY && o->oPosY < fy + 5) {
         o->oPosY = fy;
@@ -696,9 +806,41 @@ static bool bhv_pole_base__camera_fix(NativeBhvFunc func) {
 static bool bhv_racing_penguin__path_failsafe(NativeBhvFunc func) {
     func();
     if (o->oAction == RACING_PENGUIN_ACT_RACE) {
-        cur_obj_path_failsafe();
+        obj_path_failsafe(o);
     }
     return true;
+}
+
+// Make piranha plants die faster
+static bool bhv_piranha_plant__die_faster(NativeBhvFunc func) {
+    switch (o->oAction) {
+        case PIRANHA_PLANT_ACT_ATTACKED: {
+            cur_obj_become_intangible();
+            obj_anim_play(o, 2, 1.5f);
+            o->oInteractStatus = 0;
+            if (obj_anim_is_near_end(o)) {
+                obj_play_sound(o, SOUND_OBJ_ENEMY_DEFEAT_SHRINK);
+                o->oPiranhaPlantScale = 1.f;
+                o->oAction = PIRANHA_PLANT_ACT_SHRINK_AND_DIE;
+            }
+            if (o->activeFlags & ACTIVE_FLAG_FAR_AWAY) {
+                o->oAction = PIRANHA_PLANT_ACT_IDLE;
+            }
+        } return true;
+
+        case PIRANHA_PLANT_ACT_SHRINK_AND_DIE: {
+            o->oPiranhaPlantScale = relerp_0_1_f(o->oTimer, 0, 15, 1, 0);
+            if (o->oPiranhaPlantScale == 0) {
+                cur_obj_spawn_loot_blue_coin();
+                o->oAction = PIRANHA_PLANT_ACT_WAIT_TO_RESPAWN;
+            }
+            obj_scale(o, o->oPiranhaPlantScale);
+            if (o->activeFlags & ACTIVE_FLAG_FAR_AWAY) {
+                o->oAction = PIRANHA_PLANT_ACT_IDLE;
+            }
+        } return true;
+    }
+    return false;
 }
 
 // Allow any type of ground pound to trigger purple switches
@@ -720,7 +862,7 @@ static bool bhv_recovery_heart__heal_mario_for_1_segment(NativeBhvFunc func) {
 }
 
 // Fix red coin count, display and sound effect
-static bool bhv_red_coin__count_display_sound_fix(NativeBhvFunc func) {
+static bool bhv_red_coin__fix_count_display_sound(NativeBhvFunc func) {
     if (!o->parentObj ||
         !o->parentObj->activeFlags || (
         o->parentObj->behavior != bhvHiddenRedCoinStar &&
@@ -750,7 +892,7 @@ static bool bhv_respawner__sparkly_stars_disable(NativeBhvFunc func) {
 }
 
 // Fix home position
-static bool bhv_skeeter__home_fix(NativeBhvFunc func) {
+static bool bhv_skeeter__fix_home_pos(NativeBhvFunc func) {
     func();
     obj_set_home(o, o->oPosX, o->oPosY, o->oPosZ);
     return true;
@@ -766,11 +908,10 @@ static bool bhv_sl_snowman_wind__sparkly_stars_always_blow(NativeBhvFunc func) {
 
 // Fix a softlock that can happen if Mario is not in the 400 units radius after starting the dialog
 // Fix snowman's body yaw after reaching the head
-static bool bhv_snowmans_bottom__pos_and_yaw_fix(NativeBhvFunc func) {
+static bool bhv_snowmans_bottom__fix_pos_and_yaw(NativeBhvFunc func) {
     switch (o->oAction) {
         case 0: {
-            if (m->action == ACT_READING_NPC_DIALOG &&
-                m->usedObj == o && vec3f_dist(m->pos, &o->oPosX) > 400.f) {
+            if (m->action == ACT_READING_NPC_DIALOG && m->usedObj == o && vec3f_dist(m->pos, &o->oPosX) > 400) {
                 Vec3f dv = {
                     m->pos[0] - o->oPosX,
                     m->pos[1] - o->oPosY,
@@ -805,14 +946,20 @@ static bool bhv_snowmans_head__non_stop_dont_spawn_whole(NativeBhvFunc func) {
     return false;
 }
 
-// Make sure spawned stars don't go inside ceilings or below floors
-static bool bhv_spawned_star__above_floors_and_below_ceilings(NativeBhvFunc func) {
+// Make sure spawned stars don't go inside ceilings or below floors and make them grabbable earlier (xalo-style)
+static bool bhv_spawned_star__fix_pos_and_early_star_grab(NativeBhvFunc func) {
     if (!bhv_star__dont_respawn(func)) {
         f32 floorHeight = find_floor_height(o->oPosX, o->oPosY - 100, o->oPosZ);
         f32 ceilHeight = find_ceil(o->oPosX, o->oPosY - 100, o->oPosZ, NULL);
         if (ceilHeight > floorHeight) {
-            o->oPosY = min_s(o->oPosY, ceilHeight - 60);
-            o->oPosY = max_s(o->oPosY, floorHeight + 60);
+            o->oPosY = (f32) min_s(o->oPosY, ceilHeight - 60);
+            o->oPosY = (f32) max_s(o->oPosY, floorHeight + 60);
+            o->oHomeY = (f32) max_s(o->oHomeY, floorHeight + 60) + 0.1f;
+        }
+        if (o->oAction == 2) {
+            clear_time_stop_flags(TIME_STOP_ENABLED | TIME_STOP_MARIO_AND_DOORS);
+            o->activeFlags &= ~ACTIVE_FLAG_INITIATED_TIME_STOP;
+            o->oAction = 3;
         }
     }
     return false;
@@ -823,7 +970,7 @@ static bool bhv_thi_tiny_island_top__any_ground_pound_trigger(NativeBhvFunc func
     if (o->oAction == 0 && !gTHIWaterDrained && omm_mario_is_ground_pound_landing(m) && obj_get_distance(o, mo) < 500.f) {
         obj_spawn_particles(o, 30, MODEL_WHITE_PARTICLE_SMALL, 0, 40, 0, 20, 40, -4, 2, 0);
         obj_spawn_triangle_break_particles(o, OBJ_SPAWN_TRI_BREAK_PRESET_DIRT_SMALL);
-        play_sound(SOUND_GENERAL_ACTIVATE_CAP_SWITCH, o->oCameraToObject);
+        obj_play_sound(o, SOUND_GENERAL_ACTIVATE_CAP_SWITCH);
         o->oNodeFlags |= GRAPH_RENDER_INVISIBLE;
         o->oAction++;
         return true;
@@ -833,7 +980,7 @@ static bool bhv_thi_tiny_island_top__any_ground_pound_trigger(NativeBhvFunc func
 
 // Make Tuxie's mother endlessly chase Mario if he's holding or capturing Tuxie
 static bool bhv_tuxies_mother__chase_mario(NativeBhvFunc func) {
-    if (o->oAction == 2 && m->action == ACT_OMM_POSSESSION && gOmmCapture->behavior == bhvUnused20E0) {
+    if (o->oAction == 2 && omm_mario_is_capture(m) && gOmmCapture->behavior == bhvUnused20E0) {
         gOmmCapture->oHeldState = HELD_HELD;
     }
     return false;
@@ -841,7 +988,7 @@ static bool bhv_tuxies_mother__chase_mario(NativeBhvFunc func) {
 
 // Fix Cage Ukiki's path
 static bool bhv_ukiki__always_select_nearest_waypoint(NativeBhvFunc func) {
-    if (o->oBhvArgs2ndByte == UKIKI_CAGE) {
+    if (o->oBehParams2ndByte == UKIKI_CAGE) {
         obj_set_home(o, o->oPosX, o->oPosY, o->oPosZ);
         if (o->oAction == UKIKI_ACT_GO_TO_CAGE && o->oSubAction == UKIKI_SUB_ACT_CAGE_RUN_TO_CAGE && o->oPathedStartWaypoint && o->oTimer == 1) {
             struct Waypoint *nearest = obj_path_get_nearest_waypoint(o, o->oPathedStartWaypoint, 200.f);
@@ -854,13 +1001,26 @@ static bool bhv_ukiki__always_select_nearest_waypoint(NativeBhvFunc func) {
     return false;
 }
 
+// Fix the lowered background music volume when Wiggler is not talking, fix the (unecessary) dialog delay after unsquishing
+static bool bhv_wiggler__fix_audio_and_dialog_timer(NativeBhvFunc func) {
+    if (o->oAction == WIGGLER_ACT_WALK) {
+        if (o->oWigglerTextStatus == WIGGLER_TEXT_STATUS_COMPLETED_DIALOG) {
+            music_unlower_volume(SEQ_PLAYER_LEVEL, 60);
+            o->oWigglerTextStatus++;
+        }
+    } else if (o->oAction == WIGGLER_ACT_JUMPED_ON && o->oScaleY >= 4.f) {
+        o->oTimer = max_s(30, o->oTimer);
+    }
+    return false;
+}
+
 // Make wooden posts spawn coins if fully pounded
 static bool bhv_wooden_post__spawn_coins_if_pounded(NativeBhvFunc func) {
-    if (!(o->oBhvArgs & WOODEN_POST_BP_NO_COINS_MASK) && o->oWoodenPostOffsetY <= -190.f) {
+    if (!(o->oBehParams & WOODEN_POST_BP_NO_COINS_MASK) && o->oWoodenPostOffsetY <= -190.f) {
         o->oPosY = o->oHomeY;
         obj_spawn_loot_yellow_coins(o, 5, 20.f);
         set_object_respawn_info_bits(o, 1);
-        o->oBhvArgs |= WOODEN_POST_BP_NO_COINS_MASK;
+        o->oBehParams |= WOODEN_POST_BP_NO_COINS_MASK;
         o->oPosY = o->oHomeY + o->oWoodenPostOffsetY;
     }
     return false;
@@ -874,7 +1034,8 @@ static bool bhv_yoshi__big_surprise(NativeBhvFunc func) {
         omm_spawn_problem(mo);
         omm_mario_set_action(m, (random_u16() & 1) ? ACT_HARD_FORWARD_GROUND_KB : ACT_HARD_BACKWARD_GROUND_KB, 1, 0);
         if (OMM_MOVESET_ODYSSEY) {
-            m->health = OMM_HEALTH_DEAD;
+            gOmmStats->hitsTaken += (m->health > OMM_HEALTH_ODYSSEY_DEAD);
+            m->health = OMM_HEALTH_ODYSSEY_DEAD;
         } else {
             m->healCounter = 0;
             m->hurtCounter = 64;
@@ -884,6 +1045,7 @@ static bool bhv_yoshi__big_surprise(NativeBhvFunc func) {
 }
 #endif
 
+#undef o
 #undef m
 #undef mo
 #pragma GCC pop_options
@@ -898,22 +1060,27 @@ OMM_AT_STARTUP static void omm_setup_behavior_update_functions_map() {
         { bhv_1up_running_away_loop,                bhv_1up__life_up },
         { bhv_1up_sliding_loop,                     bhv_1up__life_up },
         { bhv_1up_walking_loop,                     bhv_1up__life_up },
+        { bhv_big_bully_with_minions_loop,          bhv_bully__fix_interactions },
         { bhv_blue_coin_switch_loop,                bhv_blue_coin_switch__show_coins_and_respawn },
         { bhv_bobomb_loop,                          bhv_bobomb__destroy_if_too_far },
         { bhv_boo_loop,                             bhv_boo__act_uncaptured },
         { bhv_bowser_loop,                          bhv_bowser__pre_update },
         { bhv_bowser_course_red_coin_star_loop,     bhv_red_coin_star__set_flag_and_dont_respawn },
-        { bhv_bowser_shock_wave_loop,               bhv_bowser_shock_wave__hitbox_fix },
-        { bhv_bowser_tail_anchor_loop,              bhv_bowser_tail_anchor__hitbox_fix},
+        { bhv_bowser_shock_wave_loop,               bhv_bowser_shock_wave__fix_hitbox },
+        { bhv_bowser_tail_anchor_loop,              bhv_bowser_tail_anchor__fix_hitbox },
         { bhv_bowsers_sub_loop,                     bhv_bowsers_sub__non_stop_always_spawn },
+        { bhv_bully_loop,                           bhv_bully__fix_interactions },
         { bhv_ccm_touched_star_spawn_loop,          bhv_star__dont_respawn },
-        { bhv_checkerboard_elevator_group_init,     bhv_checkerboard_elevator_group__crash_fix },
+        { bhv_checkerboard_elevator_group_init,     bhv_checkerboard_elevator_group__fix_crash },
+        { bhv_clam_loop,                            bhv_clam__no_damage_no_capture_interact },
         { bhv_coin_inside_boo_loop,                 bhv_coin_inside_boo__always_blue },
         { bhv_collect_star_init,                    bhv_star__dont_respawn },
         { bhv_collect_star_loop,                    bhv_star__dont_respawn },
         { bhv_ddd_pole_init,                        bhv_ddd_pole__non_stop_always_spawn },
-        { bhv_exclamation_box_loop,                 bhv_exclamation_box__hitbox_fix_and_respawn_koopa_shells },
-        { bhv_falling_pillar_loop,                  bhv_falling_pillar__move_yaw_fix },
+        { bhv_exclamation_box_loop,                 bhv_exclamation_box__fix_hitbox_and_respawn_koopa_shells },
+        { bhv_falling_bowser_platform_loop,         bhv_falling_bowser_platform__unload_under_floor_limit },
+        { bhv_falling_pillar_loop,                  bhv_falling_pillar__fix_move_yaw },
+        { bhv_fire_piranha_plant_update,            bhv_fire_piranha_plant__no_active_limit_and_die_faster },
         { bhv_flamethrower_loop,                    bhv_flamethrower__always_active },
         { bhv_goomba_update,                        bhv_goomba__make_standalone_and_destroy_at_death_barrier },
         { bhv_hidden_blue_coin_loop,                bhv_hidden_blue_coin__show_and_respawn },
@@ -922,50 +1089,52 @@ OMM_AT_STARTUP static void omm_setup_behavior_update_functions_map() {
         { bhv_hidden_red_coin_star_loop,            bhv_red_coin_star__set_flag_and_dont_respawn },
         { bhv_hidden_star_init,                     bhv_star__dont_respawn },
         { bhv_hidden_star_loop,                     bhv_star__dont_respawn },
-        { bhv_hidden_star_trigger_loop,             bhv_hidden_star_trigger__reveal },
-        { bhv_intro_lakitu_loop,                    bhv_intro_lakitu__model_fix },
+        { bhv_hidden_star_trigger_loop,             bhv_hidden_star_trigger__fix_count_display_sound_and_reveal },
+        { bhv_hoot_loop,                            bhv_hoot__skip_dialog },
+        { bhv_intro_lakitu_loop,                    bhv_intro_lakitu__fix_model },
         { bhv_jumping_box_loop,                     bhv_jumping_box__always_spawn_coins },
         { bhv_koopa_update,                         bhv_koopa_the_quick__path_failsafe },
         { bhv_king_bobomb_loop,                     bhv_king_bobomb__release_mario_if_attacked },
         { bhv_koopa_shell_loop,                     bhv_koopa_shell__dont_destroy },
+        { bhv_koopa_shell_underwater_loop,          bhv_koopa_shell_underwater__dont_destroy_and_fall },
         { bhv_mad_piano_update,                     bhv_mad_piano__always_tangible },
-        { bhv_manta_ray_water_ring_init,            bhv_manta_ray_water_ring__hitbox_fix },
-        { bhv_monty_mole_update,                    bhv_monty_mole__crash_fix },
-        { bhv_menu_button_loop,                     bhv_menu_button__replace_sound_button_by_character_select_button },
-        { bhv_menu_button_manager_init,             bhv_menu_button_manager__spawn_character_select_button },
+        { bhv_manta_ray_water_ring_init,            bhv_manta_ray_water_ring__fix_hitbox },
         { bhv_mips_init,                            bhv_mips__spawn_at_120_stars },
 #if OMM_GAME_IS_R96X
-        { bhv_motos_loop,                           bhv_motos__attacked },
+        { bhv_motos_loop,                           bhv_motos__fix_animation_and_handle_attacked },
 #endif
         { bhv_moving_yellow_coin_init,              bhv_moving_yellow_coin__less_rng },
-        { bhv_mr_i_loop,                            bhv_mr_i__target_mario_if_near },
-        { bhv_pole_base_loop,                       bhv_pole_base__camera_fix },
+        { bhv_mr_blizzard_update,                   bhv_mr_blizzard__die_faster },
+        { bhv_mr_i_loop,                            bhv_mr_i__target_mario_if_near_and_die_faster },
+        { bhv_pole_base_loop,                       bhv_pole_base__fix_camera },
         { bhv_racing_penguin_update,                bhv_racing_penguin__path_failsafe },
+        { bhv_piranha_plant_loop,                   bhv_piranha_plant__die_faster },
         { bhv_purple_switch_loop,                   bhv_purple_switch__any_ground_pound_trigger },
         { bhv_recovery_heart_loop,                  bhv_recovery_heart__heal_mario_for_1_segment },
-        { bhv_red_coin_loop,                        bhv_red_coin__count_display_sound_fix },
+        { bhv_red_coin_loop,                        bhv_red_coin__fix_count_display_sound },
         { bhv_respawner_loop,                       bhv_respawner__sparkly_stars_disable },
-        { bhv_skeeter_update,                       bhv_skeeter__home_fix },
+        { bhv_skeeter_update,                       bhv_skeeter__fix_home_pos },
         { bhv_sl_snowman_wind_loop,                 bhv_sl_snowman_wind__sparkly_stars_always_blow },
-        { bhv_snowmans_bottom_loop,                 bhv_snowmans_bottom__pos_and_yaw_fix },
+        { bhv_snowmans_bottom_loop,                 bhv_snowmans_bottom__fix_pos_and_yaw },
         { bhv_snowmans_head_init,                   bhv_snowmans_head__non_stop_dont_spawn_whole },
-        { bhv_spawned_star_loop,                    bhv_spawned_star__above_floors_and_below_ceilings },
+        { bhv_spawned_star_loop,                    bhv_spawned_star__fix_pos_and_early_star_grab },
         { bhv_star_spawn_init,                      bhv_star__dont_respawn },
         { bhv_star_spawn_loop,                      bhv_star__dont_respawn },
         { bhv_thi_tiny_island_top_loop,             bhv_thi_tiny_island_top__any_ground_pound_trigger },
         { bhv_tuxies_mother_loop,                   bhv_tuxies_mother__chase_mario },
         { bhv_ukiki_loop,                           bhv_ukiki__always_select_nearest_waypoint },
+        { bhv_wiggler_update,                       bhv_wiggler__fix_audio_and_dialog_timer },
         { bhv_wooden_post_update,                   bhv_wooden_post__spawn_coins_if_pounded },
 #if OMM_GAME_IS_SM64
         { bhv_yoshi_loop,                           bhv_yoshi__big_surprise },
 #endif
     };
-    for (s32 i = 0; i != omm_static_array_length(sBhvUpdateTable); ++i) {
+    for (s32 i = 0; i != array_length(sBhvUpdateTable); ++i) {
         omm_hmap_insert(sBhvUpdateMap, (uintptr_t) sBhvUpdateTable[i][0], sBhvUpdateTable[i][1]);
     }
 }
 
-static bool should_do_safe_step() {
+static bool should_do_safe_step(struct Object *o) {
     return
         omm_obj_is_goomba(o) ||
         omm_obj_is_coin(o) || (
@@ -975,15 +1144,15 @@ static bool should_do_safe_step() {
     ));
 }
 
-static void cur_obj_update_behavior_func(void (*func)(void)) {
-    if (!cur_obj_update_knockback()) {
-        bool doSafeStep = should_do_safe_step();
+static void obj_update_behavior_func(struct Object *o, NativeBhvFunc func) {
+    if (!obj_update_knockback(o)) {
+        bool doSafeStep = should_do_safe_step(o);
         if (doSafeStep) obj_safe_step(o, false);
-        cur_obj_fix_hitbox();
+        obj_fix_hitbox(o);
         s32 i = omm_hmap_find(sBhvUpdateMap, (uintptr_t) func);
         if (i == -1 || !omm_hmap_get(sBhvUpdateMap, UpdateFunc, i)(func)) {
             if (func) func();
-            cur_obj_fix_hitbox();
+            obj_fix_hitbox(o);
             if (doSafeStep) obj_safe_step(o, true);
         }
     }
@@ -993,433 +1162,433 @@ static void cur_obj_update_behavior_func(void (*func)(void)) {
 // Commands
 //
 
-static bool bhv_cmd_begin() {
-    gCurBhvCommand++;
+static bool bhv_cmd_begin(struct Object *o) {
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_delay() {
-    if (o->bhvDelayTimer < bhv_cmd_get(s16, 0, 1) - 1) {
+static bool bhv_cmd_delay(struct Object *o) {
+    if (o->bhvDelayTimer < bhv_cmd_get(o, s16, 0, 1) - 1) {
         o->bhvDelayTimer++;
     } else {
         o->bhvDelayTimer = 0;
-        gCurBhvCommand++;
+        o->curBhvCommand++;
     }
     return false;
 }
 
-static bool bhv_cmd_call() {
-    stack_push(bhv_cmd_get_addr(2));
-    gCurBhvCommand = bhv_cmd_get_ptr(const BehaviorScript *, 1);
+static bool bhv_cmd_call(struct Object *o) {
+    stack_push(o, bhv_cmd_get_addr(o, 2));
+    o->curBhvCommand = bhv_cmd_get_ptr(o, const BehaviorScript *, 1);
     return true;
 }
 
-static bool bhv_cmd_return() {
-    gCurBhvCommand = (const BehaviorScript *) stack_pop();
+static bool bhv_cmd_return(struct Object *o) {
+    o->curBhvCommand = (const BehaviorScript *) stack_pop(o);
     return true;
 }
 
-static bool bhv_cmd_goto() {
-    gCurBhvCommand = bhv_cmd_get_ptr(const BehaviorScript *, 1);
+static bool bhv_cmd_goto(struct Object *o) {
+    o->curBhvCommand = bhv_cmd_get_ptr(o, const BehaviorScript *, 1);
     return true;
 }
 
-static bool bhv_cmd_begin_repeat() {
-    stack_push(bhv_cmd_get_addr(1));
-    stack_push(bhv_cmd_get(s16, 0, 1));
-    gCurBhvCommand++;
+static bool bhv_cmd_begin_repeat(struct Object *o) {
+    stack_push(o, bhv_cmd_get_addr(o, 1));
+    stack_push(o, bhv_cmd_get(o, s16, 0, 1));
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_end_repeat() {
-    s32 count = stack_pop() - 1;
+static bool bhv_cmd_end_repeat(struct Object *o) {
+    s32 count = stack_pop(o) - 1;
     if (count > 0) {
-        gCurBhvCommand = (const BehaviorScript *) stack_pop();
-        stack_push(bhv_cmd_get_addr(0));
-        stack_push(count);
+        o->curBhvCommand = (const BehaviorScript *) stack_pop(o);
+        stack_push(o, bhv_cmd_get_addr(o, 0));
+        stack_push(o, count);
     } else {
-        stack_pop();
-        gCurBhvCommand++;
+        stack_pop(o);
+        o->curBhvCommand++;
     }
     return false;
 }
 
-static bool bhv_cmd_end_repeat_continue() {
-    bhv_cmd_end_repeat();
+static bool bhv_cmd_end_repeat_continue(struct Object *o) {
+    bhv_cmd_end_repeat(o);
     return true;
 }
 
-static bool bhv_cmd_begin_loop() {
-    stack_push(bhv_cmd_get_addr(1));
-    gCurBhvCommand++;
+static bool bhv_cmd_begin_loop(struct Object *o) {
+    stack_push(o, bhv_cmd_get_addr(o, 1));
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_end_loop() {
-    gCurBhvCommand = (const BehaviorScript *) stack_pop();
-    stack_push(bhv_cmd_get_addr(0));
+static bool bhv_cmd_end_loop(struct Object *o) {
+    o->curBhvCommand = (const BehaviorScript *) stack_pop(o);
+    stack_push(o, bhv_cmd_get_addr(o, 0));
     return false;
 }
 
-static bool bhv_cmd_break() {
+static bool bhv_cmd_break(struct Object *o) {
     return false;
 }
 
-static bool bhv_cmd_break_unused() {
+static bool bhv_cmd_break_unused(struct Object *o) {
     return false;
 }
 
-static bool bhv_cmd_call_native() {
-    NativeBhvFunc behaviorFunc = bhv_cmd_get_ptr(NativeBhvFunc, 1);
-    cur_obj_update_behavior_func(behaviorFunc);
-    gCurBhvCommand += 2;
+static bool bhv_cmd_call_native(struct Object *o) {
+    NativeBhvFunc behaviorFunc = bhv_cmd_get_ptr(o, NativeBhvFunc, 1);
+    obj_update_behavior_func(o, behaviorFunc);
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_add_float() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    f32 value = bhv_cmd_get(s16, 0, 1);
-    cur_obj_add_float(field, value);
-    gCurBhvCommand++;
+static bool bhv_cmd_add_float(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    f32 value = bhv_cmd_get(o, s16, 0, 1);
+    obj_add_float(o, field, value);
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_set_float() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    f32 value = bhv_cmd_get(s16, 0, 1);
-    cur_obj_set_float(field, value);
-    gCurBhvCommand++;
+static bool bhv_cmd_set_float(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    f32 value = bhv_cmd_get(o, s16, 0, 1);
+    obj_set_float(o, field, value);
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_add_int() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    s32 value = bhv_cmd_get(s16, 0, 1);
-    cur_obj_add_int(field, value);
-    gCurBhvCommand++;
+static bool bhv_cmd_add_int(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    s32 value = bhv_cmd_get(o, s16, 0, 1);
+    obj_add_int(o, field, value);
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_set_int() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    s32 value = bhv_cmd_get(s16, 0, 1);
-    cur_obj_set_int(field, value);
-    gCurBhvCommand++;
+static bool bhv_cmd_set_int(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    s32 value = bhv_cmd_get(o, s16, 0, 1);
+    obj_set_int(o, field, value);
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_or_int() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    u32 value = bhv_cmd_get(u16, 0, 1);
-    cur_obj_or_int(field, value);
-    gCurBhvCommand++;
+static bool bhv_cmd_or_int(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    u32 value = bhv_cmd_get(o, u16, 0, 1);
+    obj_or_int(o, field, value);
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_bit_clear() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    u32 value = bhv_cmd_get(u16, 0, 1);
-    cur_obj_and_int(field, ~value);
-    gCurBhvCommand++;
+static bool bhv_cmd_bit_clear(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    u32 value = bhv_cmd_get(o, u16, 0, 1);
+    obj_and_int(o, field, ~value);
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_set_int_rand_rshift() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    s32 value = bhv_cmd_get(s16, 0, 1);
-    s32 shift = bhv_cmd_get(s16, 1, 0);
-    cur_obj_set_int(field, value + (random_u16() >> shift));
-    gCurBhvCommand += 2;
+static bool bhv_cmd_set_int_rand_rshift(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    s32 value = bhv_cmd_get(o, s16, 0, 1);
+    s32 shift = bhv_cmd_get(o, s16, 1, 0);
+    obj_set_int(o, field, value + (random_u16() >> shift));
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_set_random_float() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    f32 value = bhv_cmd_get(s16, 0, 1);
-    f32 range = bhv_cmd_get(s16, 1, 0);
-    cur_obj_set_float(field, value + (range * random_float()));
-    gCurBhvCommand += 2;
+static bool bhv_cmd_set_random_float(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    f32 value = bhv_cmd_get(o, s16, 0, 1);
+    f32 range = bhv_cmd_get(o, s16, 1, 0);
+    obj_set_float(o, field, value + (range * random_float()));
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_set_random_int() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    s32 value = bhv_cmd_get(s16, 0, 1);
-    s32 range = bhv_cmd_get(s16, 1, 0);
-    cur_obj_set_int(field, value + (s32) (range * random_float()));
-    gCurBhvCommand += 2;
+static bool bhv_cmd_set_random_int(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    s32 value = bhv_cmd_get(o, s16, 0, 1);
+    s32 range = bhv_cmd_get(o, s16, 1, 0);
+    obj_set_int(o, field, value + (s32) (range * random_float()));
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_add_random_float() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    f32 value = bhv_cmd_get(s16, 0, 1);
-    f32 range = bhv_cmd_get(s16, 1, 0);
-    cur_obj_set_float(field, cur_obj_get_float(field) + value + (range * random_float()));
-    gCurBhvCommand += 2;
+static bool bhv_cmd_add_random_float(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    f32 value = bhv_cmd_get(o, s16, 0, 1);
+    f32 range = bhv_cmd_get(o, s16, 1, 0);
+    obj_set_float(o, field, obj_get_float(o, field) + value + (range * random_float()));
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_add_int_rand_rshift() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    s32 value = bhv_cmd_get(s16, 0, 1);
-    s32 shift = bhv_cmd_get(s16, 1, 0);
-    cur_obj_set_int(field, cur_obj_get_int(field) + value + (random_u16() >> shift));
-    gCurBhvCommand += 2;
+static bool bhv_cmd_add_int_rand_rshift(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    s32 value = bhv_cmd_get(o, s16, 0, 1);
+    s32 shift = bhv_cmd_get(o, s16, 1, 0);
+    obj_set_int(o, field, obj_get_int(o, field) + value + (random_u16() >> shift));
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_nop_1() {
-    gCurBhvCommand++;
+static bool bhv_cmd_nop_1(struct Object *o) {
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_nop_2() {
-    gCurBhvCommand++;
+static bool bhv_cmd_nop_2(struct Object *o) {
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_nop_3() {
-    gCurBhvCommand++;
+static bool bhv_cmd_nop_3(struct Object *o) {
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_set_model() {
-    o->oGraphNode = gLoadedGraphNodes[bhv_cmd_get(s16, 0, 1)];
-    gCurBhvCommand++;
+static bool bhv_cmd_set_model(struct Object *o) {
+    o->oGraphNode = gLoadedGraphNodes[bhv_cmd_get(o, s16, 0, 1)];
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_spawn_child() {
-    struct Object *child = spawn_object_at_origin(o, 0, bhv_cmd_get(u32, 1, 0), bhv_cmd_get_ptr(const BehaviorScript *, 2));
+static bool bhv_cmd_spawn_child(struct Object *o) {
+    struct Object *child = spawn_object_at_origin(o, 0, bhv_cmd_get(o, u32, 1, 0), bhv_cmd_get_ptr(o, const BehaviorScript *, 2));
     obj_copy_pos_and_angle(child, o);
-    gCurBhvCommand += 3;
+    o->curBhvCommand += 3;
     return true;
 }
 
-static bool bhv_cmd_deactivate() {
+static bool bhv_cmd_deactivate(struct Object *o) {
     o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     return false;
 }
 
-static bool bhv_cmd_drop_to_floor() {
+static bool bhv_cmd_drop_to_floor(struct Object *o) {
     if (omm_obj_is_goomba(o) && o->oGoombaStackParent) {
         o->oGoombaStackParent = NULL;
     } else {
         o->oPosY = find_floor_height(o->oPosX, o->oPosY + 200.f, o->oPosZ);
         o->oMoveFlags |= OBJ_MOVE_ON_GROUND;
     }
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_sum_float() {
-    s32 fieldDest = bhv_cmd_get(u8, 0, 1);
-    s32 fieldSrc1 = bhv_cmd_get(u8, 0, 2);
-    s32 fieldSrc2 = bhv_cmd_get(u8, 0, 3);
-    cur_obj_set_float(fieldDest, cur_obj_get_float(fieldSrc1) + cur_obj_get_float(fieldSrc2));
-    gCurBhvCommand++;
+static bool bhv_cmd_sum_float(struct Object *o) {
+    s32 fieldDest = bhv_cmd_get(o, u8, 0, 1);
+    s32 fieldSrc1 = bhv_cmd_get(o, u8, 0, 2);
+    s32 fieldSrc2 = bhv_cmd_get(o, u8, 0, 3);
+    obj_set_float(o, fieldDest, obj_get_float(o, fieldSrc1) + obj_get_float(o, fieldSrc2));
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_sum_int() {
-    s32 fieldDest = bhv_cmd_get(u8, 0, 1);
-    s32 fieldSrc1 = bhv_cmd_get(u8, 0, 2);
-    s32 fieldSrc2 = bhv_cmd_get(u8, 0, 3);
-    cur_obj_set_int(fieldDest, cur_obj_get_int(fieldSrc1) + cur_obj_get_int(fieldSrc2));
-    gCurBhvCommand++;
+static bool bhv_cmd_sum_int(struct Object *o) {
+    s32 fieldDest = bhv_cmd_get(o, u8, 0, 1);
+    s32 fieldSrc1 = bhv_cmd_get(o, u8, 0, 2);
+    s32 fieldSrc2 = bhv_cmd_get(o, u8, 0, 3);
+    obj_set_int(o, fieldDest, obj_get_int(o, fieldSrc1) + obj_get_int(o, fieldSrc2));
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_billboard() {
+static bool bhv_cmd_billboard(struct Object *o) {
     o->oNodeFlags |= GRAPH_RENDER_BILLBOARD;
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_hide() {
+static bool bhv_cmd_hide(struct Object *o) {
     cur_obj_hide();
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_set_hitbox() {
-    o->hitboxRadius = bhv_cmd_get(s16, 1, 0);
-    o->hitboxHeight = bhv_cmd_get(s16, 1, 1);
-    gCurBhvCommand += 2;
+static bool bhv_cmd_set_hitbox(struct Object *o) {
+    o->hitboxRadius = bhv_cmd_get(o, s16, 1, 0);
+    o->hitboxHeight = bhv_cmd_get(o, s16, 1, 1);
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_nop_4() {
-    gCurBhvCommand++;
+static bool bhv_cmd_nop_4(struct Object *o) {
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_delay_var() {
-    s32 num = cur_obj_get_int(bhv_cmd_get(u8, 0, 1));
+static bool bhv_cmd_delay_var(struct Object *o) {
+    s32 num = obj_get_int(o, bhv_cmd_get(o, u8, 0, 1));
     if (o->bhvDelayTimer < num - 1) {
         o->bhvDelayTimer++;
     } else {
         o->bhvDelayTimer = 0;
-        gCurBhvCommand++;
+        o->curBhvCommand++;
     }
     return false;
 }
 
-static bool bhv_cmd_begin_repeat_unused() {
-    stack_push(bhv_cmd_get_addr(1));
-    stack_push(bhv_cmd_get(u8, 0, 1));
-    gCurBhvCommand++;
+static bool bhv_cmd_begin_repeat_unused(struct Object *o) {
+    stack_push(o, bhv_cmd_get_addr(o, 1));
+    stack_push(o, bhv_cmd_get(o, u8, 0, 1));
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_load_animations() {
-    o->oAnimations = bhv_cmd_get_ptr(struct Animation **, 1);
-    gCurBhvCommand += 2;
+static bool bhv_cmd_load_animations(struct Object *o) {
+    o->oAnimations = bhv_cmd_get_ptr(o, struct Animation **, 1);
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_animate() {
-    geo_obj_init_animation(&o->header.gfx, &(o->oAnimations[bhv_cmd_get(u8, 0, 1)]));
-    gCurBhvCommand++;
+static bool bhv_cmd_animate(struct Object *o) {
+    geo_obj_init_animation(&o->header.gfx, &(o->oAnimations[bhv_cmd_get(o, u8, 0, 1)]));
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_spawn_child_with_param() {
-    struct Object *child = spawn_object_at_origin(o, 0, bhv_cmd_get(u32, 1, 0), bhv_cmd_get_ptr(const BehaviorScript *, 2));
-    child->oBhvArgs2ndByte = bhv_cmd_get(s16, 0, 1);
+static bool bhv_cmd_spawn_child_with_param(struct Object *o) {
+    struct Object *child = spawn_object_at_origin(o, 0, bhv_cmd_get(o, u32, 1, 0), bhv_cmd_get_ptr(o, const BehaviorScript *, 2));
+    child->oBehParams2ndByte = bhv_cmd_get(o, s16, 0, 1);
     obj_copy_pos_and_angle(child, o);
-    gCurBhvCommand += 3;
+    o->curBhvCommand += 3;
     return true;
 }
 
-static bool bhv_cmd_load_collision_data() {
-    o->collisionData = bhv_cmd_get_ptr(void *, 1);
-    gCurBhvCommand += 2;
+static bool bhv_cmd_load_collision_data(struct Object *o) {
+    o->collisionData = bhv_cmd_get_ptr(o, void *, 1);
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_set_hitbox_with_offset() {
-    o->hitboxRadius = bhv_cmd_get(s16, 1, 0);
-    o->hitboxHeight = bhv_cmd_get(s16, 1, 1);
-    o->hitboxDownOffset = bhv_cmd_get(s16, 2, 0);
-    gCurBhvCommand += 3;
+static bool bhv_cmd_set_hitbox_with_offset(struct Object *o) {
+    o->hitboxRadius = bhv_cmd_get(o, s16, 1, 0);
+    o->hitboxHeight = bhv_cmd_get(o, s16, 1, 1);
+    o->hitboxDownOffset = bhv_cmd_get(o, s16, 2, 0);
+    o->curBhvCommand += 3;
     return true;
 }
 
-static bool bhv_cmd_spawn_obj() {
-    struct Object *object = spawn_object_at_origin(o, 0, bhv_cmd_get(u32, 1, 0), bhv_cmd_get_ptr(const BehaviorScript *, 2));
+static bool bhv_cmd_spawn_obj(struct Object *o) {
+    struct Object *object = spawn_object_at_origin(o, 0, bhv_cmd_get(o, u32, 1, 0), bhv_cmd_get_ptr(o, const BehaviorScript *, 2));
     obj_copy_pos_and_angle(object, o);
     o->prevObj = object;
-    gCurBhvCommand += 3;
+    o->curBhvCommand += 3;
     return true;
 }
 
-static bool bhv_cmd_set_home() {
+static bool bhv_cmd_set_home(struct Object *o) {
     o->oHomeX = o->oPosX;
     o->oHomeY = o->oPosY;
     o->oHomeZ = o->oPosZ;
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_set_hurtbox() {
-    o->hurtboxRadius = bhv_cmd_get(s16, 1, 0);
-    o->hurtboxHeight = bhv_cmd_get(s16, 1, 1);
-    gCurBhvCommand += 2;
+static bool bhv_cmd_set_hurtbox(struct Object *o) {
+    o->hurtboxRadius = bhv_cmd_get(o, s16, 1, 0);
+    o->hurtboxHeight = bhv_cmd_get(o, s16, 1, 1);
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_set_interact_type() {
-    o->oInteractType = bhv_cmd_get(u32, 1, 0);
-    gCurBhvCommand += 2;
+static bool bhv_cmd_set_interact_type(struct Object *o) {
+    o->oInteractType = bhv_cmd_get(o, u32, 1, 0);
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_set_obj_physics() {
-    o->oWallHitboxRadius = bhv_cmd_get(s16, 1, 0);
-    o->oGravity          = bhv_cmd_get(s16, 1, 1) / 100.f;
-    o->oBounciness       = bhv_cmd_get(s16, 2, 0) / 100.f;
-    o->oDragStrength     = bhv_cmd_get(s16, 2, 1) / 100.f;
-    o->oFriction         = bhv_cmd_get(s16, 3, 0) / 100.f;
-    o->oBuoyancy         = bhv_cmd_get(s16, 3, 1) / 100.f;
-    gCurBhvCommand += 5;
+static bool bhv_cmd_set_obj_physics(struct Object *o) {
+    o->oWallHitboxRadius = bhv_cmd_get(o, s16, 1, 0);
+    o->oGravity          = bhv_cmd_get(o, s16, 1, 1) / 100.f;
+    o->oBounciness       = bhv_cmd_get(o, s16, 2, 0) / 100.f;
+    o->oDragStrength     = bhv_cmd_get(o, s16, 2, 1) / 100.f;
+    o->oFriction         = bhv_cmd_get(o, s16, 3, 0) / 100.f;
+    o->oBuoyancy         = bhv_cmd_get(o, s16, 3, 1) / 100.f;
+    o->curBhvCommand += 5;
     return true;
 }
 
-static bool bhv_cmd_set_interact_subtype() {
-    o->oInteractionSubtype = bhv_cmd_get(u32, 1, 0);
-    gCurBhvCommand += 2;
+static bool bhv_cmd_set_interact_subtype(struct Object *o) {
+    o->oInteractionSubtype = bhv_cmd_get(o, u32, 1, 0);
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_scale() {
-    cur_obj_scale(bhv_cmd_get(s16, 0, 1) / 100.f);
-    gCurBhvCommand++;
+static bool bhv_cmd_scale(struct Object *o) {
+    cur_obj_scale(bhv_cmd_get(o, s16, 0, 1) / 100.f);
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_parent_bit_clear() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    u32 value = bhv_cmd_get(u32, 1, 0);
+static bool bhv_cmd_parent_bit_clear(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    u32 value = bhv_cmd_get(o, u32, 1, 0);
     o->parentObj->OBJECT_FIELD_S32(field) &= ~value;
-    gCurBhvCommand += 2;
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_animate_texture() {
-    if ((gGlobalTimer % bhv_cmd_get(s16, 0, 1)) == 0) {
+static bool bhv_cmd_animate_texture(struct Object *o) {
+    if ((gGlobalTimer % bhv_cmd_get(o, s16, 0, 1)) == 0) {
         o->oAnimState++;
     }
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_disable_rendering() {
+static bool bhv_cmd_disable_rendering(struct Object *o) {
     o->oNodeFlags &= ~GRAPH_RENDER_ACTIVE;
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_set_int_unused() {
-    s32 field = bhv_cmd_get(u8,  0, 1);
-    s32 value = bhv_cmd_get(s16, 1, 1);
-    cur_obj_set_int(field, value);
-    gCurBhvCommand += 2;
+static bool bhv_cmd_set_int_unused(struct Object *o) {
+    s32 field = bhv_cmd_get(o, u8,  0, 1);
+    s32 value = bhv_cmd_get(o, s16, 1, 1);
+    obj_set_int(o, field, value);
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_spawn_water_droplet() {
-    spawn_water_droplet(o, bhv_cmd_get_ptr(void *, 1));
-    gCurBhvCommand += 2;
+static bool bhv_cmd_spawn_water_droplet(struct Object *o) {
+    spawn_water_droplet(o, bhv_cmd_get_ptr(o, void *, 1));
+    o->curBhvCommand += 2;
     return true;
 }
 
-static bool bhv_cmd_cylboard() {
+static bool bhv_cmd_cylboard(struct Object *o) {
     o->oNodeFlags |= GRAPH_RENDER_CYLBOARD;
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 
 #if OMM_GAME_IS_R96X
-static bool bhv_cmd_modelpack_no_billboard() {
+static bool bhv_cmd_modelpack_no_billboard(struct Object *o) {
     if (configBillboard) {
         o->oNodeFlags &= ~GRAPH_RENDER_BILLBOARD;
     } else {
         o->oNodeFlags |= GRAPH_RENDER_BILLBOARD;
     }
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 
-static bool bhv_cmd_mr_i_fix() {
+static bool bhv_cmd_mr_i_fix(struct Object *o) {
     if (configBillboard) {
         o->prevObj = spawn_object(o, MODEL_MR_I, bhvMrIBody);
     } else {
         o->oGraphNode = gLoadedGraphNodes[MODEL_MR_I];
         spawn_object(o, MODEL_MR_I_IRIS, bhvMrIBody);
     }
-    gCurBhvCommand++;
+    o->curBhvCommand++;
     return true;
 }
 #endif
@@ -1428,7 +1597,7 @@ static bool bhv_cmd_mr_i_fix() {
 // Behavior update
 //
 
-typedef bool (*BhvCommandProc)(void);
+typedef bool (*BhvCommandProc)(struct Object *);
 static BhvCommandProc sBehaviorCmdTable[] = {
     bhv_cmd_begin,
     bhv_cmd_delay,
@@ -1501,7 +1670,8 @@ static BhvCommandProc sBehaviorCmdTable[] = {
     bhv_cmd_nop_1,
 };
 
-void cur_obj_update(void) {
+void obj_update(struct Object *o) {
+    struct Object *currentObject = gCurrentObject;
     u32 objFlags = o->oFlags;
 
     // Don't update if dormant
@@ -1527,9 +1697,9 @@ void cur_obj_update(void) {
     }
 
     // Execute the behavior script
-    gCurBhvCommand = o->curBhvCommand;
-    while (sBehaviorCmdTable[(*gCurBhvCommand >> 24) & 0x3F]());
-    o->curBhvCommand = gCurBhvCommand;
+    gCurrentObject = o;
+    while (sBehaviorCmdTable[(*(o->curBhvCommand) >> 24) & 0x3F](o));
+    gCurrentObject = o;
 
     // Increment timer
     if (o->oTimer < 0x3FFFFFFF) {
@@ -1602,4 +1772,11 @@ void cur_obj_update(void) {
         o->oNodeFlags |= GRAPH_RENDER_ACTIVE;
         o->activeFlags &= ~ACTIVE_FLAG_FAR_AWAY;
     }
+
+    // Restore current object
+    gCurrentObject = currentObject;
+}
+
+void cur_obj_update(void) {
+    obj_update(gCurrentObject);
 }

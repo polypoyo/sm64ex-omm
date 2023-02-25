@@ -27,6 +27,10 @@
 #define FS_SOUNDDIR "sound"
 #endif
 
+// Dir flags
+#define FS_DIR_READ  (1 << 0)
+#define FS_DIR_WRITE (1 << 1)
+
 // Walk return codes
 #define FS_WALK_SUCCESS     0
 #define FS_WALK_INTERRUPTED 1
@@ -82,10 +86,10 @@ typedef struct fs_packtype_s {
 //
 
 bool          fs_init            (const char **rodirs, const char *gamedir, const char *userdir);
-bool          fs_mount           (const char *realpath);
+bool          fs_mount           (const char *realpath, u8 flags);
 bool          fs_unmount         (const char *realpath);
-s32           fs_walk            (const char *base, walk_fn_t walkfn, void *user, const bool recur);
-fs_pathlist_t fs_enumerate       (const char *base, const bool recur);
+s32           fs_walk            (const char *base, walk_fn_t walkfn, void *user, const bool recur, u8 flags);
+fs_pathlist_t fs_enumerate       (const char *base, const bool recur, u8 flags);
 void          fs_pathlist_free   (fs_pathlist_t *pathlist);
 bool          fs_is_file         (const char *fname);
 bool          fs_is_dir          (const char *fname);
@@ -100,8 +104,8 @@ bool          fs_eof             (fs_file_t *file);
 void         *fs_load_file       (const char *vpath, u64 *outsize);
 u8           *fs_load_png        (const char *vpath, s32 *w, s32 *h);
 const char   *fs_readline        (fs_file_t *file, char *dst, u64 size);
-const char   *fs_find            (char *outname, const u64 outlen, const char *pattern);
-const char   *fs_match           (char *outname, const u64 outlen, const char *prefix);
+const char   *fs_find            (char *outname, const u64 outlen, const char *pattern, u8 flags);
+const char   *fs_match           (char *outname, const u64 outlen, const char *prefix, u8 flags);
 const char   *fs_get_write_path  (const char *vpath);
 const char   *fs_convert_path    (char *buf, const u64 bufsiz, const char *path);
 const char   *fs_cat_paths       (char *buf, const u64 bufsiz, const char *path1, const char *path2);

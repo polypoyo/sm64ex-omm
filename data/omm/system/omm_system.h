@@ -10,7 +10,7 @@
 //
 
 void omm_add_routine(s32 type, void (*func)(void));
-void omm_select_save_file(s32 saveFileNum);
+void omm_select_save_file(s32 fileIndex, s32 modeIndex, s32 courseNum, bool skipIntro);
 void omm_return_to_main_menu();
 void omm_update();
 void omm_pre_render();
@@ -20,7 +20,6 @@ bool omm_is_game_paused();
 bool omm_is_transition_active();
 bool omm_is_ending_cutscene();
 bool omm_is_ending_cake_screen();
-void omm_speedrun_split(s32 numStars);
 
 //
 // Profiling
@@ -47,28 +46,28 @@ void omm_profiler_display();
 // Player
 //
 
-bool omm_player_is_unlocked(s32 index);
-bool omm_player_is_selected(s32 index);
-void omm_player_select(s32 index);
+bool omm_player_is_unlocked(s32 playerIndex);
+bool omm_player_is_selected(s32 playerIndex);
+void omm_player_select(s32 playerIndex);
 s32  omm_player_get_selected_index();
 
-const char *omm_player_properties_get_name(s32 index);
-u32 omm_player_properties_get_color(s32 index);
-const void *omm_player_properties_get_anims(s32 index);
+const char *omm_player_properties_get_name(s32 playerIndex);
+u32 omm_player_properties_get_color(s32 playerIndex);
+const void *omm_player_properties_get_anims(s32 playerIndex);
 
-f32 omm_player_physics_get_ground(s32 index);
-f32 omm_player_physics_get_air(s32 index);
-f32 omm_player_physics_get_swim(s32 index);
-f32 omm_player_physics_get_jump(s32 index);
-f32 omm_player_physics_get_gravity(s32 index);
-f32 omm_player_physics_get_slide(s32 index);
+f32 omm_player_physics_get_ground(s32 playerIndex);
+f32 omm_player_physics_get_air(s32 playerIndex);
+f32 omm_player_physics_get_swim(s32 playerIndex);
+f32 omm_player_physics_get_jump(s32 playerIndex);
+f32 omm_player_physics_get_gravity(s32 playerIndex);
+f32 omm_player_physics_get_slide(s32 playerIndex);
 
-s32 omm_player_graphics_get_model(s32 index);
-s32 omm_player_graphics_get_normal_cap(s32 index);
-s32 omm_player_graphics_get_wing_cap(s32 index);
-s32 omm_player_graphics_get_metal_cap(s32 index);
-s32 omm_player_graphics_get_winged_metal_cap(s32 index);
-s32 omm_player_graphics_get_cap(s32 index, bool wing, bool metal);
+s32 omm_player_graphics_get_model(s32 playerIndex);
+s32 omm_player_graphics_get_normal_cap(s32 playerIndex);
+s32 omm_player_graphics_get_wing_cap(s32 playerIndex);
+s32 omm_player_graphics_get_metal_cap(s32 playerIndex);
+s32 omm_player_graphics_get_winged_metal_cap(s32 playerIndex);
+s32 omm_player_graphics_get_cap(s32 playerIndex, bool wing, bool metal);
 
 #define __OMM_PLAYER_SELECTED_INDEX__                           (omm_peach_vibe_is_active() ? (gOmmPeach->vibeType + OMM_NUM_PLAYABLE_CHARACTERS - 1) : omm_player_get_selected_index())
 
@@ -124,7 +123,7 @@ u8 *omm_text_replace_char(u8 *str64, u8 from, u8 to);
 u8 *omm_text_get_string_for_selected_player(u8 *str64);
 s32 omm_text_length(const u8 *str64);
 s32 omm_text_compare(const u8 *str1, const u8 *str2);
-struct DialogEntry *omm_dialog_get_entry(void **dialogTable, s16 dialogId, s32 mode);
+struct DialogEntry *omm_dialog_get_entry(void **dialogTable, s16 dialogId, s32 sparklyMode);
 
 //
 // Camera
@@ -164,25 +163,32 @@ bool omm_sound_stop_character_sound_r96(const char *id, f32 *pos);
 // Level
 //
 
-s32  omm_level_get_count();
-s32 *omm_level_get_list();
-s32  omm_level_get_course(s32 level);
-s32  omm_level_get_areas(s32 level);
-s32  omm_level_get_num_red_coins(s32 level, s32 area);
-u8  *omm_level_get_name(s32 level, bool decaps, bool num);
-u8  *omm_level_get_act_name(s32 level, s32 act, bool decaps, bool num);
-s16 *omm_level_get_warp(s32 level, s32 area, u8 id);
-s16 *omm_level_get_entry_warp(s32 level, s32 area);
-s16 *omm_level_get_exit_warp(s32 level, s32 area);
-s16 *omm_level_get_death_warp(s32 level, s32 area);
-bool omm_level_can_warp(s32 level);
-const LevelScript *omm_level_get_script(s32 level);
+typedef struct {
+    f32 x, y, z; s16 yaw;
+    s32 srcLevelNum, srcAreaIndex, srcId, srcType;
+    s32 dstLevelNum, dstAreaIndex, dstId;
+} Warp;
+
+s32   omm_level_get_count();
+s32  *omm_level_get_list();
+s32   omm_level_get_course(s32 levelNum);
+s32   omm_level_from_course(s32 courseNum);
+s32   omm_level_get_areas(s32 levelNum);
+s32   omm_level_get_num_red_coins(s32 levelNum, s32 areaIndex);
+u8   *omm_level_get_course_name(s32 levelNum, s32 modeIndex, bool decaps, bool num);
+u8   *omm_level_get_act_name(s32 levelNum, s32 actNum, s32 modeIndex, bool decaps, bool num);
+Warp *omm_level_get_warp(s32 levelNum, s32 areaIndex, s32 id);
+Warp *omm_level_get_entry_warp(s32 levelNum, s32 areaIndex);
+Warp *omm_level_get_exit_warp(s32 levelNum, s32 areaIndex);
+Warp *omm_level_get_death_warp(s32 levelNum, s32 areaIndex);
+bool  omm_level_can_warp(s32 levelNum);
+const LevelScript *omm_level_get_script(s32 levelNum);
 
 //
 // Warps
 //
 
-bool omm_warp_to_level(s32 level, s32 area, s32 act);
+bool omm_warp_to_level(s32 levelNum, s32 areaIndex, s32 actNum);
 bool omm_restart_level();
 bool omm_restart_area();
 bool omm_exit_level();
@@ -205,5 +211,17 @@ enum {
 extern const LevelScript omm_level_palette_editor[];
 void omm_palette_editor_open();
 void omm_palette_editor_close();
+
+//
+// Speedrun
+//
+
+enum OmmSpeedrunSplitType {
+    OMM_SPLIT_STAR,
+    OMM_SPLIT_EXIT,
+    OMM_SPLIT_BOWSER,
+};
+
+void omm_speedrun_split(s32 type);
 
 #endif // OMM_SYSTEM_H

@@ -16,7 +16,7 @@ const GeoLayout omm_geo_snowball[] = {
 
 static void bhv_omm_snowball_delete(struct Object *o) {
     f32 scale = o->oScaleX;
-    play_sound(SOUND_OBJ_SNOW_SAND1, o->oCameraToObject);
+    obj_play_sound(o, SOUND_OBJ_SNOW_SAND1);
     obj_spawn_particles(o, 8, MODEL_WHITE_PARTICLE, -o->hitboxDownOffset, 4 * scale, 2 * scale, 8 * scale, 4 * scale, -2 * sqrtf(scale), 0.3f * scale, 0.2f * scale);
     obj_mark_for_deletion(o);
 }
@@ -53,8 +53,8 @@ static void bhv_omm_snowball_update() {
         perform_object_step(o, OBJ_STEP_UPDATE_HOME);
         o->oVelY -= 2.f;
 
-        // Collided with a wall/floor
-        if (o->oWall || o->oCeil || o->oDistToFloor <= 0.f) {
+        // Out of bounds, or collided with a wall/ceiling/floor
+        if (!o->oFloor || o->oWall || (o->oCeil && o->oCeil->normal.y > -0.9f) || o->oDistToFloor <= 5) {
             bhv_omm_snowball_delete(o);
             return;
         }
@@ -65,12 +65,7 @@ static void bhv_omm_snowball_update() {
     obj_set_params(o, 0, 0, 0, 0, !o->parentObj);
     obj_reset_hitbox(o, 30, 50, 0, 0, 15, 25);
     if (!o->parentObj) {
-        struct Object *interacted = NULL;
-        if (o->oScaleX >= 2.f) {
-            interacted = omm_obj_process_interactions(o, OBJ_INT_PRESET_SNOWBALL_LARGE);
-        } else {
-            interacted = omm_obj_process_interactions(o, OBJ_INT_PRESET_SNOWBALL_SMALL);
-        }
+        struct Object *interacted = omm_obj_process_interactions(o, (o->oScaleX >= 2.f ? OBJ_INT_PRESET_SNOWBALL_LARGE : OBJ_INT_PRESET_SNOWBALL_SMALL));
         if (interacted && !omm_obj_is_collectible(interacted)) {
             bhv_omm_snowball_delete(o);
         }

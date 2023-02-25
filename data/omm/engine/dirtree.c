@@ -39,8 +39,8 @@ static s32 dirtree_walk_impl(fs_dirtree_entry_t *ent, walk_fn_t walkfn, void *us
 //
 
 bool fs_dirtree_init(fs_dirtree_t *tree, const u64 entry_len) {
-    omm_zero(tree, sizeof(fs_dirtree_t));
-    tree->root = (fs_dirtree_entry_t *) omm_new(u8, entry_len);
+    mem_clr(tree, sizeof(fs_dirtree_t));
+    tree->root = (fs_dirtree_entry_t *) mem_new(u8, entry_len);
     if (OMM_LIKELY(tree->root)) {
         tree->root->name = "";
         tree->root->is_dir = true;
@@ -52,11 +52,11 @@ bool fs_dirtree_init(fs_dirtree_t *tree, const u64 entry_len) {
 
 void fs_dirtree_free(fs_dirtree_t *tree) {
     if (tree) {
-        if (tree->root) omm_free(tree->root);
+        if (tree->root) mem_del(tree->root);
         for (s32 i = 0; i != FS_NUMBUCKETS; ++i) {
             for (fs_dirtree_entry_t *next, *ent = tree->buckets[i]; ent; ent = next) {
                 next = ent->next_hash;
-                omm_free(ent);
+                mem_del(ent);
             }
         }
     }
@@ -69,7 +69,7 @@ fs_dirtree_entry_t *fs_dirtree_add(fs_dirtree_t *tree, char *name, const bool is
         if (parent) {
             const u64 name_len = strlen(name);
             const u64 allocsize = tree->entry_len + name_len + 1;
-            ent = (fs_dirtree_entry_t *) omm_new(u8, allocsize);
+            ent = (fs_dirtree_entry_t *) mem_new(u8, allocsize);
             if (OMM_LIKELY(ent)) {
                 ent->name = (const char *) ent + tree->entry_len; 
                 strcpy((char *) ent->name, name);

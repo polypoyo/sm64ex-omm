@@ -155,7 +155,7 @@ static void bhv_omm_sparkly_star_block_update() {
                     omm_spawn_sparkly_star_sparkle(o, o->oSparklyStarMode, o->oScaleY * 25.f, 60.f, 0.8f, 80.f);
                 }
                 o->oNodeFlags |= GRAPH_RENDER_INVISIBLE;
-                play_sound(SOUND_GENERAL_BREAK_BOX, o->oCameraToObject);
+                obj_play_sound(o, SOUND_GENERAL_BREAK_BOX);
                 set_environmental_camera_shake(SHAKE_ENV_FALLING_BITS_PLAT);
                 o->oAction = 2;
                 o->oTimer = 0;
@@ -211,8 +211,8 @@ const BehaviorScript bhvOmmSparklyStarBlock3[] = {
 // Spawner
 //
 
-struct Object *omm_spawn_sparkly_star_block(struct Object *o, s32 mode, f32 x, f32 y, f32 z) {
-    struct Object *block = obj_spawn_from_geo(o, OMM_SPARKLY_BLOCK_GEO[mode], OMM_SPARKLY_BLOCK_BHV[mode]);
+struct Object *omm_spawn_sparkly_star_block(struct Object *o, s32 sparklyMode, f32 x, f32 y, f32 z) {
+    struct Object *block = obj_spawn_from_geo(o, OMM_SPARKLY_BLOCK_GEO[sparklyMode], OMM_SPARKLY_BLOCK_BHV[sparklyMode]);
     obj_set_always_rendered(block, true);
     obj_set_pos(block, x, y, z);
     obj_set_angle(block, 0, 0, 0);
@@ -221,6 +221,6 @@ struct Object *omm_spawn_sparkly_star_block(struct Object *o, s32 mode, f32 x, f
     obj_reset_hitbox(block, 30, 50, 30, 50, 0, 0);
     obj_update_gfx(block);
     block->activeFlags |= ACTIVE_FLAG_INITIATED_TIME_STOP;
-    block->oSparklyStarMode = mode;
+    block->oSparklyStarMode = sparklyMode;
     return block;
 }

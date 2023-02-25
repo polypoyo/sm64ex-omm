@@ -77,7 +77,7 @@ OMM_AT_STARTUP static void bhv_omm_wing_glow_init() {
         GEO_CLOSE_NODE(),
         GEO_END(),
     };
-    omm_copy(sOmmWingGlowGeoLayout, geo, sizeof(geo));
+    mem_cpy(sOmmWingGlowGeoLayout, geo, sizeof(geo));
 }
 
 static void bhv_omm_wing_glow_update() {
@@ -103,7 +103,7 @@ static void bhv_omm_wing_glow_update() {
 
     // Update vertex color
     Vtx *vtx = sOmmWingGlowVertices;
-    for (s32 i = 0; i != omm_static_array_length(sOmmWingGlowVertices); i += 4) {
+    for (s32 i = 0; i != array_length(sOmmWingGlowVertices); i += 4) {
         omm_wing_set_vertex_color(vtx++, 0.0f, NULL);
         omm_wing_set_vertex_color(vtx++, 0.2f, NULL);
         omm_wing_set_vertex_color(vtx++, 1.0f, NULL);
@@ -158,11 +158,11 @@ OMM_AT_STARTUP static void bhv_omm_wing_trail_init() {
         GEO_CLOSE_NODE(),
         GEO_END(),
     };
-    omm_copy(sOmmWingTrailGeoLayout, geo, sizeof(geo));
+    mem_cpy(sOmmWingTrailGeoLayout, geo, sizeof(geo));
 }
 
 static void bhv_omm_wing_trail_reset() {
-    omm_zero(sOmmWingTrailVertices, sizeof(sOmmWingTrailVertices));
+    mem_clr(sOmmWingTrailVertices, sizeof(sOmmWingTrailVertices));
 }
 
 static void bhv_omm_wing_trail_update() {
@@ -213,7 +213,7 @@ static void bhv_omm_wing_trail_update() {
         // Update current vertex
         Vtx *vtxHead = &sOmmWingTrailVertices[k][0];
         Vtx *vtxPrev = vtxHead + 5;
-        omm_move(vtxPrev, vtxHead, sizeof(Vtx) * (OMM_WING_TRAIL_NUM_POINTS - 1) * 5);
+        mem_mov(vtxPrev, vtxHead, sizeof(Vtx) * (OMM_WING_TRAIL_NUM_POINTS - 1) * 5);
         if (trail) {
             *vtxHead = omm_wing_get_vertex(hPos, gVec3fZero, 0.f, 0xFF);
             omm_wing_set_vertex_color(vtxHead, 0.f, NULL);

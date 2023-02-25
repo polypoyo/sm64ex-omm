@@ -4,10 +4,10 @@
 
 #define OMM_PERRY_SHOCKWAVE_WAVE_NUM_POINTS   16
 #define OMM_PERRY_SHOCKWAVE_WAVE_RADIUS       100.f
-#define OMM_PERRY_SHOCKWAVE_WAVE_SEGMENTS     (omm_static_array_of(f32) { 0.f, 0.9f, 1.f })
+#define OMM_PERRY_SHOCKWAVE_WAVE_SEGMENTS     (array_of(f32) { 0.f, 0.9f, 1.f })
 #define OMM_PERRY_SHOCKWAVE_GLOW_NUM_POINTS   16
 #define OMM_PERRY_SHOCKWAVE_GLOW_RADIUS       128.f
-#define OMM_PERRY_SHOCKWAVE_GLOW_SEGMENTS     (omm_static_array_of(f32) { 0.f, 0.25f, 1.f })
+#define OMM_PERRY_SHOCKWAVE_GLOW_SEGMENTS     (array_of(f32) { 0.f, 0.25f, 1.f })
 
 //
 // Gfx data
@@ -28,7 +28,7 @@ static const Gfx omm_perry_shockwave_gfx[] = {
 //
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_perry_shockwave_gfx)];
+    Gfx gfx[array_length(omm_perry_shockwave_gfx)];
     Gfx tri[4 * (OMM_PERRY_SHOCKWAVE_WAVE_NUM_POINTS + OMM_PERRY_SHOCKWAVE_GLOW_NUM_POINTS) + 3];
     Vtx vtx[8 * (OMM_PERRY_SHOCKWAVE_WAVE_NUM_POINTS + OMM_PERRY_SHOCKWAVE_GLOW_NUM_POINTS)];
 } OmmPeachPerryShockwaveGeoData;

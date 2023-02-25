@@ -20,9 +20,9 @@ bool omm_cappy_bobomb_init(struct Object* o) {
 }
 
 void omm_cappy_bobomb_end(struct Object *o) {
-    o->oBhvArgs &= 0xFF00FFFF;
-    o->oBhvArgs |= (BOBOMB_BP_STYPE_GENERIC << 16);
-    o->oBhvArgs2ndByte = BOBOMB_BP_STYPE_GENERIC;
+    o->oBehParams &= 0xFF00FFFF;
+    o->oBehParams |= (BOBOMB_BP_STYPE_GENERIC << 16);
+    o->oBehParams2ndByte = BOBOMB_BP_STYPE_GENERIC;
     o->oAnimInfo.curAnim = NULL;
     obj_anim_play(o, 0, 1.f);
 
@@ -94,7 +94,7 @@ s32 omm_cappy_bobomb_update(struct Object *o) {
             gOmmObject->state.actionTimer = max_s(0, gOmmObject->state.actionTimer - 1);
         }
     }
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Movement
     perform_object_step(o, POBJ_STEP_FLAGS);
@@ -104,7 +104,7 @@ s32 omm_cappy_bobomb_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Landing after 3 booms makes the bob-omb explode and ejects Mario
     if (obj_is_on_ground(o)) {
@@ -114,16 +114,16 @@ s32 omm_cappy_bobomb_update(struct Object *o) {
             obj_destroy(o);
         }
     }
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
     
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -138,5 +138,5 @@ s32 omm_cappy_bobomb_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.2f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

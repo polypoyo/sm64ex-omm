@@ -44,11 +44,12 @@ static s32 omm_act_exit(struct MarioState *m, bool deathExit, u32 endAction, s32
     }
     if (omm_act_exit_launch_mario_until_land(m, endAction, animID, forwardVel, delay)) {
         if (deathExit && soundBits) {
-            play_sound(soundBits, m->marioObj->oCameraToObject);
+            obj_play_sound(m->marioObj, soundBits);
         }
         omm_health_fully_heal_mario(m);
         m->healCounter = 31;
         m->actionArg = (m->action == ACT_SPECIAL_EXIT_AIRBORNE);
+        gOmmStats->deaths += deathExit;
     } else if (deathExit) {
         if (OMM_MOVESET_ODYSSEY) {
             m->health = omm_health_odyssey(OMM_HEALTH_ODYSSEY_DEAD);
@@ -61,6 +62,126 @@ static s32 omm_act_exit(struct MarioState *m, bool deathExit, u32 endAction, s32
         m->marioObj->oGfxAngle[1] += 0x8000;
         m->particleFlags |= PARTICLE_SPARKLES;
     }
+    return OMM_MARIO_ACTION_RESULT_BREAK;
+}
+
+static s32 omm_act_unlocking_key_door(struct MarioState *m) {
+    static struct Object *door1 = NULL;
+    static struct Object *door2 = NULL;
+    if (OMM_MOVESET_ODYSSEY) {
+        static f32 sMarioPosX = 0;
+        static f32 sMarioPosZ = 0;
+        if (m->actionTimer++ == 0) {
+            door1 = obj_get_nearest_with_behavior(m->marioObj, bhvDoorWarp);
+            door2 = obj_get_nearest_with_behavior(door1, bhvDoorWarp);
+            if (!door1 || !door2) {
+                return omm_mario_set_action(m, ACT_IDLE, 0, 0);
+            }
+
+            // Point between the 2 doors
+            Vec3f p1 = { door1->oPosX, door1->oPosY, door1->oPosZ };
+            Vec3f p2 = { door2->oPosX, door2->oPosY, door2->oPosZ };
+            Vec3f p; vec3f_mul(vec3f_sum(p, p1, p2), 0.5f);
+
+            // Angles
+            s16 angleMario = atan2s(m->pos[2] - p[2], m->pos[0] - p[0]);
+            s16 angleDoor1 = atan2s(p1[2] - p[2], p1[0] - p[0]) + 0x4000;
+            s16 angleDoor2 = atan2s(p2[2] - p[2], p2[0] - p[0]) + 0x4000;
+            if (abs_s((s16) (angleMario - angleDoor1)) < abs_s((s16) (angleMario - angleDoor2))) {
+                m->faceAngle[1] = angleDoor1 + 0x8000;
+            } else {
+                m->faceAngle[1] = angleDoor2 + 0x8000;
+            }
+
+            // Correct Mario pos
+            m->pos[0] = sMarioPosX = p[0] + 15 * sins(m->faceAngle[1] + 0x8000);
+            m->pos[2] = sMarioPosZ = p[2] + 15 * coss(m->faceAngle[1] + 0x8000);
+            struct Object *key = spawn_object(m->marioObj, MODEL_BOWSER_KEY_CUTSCENE, bhvBowserKeyUnlockDoor);
+            key->oFaceAngleYaw = m->faceAngle[1];
+            key->oPosX = m->pos[0];
+            key->oPosY = m->pos[1];
+            key->oPosZ = m->pos[2];
+            set_mario_animation(m, MARIO_ANIM_UNLOCK_DOOR);
+        }
+
+        // Set Mario pos
+        m->pos[0] = sMarioPosX;
+        m->pos[2] = sMarioPosZ;
+
+        // Anim and sound
+        update_mario_pos_for_anim(m);
+        stop_and_set_height_to_floor(m);
+        switch (m->marioObj->oAnimInfo.animFrame) {
+            case 79:  obj_play_sound(m->marioObj, SOUND_GENERAL_DOOR_INSERT_KEY); break;
+            case 111: obj_play_sound(m->marioObj, SOUND_GENERAL_DOOR_TURN_KEY);   break;
+        }
+        if (obj_anim_is_at_end(m->marioObj)) {
+            if (m->usedObj->oBehParams >> 24 == 1) {
+                omm_save_file_set_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE, SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR);
+                omm_save_file_clear_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE, SAVE_FLAG_HAVE_KEY_2);
+            } else {
+                omm_save_file_set_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE, SAVE_FLAG_UNLOCKED_BASEMENT_DOOR);
+                omm_save_file_clear_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE, SAVE_FLAG_HAVE_KEY_1);
+            }
+            bool isPullingDoor1 = (should_push_or_pull_door(m, door1) == 1);
+            m->interactObj = m->usedObj = (isPullingDoor1 ? door1 : door2);
+            omm_mario_set_action(m, ACT_PULLING_DOOR, 5, 0);
+        }
+        return OMM_MARIO_ACTION_RESULT_BREAK;
+    }
+    return OMM_MARIO_ACTION_RESULT_CONTINUE;
+}
+
+static s32 omm_act_reading_sign(struct MarioState *m) {
+    play_sound_if_no_flag(m, SOUND_ACTION_READ_SIGN, MARIO_ACTION_SOUND_PLAYED);
+    switch (m->actionState) {
+
+        // Start cutscene
+        case 0: {
+            if (m->usedObj->behavior != bhvOmmStatsBoard) {
+                trigger_cutscene_dialog(1);
+            }
+            enable_time_stop();
+            set_mario_animation(m, MARIO_ANIM_FIRST_PERSON);
+            m->actionState = 1;
+        } break;
+
+        // Turn toward sign
+        case 1: {
+            m->faceAngle[1] += m->marioObj->oMarioPoleUnk108 / 11;
+            m->pos[0] += m->marioObj->oMarioReadingSignDPosX / 11.f;
+            m->pos[2] += m->marioObj->oMarioReadingSignDPosZ / 11.f;
+            if (m->actionTimer++ == 10) {
+                if (m->usedObj->behavior == bhvOmmStatsBoard) {
+                    m->usedObj->oAction = 1;
+                    m->actionState = 3;
+                } else {
+                    create_dialog_inverted_box(m->usedObj->oBehParams2ndByte);
+                    m->actionState = 2;
+                }
+            }
+        } break;
+
+        // Wait for the dialog to end
+        case 2: {
+            if (gDialogID == -1 && gCamera->cutscene == 0) {
+                disable_time_stop();
+                set_mario_action(m, ACT_IDLE, 0);
+            }
+        } break;
+
+        // Wait for the stats board to close
+        case 3: {
+            if (m->usedObj->oAction == 0) {
+                disable_time_stop();
+                set_mario_action(m, ACT_IDLE, 0);
+            }
+        } break;
+    }
+
+    // Update gfx
+    vec3f_copy(m->marioObj->oGfxPos, m->pos);
+    vec3s_set(m->marioObj->oGfxAngle, 0, m->faceAngle[1], 0);
     return OMM_MARIO_ACTION_RESULT_BREAK;
 }
 
@@ -165,12 +286,8 @@ static void omm_lost_coins_save() {
 }
 
 static void omm_lost_coins_respawn() {
-    if (OMM_STARS_NON_STOP && !OMM_SPARKLY_MODE_IS_LUNATIC) {
-#if OMM_CODE_TIME_TRIALS
-        if (!time_trials_enabled()) omm_stars_set_bits(sOmmCurrStarBits);
-#else
+    if (OMM_STARS_NON_STOP && !OMM_SPARKLY_MODE_IS_LUNATIC && !time_trials_enabled()) {
         omm_stars_set_bits(sOmmCurrStarBits);
-#endif
         struct MarioState *m = gMarioState;
         for (s32 i = 0; i != sOmmLostCoinsCount; ++i) {
             f32 x = sOmmLostCoins[i].pos[0];
@@ -304,6 +421,7 @@ static void omm_act_death_handler(struct MarioState *m, s32 type, bool lookAtCam
         omm_lost_coins_spawn(m);
         sAnim2Vel = anim2_yVelInit;
         sMarioPosY = m->pos[1] + anim1_yOffset;
+        gOmmStats->deaths++;
     }
 
     // Fix the camera during the animation
@@ -341,7 +459,6 @@ static void omm_act_death_handler(struct MarioState *m, s32 type, bool lookAtCam
 
     // Send the signal to restart the level
     if (m->actionTimer == tEnd) {
-#if OMM_CODE_TIME_TRIALS
         if (time_trials_enabled()) {
             omm_restart_level();
         } else {
@@ -349,11 +466,6 @@ static void omm_act_death_handler(struct MarioState *m, s32 type, bool lookAtCam
             omm_add_routine(OMM_ROUTINE_TYPE_LEVEL_ENTRY, omm_lost_coins_respawn);
             omm_restart_area();
         }
-#else
-        omm_lost_coins_save();
-        omm_add_routine(OMM_ROUTINE_TYPE_LEVEL_ENTRY, omm_lost_coins_respawn);
-        omm_restart_area();
-#endif
 
         // Restore Mario's health
         m->health = OMM_HEALTH_DEAD;
@@ -391,7 +503,7 @@ static s32 omm_act_death_eaten_by_bubba(struct MarioState *m) {
 
 static s32 omm_act_death_quicksand(struct MarioState *m) {
     omm_act_death_handler(m, 2, false, 0, 60, 100, omm_act_death_get_anim_params(5));
-    if (m->actionTimer < 75) play_sound(SOUND_MOVING_QUICKSAND_DEATH, m->marioObj->oCameraToObject);
+    if (m->actionTimer < 75) obj_play_sound(m->marioObj, SOUND_MOVING_QUICKSAND_DEATH);
     return OMM_MARIO_ACTION_RESULT_BREAK;
 }
 
@@ -537,12 +649,12 @@ static bool omm_act_star_dance_update(struct MarioState *m) {
 #if OMM_GAME_IS_SMSR
 #define gLastCompletedStarNum (gLastCompletedStarNum * (starBehavior != bhvCustomSMSRStarReplica))
 #endif
-        omm_render_effect_you_got_a_star_begin(OMM_TEXT_YOU_GOT_A_STAR, omm_level_get_name(gCurrLevelNum, false, false), omm_level_get_act_name(gCurrLevelNum, gLastCompletedStarNum, false, false));
+        omm_render_effect_you_got_a_star_begin(OMM_TEXT_YOU_GOT_A_STAR, omm_level_get_course_name(gCurrLevelNum, OMM_GAME_MODE, false, false), omm_level_get_act_name(gCurrLevelNum, gLastCompletedStarNum, OMM_GAME_MODE, false, false));
     }
     
     // Here we go!
     else if (m->actionTimer == 40) {
-        play_sound(SOUND_MARIO_HERE_WE_GO, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MARIO_HERE_WE_GO);
         set_camera_shake_from_hit(SHAKE_GROUND_POUND);
     }
     
@@ -652,7 +764,7 @@ s32 omm_mario_execute_cutscene_action(struct MarioState *m) {
         case ACT_READING_AUTOMATIC_DIALOG:  return OMM_MARIO_ACTION_RESULT_CONTINUE;
         case ACT_READING_NPC_DIALOG:        return OMM_MARIO_ACTION_RESULT_CONTINUE;
         case ACT_STAR_DANCE_NO_EXIT:        return omm_act_cutscene_cancels__star_dance(m);
-        case ACT_READING_SIGN:              return OMM_MARIO_ACTION_RESULT_CONTINUE;
+        case ACT_READING_SIGN:              return omm_act_reading_sign(m);
         case ACT_JUMBO_STAR_CUTSCENE:       return OMM_MARIO_ACTION_RESULT_CONTINUE;
         case ACT_WAITING_FOR_DIALOG:        return OMM_MARIO_ACTION_RESULT_CONTINUE;
         case ACT_DEBUG_FREE_MOVE:           return OMM_MARIO_ACTION_RESULT_CONTINUE;
@@ -680,7 +792,7 @@ s32 omm_mario_execute_cutscene_action(struct MarioState *m) {
         case ACT_SPECIAL_EXIT_AIRBORNE:     return omm_act_exit(m, false, ACT_EXIT_LAND_SAVE_DIALOG, MARIO_ANIM_SINGLE_JUMP, -24, 11, SOUND_MARIO_YAHOO);
         case ACT_SPECIAL_DEATH_EXIT:        return omm_act_exit(m, true, ACT_HARD_BACKWARD_GROUND_KB, MARIO_ANIM_BACKWARD_AIR_KB, -24, 11, 0);
         case ACT_FALLING_EXIT_AIRBORNE:     return omm_act_exit(m, false, ACT_EXIT_LAND_SAVE_DIALOG, MARIO_ANIM_GENERAL_FALL, 0, 0, 0);
-        case ACT_UNLOCKING_KEY_DOOR:        return OMM_MARIO_ACTION_RESULT_CONTINUE;
+        case ACT_UNLOCKING_KEY_DOOR:        return omm_act_unlocking_key_door(m);
         case ACT_UNLOCKING_STAR_DOOR:       return OMM_MARIO_ACTION_RESULT_CONTINUE;
         case ACT_ENTERING_STAR_DOOR:        return OMM_MARIO_ACTION_RESULT_CONTINUE;
         case ACT_SPAWN_NO_SPIN_AIRBORNE:    return OMM_MARIO_ACTION_RESULT_CONTINUE;
@@ -698,6 +810,7 @@ s32 omm_mario_execute_cutscene_action(struct MarioState *m) {
 
         // Odyssey
         case ACT_OMM_POSSESSION:            return omm_act_possession(m);
+        case ACT_OMM_POSSESSION_UNDERWATER: return omm_act_possession(m);
         case ACT_OMM_DEATH:                 return omm_act_death(m);
         case ACT_OMM_DEATH_WATER:           return omm_act_death_water(m);
         case ACT_OMM_DEATH_FALL:            return omm_act_death_fall(m);

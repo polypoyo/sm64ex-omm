@@ -4,13 +4,8 @@
 #include "types.h"
 
 //
-// Possessed object shortcuts
+// Possessed object constants and shortcuts
 //
-
-#define POBJ_RETURN_OK                          return 0
-#define POBJ_RETURN_UNPOSSESS                   return 1
-#define POBJ_RETURN_RETRY                       return 2
-#define POBJ_STOP_IF_UNPOSSESSED                { if (gMarioState->action != ACT_OMM_POSSESSION) { POBJ_RETURN_UNPOSSESS; } }
 
 #define POBJ_RESULT_NONE                        0
 #define POBJ_RESULT_JUMP_START                  1
@@ -53,27 +48,13 @@
 #define POBJ_IS_ABLE_TO_MOVE_THROUGH_WALLS      ((gOmmObject->state.properties & (1 << 9)) != 0)
 #define POBJ_IS_ATTACKING                       ((gOmmObject->state.properties & (1 << 10)) != 0)
 
-#define POBJ_STEP_FLAGS                         (OBJ_STEP_UPDATE_HOME | (OBJ_STEP_MOVE_THROUGH_WALLS * POBJ_IS_ABLE_TO_MOVE_THROUGH_WALLS) | (OBJ_STEP_STICKY_FEET * POBJ_IS_ABLE_TO_MOVE_ON_SLOPES) | OBJ_STEP_CHECK_ON_GROUND)
+#define POBJ_STEP_FLAGS                         (OBJ_STEP_UPDATE_HOME | OBJ_STEP_UPDATE_PREV_POS | (OBJ_STEP_MOVE_THROUGH_WALLS * POBJ_IS_ABLE_TO_MOVE_THROUGH_WALLS) | (OBJ_STEP_STICKY_FEET * POBJ_IS_ABLE_TO_MOVE_ON_SLOPES) | OBJ_STEP_CHECK_ON_GROUND)
 #define POBJ_INT_PRESET_COLLECTIBLES            (OBJ_INT_COLLECT_TRIGGERS | OBJ_INT_COLLECT_COINS | OBJ_INT_COLLECT_STARS)
-
-#define POBJ_INTERACTIONS(...)                                                                  \
-if (gOmmObject->state.invincTimer-- <= 0 && !omm_mario_is_locked(gMarioState)) {                \
-    struct Object *interacted = omm_obj_process_interactions(o, POBJ_INT_PRESET_COLLECTIBLES);  \
-    if (!interacted || !omm_obj_is_collectible(interacted)) {                                   \
-        for_each_object_in_interaction_lists(obj) {                                             \
-            if (obj != o) {                                                                     \
-                __VA_ARGS__;                                                                    \
-                u32 interactType = obj->oInteractType;                                          \
-                if (!(obj->oInteractStatus & INT_STATUS_INTERACTED)) {                          \
-                    pobj_process_interaction(o, obj, interactType);                             \
-                }                                                                               \
-            }                                                                                   \
-        }                                                                                       \
-    }                                                                                           \
-}
+#define POBJ_INT_PRESET_CHAIN_CHOMP             (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_STRONG | OBJ_INT_ATTACK_DESTRUCTIBLE | OBJ_INT_ATTACK_BREAKABLE)
+#define POBJ_INT_PRESET_MAD_PIANO               (OBJ_INT_ATTACK_WEAK | OBJ_INT_ATTACK_STRONG | OBJ_INT_ATTACK_DESTRUCTIBLE | OBJ_INT_ATTACK_BREAKABLE)
 
 //
-// Possessed object stuff
+// Possessed object functions
 //
 
 void pobj_move(struct Object *o, bool run, bool dash, bool stop);
@@ -83,6 +64,24 @@ void pobj_decelerate(struct Object *o, f32 decel, f32 decelIce);
 void pobj_apply_gravity(struct Object *o, f32 mult);
 void pobj_handle_special_floors(struct Object *o);
 bool pobj_process_interaction(struct Object *o, struct Object *obj, u32 interactType);
+
+#define pobj_return_ok                          return 0
+#define pobj_return_unpossess                   return 1
+#define pobj_return_retry                       return 2
+#define pobj_stop_if_unpossessed()              { if (!omm_mario_is_capture(gMarioState)) { pobj_return_unpossess; } }
+#define pobj_process_interactions(...)                                              \
+omm_obj_process_interactions(o, POBJ_INT_PRESET_COLLECTIBLES);                      \
+if (gOmmObject->state.invincTimer-- <= 0 && !omm_mario_is_locked(gMarioState)) {    \
+    for_each_object_in_interaction_lists(obj) {                                     \
+        if (obj != o) {                                                             \
+            __VA_ARGS__;                                                            \
+            u32 interactType = obj->oInteractType;                                  \
+            if (!(obj->oInteractStatus & INT_STATUS_INTERACTED)) {                  \
+                pobj_process_interaction(o, obj, interactType);                     \
+            }                                                                       \
+        }                                                                           \
+    }                                                                               \
+}
 
 //
 // Capture data
@@ -119,7 +118,7 @@ f32 omm_cappy_##name##_get_top(struct Object *o)
 // Bob-omb Battlefield
 CAPTURE_BEHAVIOR(goomba);               // bhvGoomba
 CAPTURE_BEHAVIOR(koopa);                // bhvKoopa
-CAPTURE_BEHAVIOR(koopa_shell);          // bhvKoopaShell
+CAPTURE_BEHAVIOR(koopa_shell);          // bhvKoopaShell, bhvKoopaShellUnderwater
 CAPTURE_BEHAVIOR(bobomb);               // bhvBobomb
 CAPTURE_BEHAVIOR(npc_message);          // bhvBobombBuddy
 CAPTURE_BEHAVIOR(bobomb_buddy);         // bhvBobombBuddyOpensCannon

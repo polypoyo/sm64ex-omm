@@ -9,8 +9,8 @@
 static s32 sNumOpts = 0;
 
 void omm_opt_init_main_menu() {
-    sNumOpts = menuMain.numOpts + 1 + (2 * !OMM_CODE_DYNOS) + (1 * OMM_GAME_IS_SM74);
-    struct Option *opts = (struct Option *) omm_new(struct Option, sNumOpts);
+    sNumOpts = menuMain.numOpts + 1 + (3 * !OMM_CODE_DYNOS) + (1 * OMM_GAME_IS_SM74);
+    struct Option *opts = (struct Option *) mem_new(struct Option, sNumOpts);
     struct Option *head = opts;
 
     // OMM sub-menu
@@ -25,6 +25,16 @@ void omm_opt_init_main_menu() {
     head->label = gOmmOptWarpToLevel.label;
     head->nextMenu = (struct SubMenu *) gOmmOptWarpToLevel.subMenu;
     head++;
+
+    // Model packs
+    if (gOmmOptModels.subMenu) {
+        head->type = OPT_SUBMENU;
+        head->label = gOmmOptModels.label;
+        head->nextMenu = (struct SubMenu *) gOmmOptModels.subMenu;
+        head++;
+    } else {
+        sNumOpts--;
+    }
 #endif
 
     // Other options
@@ -34,7 +44,7 @@ void omm_opt_init_main_menu() {
         // Game sub-menu (Render96)
         if (menuMain.opts[i].type == OPT_SUBMENU && menuMain.opts[i].nextMenu == &menuGame) {
             struct SubMenu *subMenu = menuMain.opts[i].nextMenu;
-            struct Option *newOpts = omm_new(struct Option, subMenu->numOpts);
+            struct Option *newOpts = mem_new(struct Option, subMenu->numOpts);
             for (s32 j = 0, k = 0, n = subMenu->numOpts; j != n; ++j) {
                 struct Option *opt = subMenu->opts + j;
 
@@ -45,7 +55,7 @@ void omm_opt_init_main_menu() {
                 }
 
                 // Copy option
-                omm_copy(newOpts + k++, opt, sizeof(struct Option));
+                mem_cpy(newOpts + k++, opt, sizeof(struct Option));
             }
             subMenu->opts = newOpts;
         }
@@ -54,11 +64,11 @@ void omm_opt_init_main_menu() {
         // Display sub-menu
         if (menuMain.opts[i].type == OPT_SUBMENU && menuMain.opts[i].nextMenu == &menuVideo) {
             struct SubMenu *subMenu = menuMain.opts[i].nextMenu;
-            struct Option *newOpts = omm_new(struct Option, subMenu->numOpts + 3);
+            struct Option *newOpts = mem_new(struct Option, subMenu->numOpts + 3);
 
             // Frame rate
             newOpts[0].type = OPT_CHOICE;
-            newOpts[0].choices = omm_new(u8 *, 4);
+            newOpts[0].choices = mem_new(u8 *, gOmmFrameRateCount);
             newOpts[0].numChoices = 4;
             newOpts[0].uval = &gOmmFrameRate;
 #if OMM_GAME_IS_R96X
@@ -85,14 +95,14 @@ void omm_opt_init_main_menu() {
 #endif
 
             // Other options
-            // Remove Apply button and 60 FPS option (Render96)
+            // Remove Apply button and some Render96 options
             for (s32 j = 0, k = 2, n = subMenu->numOpts; j != n; ++j) {
                 struct Option *opt = subMenu->opts + j;
 
                 // Preload Textures
                 if (opt->type == OPT_CHOICE && opt->uval == &configFiltering) {
                     newOpts[k].type = OPT_CHOICE;
-                    newOpts[k].choices = omm_new(u8 *, 3);
+                    newOpts[k].choices = mem_new(u8 *, gOmmPreloadTexturesCount);
                     newOpts[k].numChoices = 3;
                     newOpts[k].uval = &gOmmPreloadTextures;
 #if OMM_GAME_IS_R96X
@@ -121,16 +131,32 @@ void omm_opt_init_main_menu() {
                     subMenu->numOpts--;
                     continue;
                 }
+
+                // Skip internal resolution settings (Render96)
+                if (opt->type == OPT_TOGGLE && opt->bval == &configInternalResolutionBool) {
+                    subMenu->numOpts--;
+                    continue;
+                }
+                if (opt->type == OPT_CHOICE && opt->uval == &configCustomInternalResolution) {
+                    subMenu->numOpts--;
+                    continue;
+                }
+
+                // Skip draw distance scroll (Render96)
+                if (opt->type == OPT_SCROLL && opt->uval == &configDrawDistance) {
+                    subMenu->numOpts--;
+                    continue;
+                }
 #endif
 
                 // Texture filtering: remove three-point
                 if (opt->type == OPT_CHOICE && opt->uval == &configFiltering) {
                     opt->numChoices = 2;
-                    configFiltering &= 1;
+                    configFiltering %= 2;
                 }
 
                 // Copy option
-                omm_copy(newOpts + k++, opt, sizeof(struct Option));
+                mem_cpy(newOpts + k++, opt, sizeof(struct Option));
             }
             subMenu->opts = newOpts;
             subMenu->numOpts += 3;
@@ -177,7 +203,7 @@ void omm_opt_init_main_menu() {
 #endif
 
         // Add options
-        omm_copy(head++, &menuMain.opts[i], sizeof(struct Option));
+        mem_cpy(head++, &menuMain.opts[i], sizeof(struct Option));
     }
 
     // Update main menu
@@ -218,7 +244,7 @@ OMM_ROUTINE_UPDATE(omm_opt_update_num_options) {
 
 static const char *omm_opt_int_to_string(const char *fmt, s32 x) {
     static char sBuffer[16];
-    snprintf(sBuffer, 16, fmt, x);
+    str_fmt(sBuffer, 16, fmt, x);
     return sBuffer;
 }
 
@@ -367,7 +393,7 @@ void optmenu_draw(void) {
 
         // Check if the A, R and Start buttons have binds
         // If not, reset binds to default
-        for_each_(u32 *, binds, 3, omm_static_array_of(u32 *) {
+        for_each_(u32 *, binds, 3, array_of(u32 *) {
             gOmmControlsButtonA,
             gOmmControlsTriggerR,
             gOmmControlsButtonStart }) {
@@ -384,11 +410,12 @@ void optmenu_draw(void) {
         // still access to the 'Reset Controls' button
         for (s32 i = 0; i != MAX_BINDS; ++i) {
             if (gOmmControlsButtonA[i] != VK_INVALID) {
-                for_each_(u32*, binds, 19, omm_static_array_of(u32*) {
+                for_each_(u32 *, binds, 19, array_of(u32 *) {
                     gOmmControlsButtonB,
                     gOmmControlsButtonX,
                     gOmmControlsButtonY,
                     gOmmControlsButtonStart,
+                    gOmmControlsButtonSpin,
                     gOmmControlsTriggerL,
                     gOmmControlsTriggerR,
                     gOmmControlsTriggerZ,

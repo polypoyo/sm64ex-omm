@@ -12,8 +12,8 @@
 #define OMM_INLINE                                      static inline
 #define OMM_UNUSED(x)                                   (void) x
 #define OMM_RETURN_IF_TRUE(cond, ret, ...)              { if (cond) { __VA_ARGS__; return ret; } }
-#define OMM_LEVEL_NO_WARP(level)                        (omm_level_get_course(level) == COURSE_NONE)
-#define OMM_BOWSER_IN_THE_LEVEL(level)                  (level == LEVEL_BOWSER_1 ? LEVEL_BITDW : (level == LEVEL_BOWSER_2 ? LEVEL_BITFS : (level == LEVEL_BOWSER_3 ? LEVEL_BITS : level)))
+#define OMM_LEVEL_NO_WARP(levelNum)                     (omm_level_get_course(levelNum) == COURSE_NONE)
+#define OMM_BOWSER_IN_THE_LEVEL(levelNum)               ((levelNum) == LEVEL_BOWSER_1 ? LEVEL_BITDW : ((levelNum) == LEVEL_BOWSER_2 ? LEVEL_BITFS : ((levelNum) == LEVEL_BOWSER_3 ? LEVEL_BITS : (levelNum))))
 #define LEVEL_GROUNDS                                   LEVEL_CASTLE_GROUNDS
 #define LEVEL_COURT                                     LEVEL_CASTLE_COURTYARD
 
@@ -47,9 +47,9 @@
 // and disable the check to neighbor cells in Breezing Beach.
 // --------------------------------------------------------------------------
 #undef OMM_COLLISION_CHECK_NEIGHBOR_CELLS
-#define OMM_COLLISION_CHECK_NEIGHBOR_CELLS              (OMM_MOVESET_ODYSSEY && !(gCurrLevelNum == LEVEL_SL && gCurrAreaIndex == 2))
+#define OMM_COLLISION_CHECK_NEIGHBOR_CELLS              (OMM_MOVESET_ODYSSEY && !(gCurrLevelNum == LEVEL_SL && OMM_GAME_MODE == OMM_SM74_MODE_EXTREME))
 #undef OMM_STEP_NUM_SUB_STEPS_WATER
-#define OMM_STEP_NUM_SUB_STEPS_WATER                    ((OMM_MOVESET_ODYSSEY && !(gCurrLevelNum == LEVEL_SL && gCurrAreaIndex == 2)) ? 16 : 1)
+#define OMM_STEP_NUM_SUB_STEPS_WATER                    ((OMM_MOVESET_ODYSSEY && !(gCurrLevelNum == LEVEL_SL && OMM_GAME_MODE == OMM_SM74_MODE_EXTREME)) ? 16 : 1)
 #endif
 
 //
@@ -60,6 +60,7 @@
 #define OMM_MOVESET_ODYSSEY                             (gOmmMovesetType != 0)
 #define OMM_MOVESET_ODYSSEY_3H                          (gOmmMovesetType == 1)
 #define OMM_MOVESET_ODYSSEY_6H                          (gOmmMovesetType == 2)
+#define OMM_MOVESET_ODYSSEY_1H                          (gOmmMovesetType == 3)
 #define OMM_CAP_CLASSIC                                 (gOmmCapType == 0)
 #define OMM_CAP_CAPPY_NO_CAPTURE                        (gOmmCapType == 1)
 #define OMM_CAP_CAPPY_CAPTURE_PRESS                     (gOmmCapType == 2)
@@ -78,10 +79,10 @@
 #define OMM_SPARKLY_STARS_HINT_NOT_COLLECTED            (gOmmSparklyStarsHintAtLevelEntry == 1)
 #define OMM_SPARKLY_STARS_HINT_NEVER                    (gOmmSparklyStarsHintAtLevelEntry == 2)
 #define OMM_EXTRAS_SMO_ANIMATIONS                       (gOmmExtrasSMOAnimations && OMM_MOVESET_ODYSSEY)
-#define OMM_EXTRAS_CAPPY_AND_TIARA                      (gOmmExtrasCappyAndTiara && !OMM_CAP_CLASSIC)
+#define OMM_EXTRAS_CAPPY_AND_TIARA                      (gOmmExtrasCappyAndTiara && !OMM_CAP_CLASSIC && !OMM_EXTRAS_INVISIBLE_MODE)
 #define OMM_EXTRAS_COLORED_STARS                        (gOmmExtrasColoredStars && !OMM_GAME_IS_SMMS)
 #define OMM_EXTRAS_VANISHING_HUD                        (gOmmExtrasVanishingHUD)
-#define OMM_EXTRAS_REVEAL_SECRETS                       (gOmmExtrasRevealSecrets)
+#define OMM_EXTRAS_REVEAL_SECRETS                       (gOmmExtrasRevealSecrets && !OMM_GAME_IS_SMGS)
 #define OMM_EXTRAS_RED_COINS_RADAR                      (gOmmExtrasRedCoinsRadar)
 #define OMM_EXTRAS_SHOW_STAR_NUMBER                     (gOmmExtrasShowStarNumber && !omm_is_ending_cutscene() && gCurrLevelNum != OMM_LEVEL_END)
 #define OMM_EXTRAS_INVISIBLE_MODE                       (gOmmExtrasInvisibleMode)
@@ -93,6 +94,7 @@
 #define OMM_CHEAT_CAPPY_CAN_COLLECT_STARS               (gOmmCheatCappyCanCollectStars == 1)
 #define OMM_CHEAT_PLAY_AS_CAPPY                         (gOmmCheatPlayAsCappy == 1)
 #define OMM_CHEAT_PEACH_ENDLESS_VIBE_GAUGE              (gOmmCheatPeachEndlessVibeGauge == 1)
+#define OMM_CHEAT_SHADOW_MARIO                          (gOmmCheatShadowMario == 1)
 #if OMM_GAME_IS_R96X
 #define OMM_CHEAT_MOON_JUMP                             (Cheats.EnableCheats && (Cheats.MoonJump && !Cheats.ChaosMode))
 #define OMM_CHEAT_GOD_MODE                              (Cheats.EnableCheats && (Cheats.GodMode && !Cheats.ChaosMode))
@@ -145,7 +147,8 @@
                                                          OMM_CHEAT_MARIO_TELEPORTS_TO_CAPPY || \
                                                          OMM_CHEAT_CAPPY_CAN_COLLECT_STARS || \
                                                          OMM_CHEAT_PLAY_AS_CAPPY || \
-                                                         OMM_CHEAT_PEACH_ENDLESS_VIBE_GAUGE)
+                                                         OMM_CHEAT_PEACH_ENDLESS_VIBE_GAUGE || \
+                                                         OMM_CHEAT_SHADOW_MARIO)
 #if OMM_GAME_IS_R96X
 #define OMM_CHEATS_DISABLE                              {gOmmCheatUnlimitedCappyBounces = false; \
                                                          gOmmCheatCappyStaysForever = false; \
@@ -153,7 +156,8 @@
                                                          gOmmCheatMarioTeleportsToCappy = false; \
                                                          gOmmCheatCappyCanCollectStars = false; \
                                                          gOmmCheatPlayAsCappy = false; \
-                                                         gOmmCheatPeachEndlessVibeGauge = false;}
+                                                         gOmmCheatPeachEndlessVibeGauge = false; \
+                                                         gOmmCheatShadowMario = false;}
 #else
 #define OMM_CHEATS_DISABLE                              {gOmmCheatEnable = false; \
                                                          gOmmCheatMoonJump = false; \
@@ -176,7 +180,8 @@
                                                          gOmmCheatMarioTeleportsToCappy = false; \
                                                          gOmmCheatCappyCanCollectStars = false; \
                                                          gOmmCheatPlayAsCappy = false; \
-                                                         gOmmCheatPeachEndlessVibeGauge = false;}
+                                                         gOmmCheatPeachEndlessVibeGauge = false; \
+                                                         gOmmCheatShadowMario = false;}
 #endif
 
 //
@@ -244,10 +249,12 @@
 #define OMM_DIALOG_SPARKLY_ANTI_CHEAT_5                 (OMM_DIALOG_SPARKLY_START_INDEX + 42)
 #define OMM_DIALOG_SPARKLY_ANTI_CHEAT_6                 (OMM_DIALOG_SPARKLY_START_INDEX + 43)
 #define OMM_DIALOG_SPARKLY_ANTI_CHEAT_7                 (OMM_DIALOG_SPARKLY_START_INDEX + 44)
-#define OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_0             (OMM_DIALOG_SPARKLY_START_INDEX + 45)
-#define OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_1             (OMM_DIALOG_SPARKLY_START_INDEX + 46)
-#define OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_2             (OMM_DIALOG_SPARKLY_START_INDEX + 47)
-#define OMM_DIALOG_END_INDEX                            (OMM_DIALOG_SPARKLY_START_INDEX + 48)
+#define OMM_DIALOG_SPARKLY_ANTI_CHEAT_FISH              (OMM_DIALOG_SPARKLY_START_INDEX + 45)
+#define OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_0             (OMM_DIALOG_SPARKLY_START_INDEX + 46)
+#define OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_1             (OMM_DIALOG_SPARKLY_START_INDEX + 47)
+#define OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_2             (OMM_DIALOG_SPARKLY_START_INDEX + 48)
+#define OMM_DIALOG_SPARKLY_ANTI_CHEAT_END_FISH          (OMM_DIALOG_SPARKLY_START_INDEX + 49)
+#define OMM_DIALOG_END_INDEX                            (OMM_DIALOG_SPARKLY_START_INDEX + 50)
 #define OMM_DIALOG_COUNT                                (OMM_DIALOG_END_INDEX - OMM_DIALOG_START_INDEX)
 
 //
@@ -268,7 +275,7 @@
 extern const char *OMM_TEXTURE_STAR_BODY_[20];
 extern const char *OMM_TEXTURE_STAR_FULL_[20];
 extern const char *OMM_TEXTURE_MENU_FONT_[96];
-extern int OMM_STAR_COLOR_[20];
+extern int OMM_STAR_COLOR_[OMM_STAR_COLOR_COUNT];
 
 //
 // Assets
@@ -419,8 +426,11 @@ extern int OMM_STAR_COLOR_[20];
 #define oAnimInfo                                       header.gfx.mAnimInfo
 #define oAnimID                                         header.gfx.mAnimInfo.animID
 #define oCurrAnim                                       header.gfx.mAnimInfo.curAnim
-#define oWall                                           OBJECT_FIELD_SURFACE(0x03)
-#define oCeil                                           OBJECT_FIELD_SURFACE(0x04)
+#define oWall                                           OBJECT_FIELD_SURFACE(0x03) // unused
+#define oCeil                                           OBJECT_FIELD_SURFACE(0x04) // unused
+#define oPrevPosX                                       OBJECT_FIELD_F32(0x2C) // oParentRelativePosX
+#define oPrevPosY                                       OBJECT_FIELD_F32(0x2D) // oParentRelativePosY
+#define oPrevPosZ                                       OBJECT_FIELD_F32(0x2E) // oParentRelativePosZ
 #define oCappyLifeTimer                                 OBJECT_FIELD_S32(0x1B)
 #define oCappyBehavior                                  OBJECT_FIELD_S16(0x1C, 0)
 #define oCappyFlags                                     OBJECT_FIELD_S16(0x1C, 1)
@@ -428,8 +438,9 @@ extern int OMM_STAR_COLOR_[20];
 #define oCappyThrowStrength                             OBJECT_FIELD_S16(0x1D, 1)
 #define oGoombaStackParent                              OBJECT_FIELD_OBJ(0x00)
 #define oMrIBeamPower                                   OBJECT_FIELD_F32(0x17)
+#define oMontyMoleRockPower                             OBJECT_FIELD_F32(0x17)
+#define oMontyMoleTargetHole                            OBJECT_FIELD_OBJ(0x1C)
 #define oSnufitBallStrong                               OBJECT_FIELD_S32(0x17)
-#define oMenuButtonCharacterIndex                       OBJECT_FIELD_S32(0x21)
 #define oMipsCurrentWaypoint                            OBJECT_FIELD_S32(0x1D)
 #define oMipsTargetWaypoint                             OBJECT_FIELD_S32(0x1E)
 #define oMipsGrabbedCounter                             OBJECT_FIELD_S32(0x1F)
@@ -464,6 +475,7 @@ extern int OMM_STAR_COLOR_[20];
 #define oSparklyStarPosX                                OBJECT_FIELD_F32(0x1E)
 #define oSparklyStarPosY                                OBJECT_FIELD_F32(0x1F)
 #define oSparklyStarPosZ                                OBJECT_FIELD_F32(0x20)
+#define oPerryType                                      OBJECT_FIELD_S32(0x1A) // oAnimState
 #define oPerryFlags                                     OBJECT_FIELD_S32(0x1B)
 #define oPerryRightHandRot(x)                           OBJECT_FIELD_S32(0x1C + x)
 #define oPerryShockwaveBlast                            OBJECT_FIELD_S16(0x1B, 0)
@@ -473,17 +485,7 @@ extern int OMM_STAR_COLOR_[20];
 #define oPerryShockwaveBaseScale                        OBJECT_FIELD_F32(0x1E)
 #define oPerryChargeSwordTimer                          OBJECT_FIELD_S32(0x1C)
 #define oPerryChargeHandTimer                           OBJECT_FIELD_S32(0x1D)
-#define oPerryType                                      oAnimState
 #define oDistToFloor                                    oPosY - o->oFloorHeight
-
-//
-// str
-//
-
-#define omm_str_cpy(str, size, src)                     char str[size]; str_cpy(str, size, src);
-#define omm_str_cat(str, size, ...)                     char str[size]; str_cat(str, size, __VA_ARGS__);
-#define omm_sprintf(str, size, fmt, ...)                char str[size]; snprintf(str, size, fmt, __VA_ARGS__);
-#define omm_cat_paths(str, size, path1, path2)          char str[size]; fs_cat_paths(str, size, path1, path2);
 
 //
 // Debug

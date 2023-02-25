@@ -82,6 +82,13 @@ s32 omm_cappy_bully_update(struct Object *o) {
                     POBJ_SET_IMMUNE_TO_FIRE;
                     POBJ_SET_ABLE_TO_MOVE_ON_SLOPES;
                     POBJ_SET_ATTACKING;
+                    if (POBJ_B_BUTTON_PRESSED && !obj_is_on_ground(o)) {
+                        gOmmObject->state.actionState = OMM_CAPPY_BULLY_ACT_GROUND_POUND_START;
+                        gOmmObject->state.actionTimer = 0;
+                        obj_play_sound(o, SOUND_ACTION_THROW);
+                    } else if (pobj_jump(o, 0, 1) == POBJ_RESULT_JUMP_START) {
+                        obj_play_sound(o, SOUND_OBJ_GOOMBA_ALERT);
+                    }
                 } else {
                     gOmmObject->state.actionState = OMM_CAPPY_BULLY_ACT_MOVE;
                     gOmmObject->state.actionTimer = 15;
@@ -114,24 +121,24 @@ s32 omm_cappy_bully_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Lava must be handled separately
     if (obj_is_on_ground(o) && o->oFloor->type == SURFACE_BURNING && !OMM_CHEAT_WALK_ON_LAVA) {
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_BURNT, false, 0);
         omm_mario_set_action(gMarioState, ACT_LAVA_BOOST, 0, 0);
         o->oAction = BULLY_ACT_LAVA_DEATH;
-        POBJ_STOP_IF_UNPOSSESSED;
+        pobj_stop_if_unpossessed();
     }
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
 
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -148,9 +155,9 @@ s32 omm_cappy_bully_update(struct Object *o) {
             obj_anim_play(o, 1, 2.f);
             if (obj_is_on_ground(o)) {
                 obj_make_step_sound_and_particle(o, &gOmmObject->state.walkDistance, omm_capture_get_walk_speed(o) * 8.f, o->oForwardVel, SOUND_OBJ_BULLY_WALKING, OBJ_PARTICLE_NONE);
-                obj_make_step_sound_and_particle(o, &gOmmObject->state.walkDistance, 0, 0, -1, OBJ_PARTICLE_MIST); o->oPosY += 60.f * o->oScaleY;
-                obj_make_step_sound_and_particle(o, &gOmmObject->state.walkDistance, 0, 0, -1, OBJ_PARTICLE_SMOKE); o->oPosY -= 60.f * o->oScaleY;
             }
+            obj_make_step_sound_and_particle(o, &gOmmObject->state.walkDistance, 0, 0, -1, OBJ_PARTICLE_MIST); o->oPosY += 60.f * o->oScaleY;
+            obj_make_step_sound_and_particle(o, &gOmmObject->state.walkDistance, 0, 0, -1, OBJ_PARTICLE_SMOKE); o->oPosY -= 60.f * o->oScaleY;
         } break;
 
         case OMM_CAPPY_BULLY_ACT_GROUND_POUND_START: {
@@ -187,5 +194,5 @@ s32 omm_cappy_bully_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

@@ -84,6 +84,7 @@ void obj_spawn_white_puff_at(f32 x, f32 y, f32 z, s32 soundBits);
 void obj_spawn_triangle_break_particles(struct Object *o, s32 count, s32 model, f32 size, s32 type);
 void obj_spawn_break_particles(struct Object *o, s32 count, u8 r, u8 g, u8 b, f32 offsetY, f32 velMin, f32 velMax, f32 velY, f32 sizeMin, f32 sizeMax);
 void obj_spawn_particles(struct Object *o, s32 count, s32 model, f32 yOffset, f32 forwardVelBase, f32 forwardVelRange, f32 yVelBase, f32 yVelRange, f32 gravity, f32 scaleBase, f32 scaleRange);
+void obj_spawn_particle_preset(struct Object *o, u32 particle, bool setActiveParticle);
 void obj_destroy(struct Object *o);
 void obj_create_respawner(struct Object *o, s32 model, const BehaviorScript *behavior, f32 minSpawnDist);
 void obj_update_gfx(struct Object *o);
@@ -155,10 +156,12 @@ bool omm_obj_is_wf_star_wall(struct Object *o);
 bool omm_obj_is_exclamation_box(struct Object *o);
 bool omm_obj_is_unagis_tail(struct Object *o);
 bool omm_obj_is_collectible(struct Object *o);
+bool omm_obj_is_enemy(struct Object *o);
+bool omm_obj_is_enemy_defeated(struct Object *o);
 bool omm_obj_is_goomba_stack(struct Object *o);
 bool omm_obj_check_interaction(struct Object *o, struct MarioState *m, bool ignoreTangibility);
-bool omm_obj_process_one_surface_interaction(struct Object *o, struct Object *target, u32 interactionFlags);
-bool omm_obj_process_one_object_interaction(struct Object *o, struct Object *target, u32 interactionFlags);
+s32  omm_obj_process_one_surface_interaction(struct Object *o, struct Object *target, u32 interactionFlags);
+s32  omm_obj_process_one_object_interaction(struct Object *o, struct Object *target, u32 interactionFlags);
 struct Object *omm_obj_process_interactions(struct Object *o, u32 interactionFlags);
 
 //
@@ -203,7 +206,7 @@ struct Object *omm_spawn_break_particle(struct Object *o, u8 r, u8 g, u8 b, f32 
 struct Object *omm_spawn_snowball(struct Object *o);
 struct Object *omm_spawn_mr_i_beam(struct Object *o, f32 power);
 struct Object *omm_spawn_snufit_ball(struct Object *o, s32 delay, bool strong);
-struct Object *omm_spawn_rock(struct Object *o);
+struct Object *omm_spawn_monty_mole_rock(struct Object *o, f32 power);
 struct Object *omm_spawn_explosion(struct Object *o);
 struct Object *omm_spawn_blargg_fire_ball(struct Object *o);
 struct Object *omm_spawn_mips(struct Object *o, f32 x, f32 y, f32 z, f32 fVel);
@@ -220,12 +223,12 @@ struct Object *omm_spawn_bowser_fireball(struct Object *o, f32 x, f32 y, f32 z, 
 struct Object *omm_spawn_bowser_fireball_flame(struct Object *o, s32 duration);
 struct Object *omm_spawn_flaming_bobomb(struct Object *o, f32 x, f32 y, f32 z, s32 index, s32 count, f32 maxRadius, f32 maxHeight);
 struct Object *omm_spawn_flaming_bobomb_explosion(struct Object *o);
-struct Object *omm_spawn_sparkly_star(struct Object *o, s32 mode, f32 x, f32 y, f32 z, bool isCondStar);
-struct Object *omm_spawn_sparkly_star_hint(struct Object *o, s32 mode, f32 x, f32 y, f32 z, s16 yaw, s32 dialogId);
-struct Object *omm_spawn_sparkly_star_block(struct Object *o, s32 mode, f32 x, f32 y, f32 z);
-struct Object *omm_spawn_sparkly_star_sparkle(struct Object *o, s32 mode, f32 yOffset, f32 vel, f32 scale, f32 offset);
-struct Object *omm_spawn_sparkly_star_sparkle_mario(struct Object *o, s32 mode, f32 yOffset, f32 vel, f32 scale, f32 offset);
-struct Object *omm_spawn_sparkly_star_celebration(struct Object *o, s32 mode);
+struct Object *omm_spawn_sparkly_star(struct Object *o, s32 sparklyMode, f32 x, f32 y, f32 z, bool isCondStar);
+struct Object *omm_spawn_sparkly_star_hint(struct Object *o, s32 sparklyMode, f32 x, f32 y, f32 z, s16 yaw, s32 dialogId);
+struct Object *omm_spawn_sparkly_star_block(struct Object *o, s32 sparklyMode, f32 x, f32 y, f32 z);
+struct Object *omm_spawn_sparkly_star_sparkle(struct Object *o, s32 sparklyMode, f32 yOffset, f32 vel, f32 scale, f32 offset);
+struct Object *omm_spawn_sparkly_star_sparkle_mario(struct Object *o, s32 sparklyMode, f32 yOffset, f32 vel, f32 scale, f32 offset);
+struct Object *omm_spawn_sparkly_star_celebration(struct Object *o, s32 sparklyMode);
 struct Object *omm_spawn_perry_shockwave(struct Object *o, s32 delay, s32 type, bool clockwise);
 struct Object *omm_spawn_perry_blast(struct Object *o, s32 type);
 struct Object *omm_spawn_peach_vibe_aura(struct Object *o);
@@ -241,6 +244,7 @@ struct Object *omm_spawn_peach_vibe_gloom_tear_small(struct Object *o, f32 x, f3
 struct Object *omm_spawn_peach_vibe_calm_aura(struct Object *o);
 struct Object *omm_spawn_peach_vibe_calm_sparkle(struct Object *o);
 struct Object *omm_spawn_problem(struct Object *o);
+struct Object *omm_spawn_stats_board(struct Object *o, f32 x, f32 y, f32 z, s16 yaw);
 
 //
 // World
@@ -250,18 +254,18 @@ void omm_world_update(struct MarioState *m);
 bool omm_world_is_cold();
 bool omm_world_is_frozen();
 bool omm_world_is_flooded();
-bool omm_world_is_shadow();
+bool omm_world_is_dark();
 
 //
 // Stars
 //
 
 u8 omm_stars_get_bits();
-u8 omm_stars_get_bits_total(s32 level);
-u32 omm_stars_get_color(s32 level);
-bool omm_stars_is_collected(s32 index);
-bool omm_stars_all_collected(s32 level);
+u8 omm_stars_get_bits_total(s32 levelNum, s32 modeIndex);
+u32 omm_stars_get_color(s32 levelNum, s32 modeIndex);
+bool omm_stars_is_collected(s32 starIndex);
+bool omm_stars_all_collected(s32 levelNum, s32 modeIndex);
 void omm_stars_set_bits(u8 bits);
-#define OMM_ALL_STARS (omm_stars_all_collected(gCurrLevelNum) && !OMM_SPARKLY_MODE_IS_LUNATIC)
+#define OMM_ALL_STARS (omm_stars_all_collected(gCurrLevelNum, OMM_GAME_MODE) && !OMM_SPARKLY_MODE_IS_LUNATIC)
 
 #endif // OMM_OBJECT_H

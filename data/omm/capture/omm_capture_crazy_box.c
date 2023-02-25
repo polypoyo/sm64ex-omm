@@ -8,6 +8,8 @@
 
 bool omm_cappy_crazy_box_init(UNUSED struct Object *o) {
     gOmmObject->state.actionState = 0;
+    gOmmObject->state.actionTimer = 0;
+    gOmmMario->capture.lockTimer = 1;
     return true;
 }
 
@@ -39,7 +41,7 @@ s32 omm_cappy_crazy_box_update(struct Object *o) {
         if (obj_is_on_ground(o) && (gOmmObject->state.actionState == 3)) {
             omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 0);
             obj_destroy(o);
-            POBJ_RETURN_UNPOSSESS;
+            pobj_return_unpossess;
         }
         pobj_move(o, false, false, false);
         switch (pobj_jump(o, 1.6f, 1)) {
@@ -56,18 +58,39 @@ s32 omm_cappy_crazy_box_update(struct Object *o) {
             } break;
         }
     }
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Movement
     perform_object_step(o, POBJ_STEP_FLAGS);
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
+
+    // Lava boost
+    if (o->oVelY > 0 && gOmmObject->state.actionTimer == 1) {
+        spawn_object(o, MODEL_BURN_SMOKE, bhvBlackSmokeMario);
+        obj_play_sound(o, SOUND_MOVING_LAVA_BURN);
+    } else if (o->oFloor) {
+        if (o->oFloor->type == SURFACE_BURNING) {
+            if (gOmmObject->state.actionTimer == 0 && o->oDistToFloor <= 10.f && POBJ_A_BUTTON_DOWN) {
+                o->oVelY = max_f(o->oVelY, omm_capture_get_jump_velocity(o) * POBJ_PHYSICS_JUMP);
+                o->oPosY = max_f(o->oPosY, o->oFloorHeight + 10.f);
+                for (s32 i = 0; i != 8; ++i) spawn_object(o, MODEL_RED_FLAME, bhvKoopaShellFlame);
+                obj_play_sound(o, SOUND_MOVING_RIDING_SHELL_LAVA);
+                obj_play_sound(o, SOUND_GENERAL_BOING1);
+                gOmmObject->state.actionTimer = 1;
+            }
+        } else {
+            gOmmObject->state.actionTimer = 0;
+        }
+    }
+
+    // Special floors
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -77,5 +100,5 @@ s32 omm_cappy_crazy_box_update(struct Object *o) {
     gOmmObject->cappy.scale     = 2.f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

@@ -233,7 +233,7 @@ const char *gOmmFontText[0x100] = {
     /* 0xDD */ FONT_TEXT_MISSING,
     /* 0xDE */ FONT_TEXT_MISSING,
     /* 0xDF */ FONT_TEXT_MISSING,
-    /* 0xE0 */ FONT_TEXT_MISSING,
+    /* 0xE0 */ OMM_TEXTURE_MISC_TRANSPARENT,
     /* 0xE1 */ OMM_TEXTURE_FONT_TEXT_BRACKET_LEFT,
     /* 0xE2 */ FONT_TEXT_MISSING,
     /* 0xE3 */ OMM_TEXTURE_FONT_TEXT_BRACKET_RIGHT,
@@ -255,7 +255,7 @@ const char *gOmmFontText[0x100] = {
     /* 0xF3 */ OMM_TEXTURE_FONT_TEXT_PERCENT,
     /* 0xF4 */ "levels/menu/main_menu_seg7_us.0B700.ia8",
     /* 0xF5 */ FONT_TEXT_MISSING,
-    /* 0xF6 */ FONT_TEXT_MISSING,
+    /* 0xF6 */ OMM_TEXTURE_FONT_TEXT_QUOTES,
     /* 0xF7 */ OMM_TEXTURE_FONT_TEXT_TILDE,
     /* 0xF8 */ FONT_TEXT_MISSING,
     /* 0xF9 */ "levels/menu/main_menu_seg7_us.0B540.ia8",
@@ -579,10 +579,9 @@ void omm_render_shade_screen(u8 alpha) {
 #endif
 }
 
-void omm_render_texrect(s16 x, s16 y, s16 w, s16 h, s32 fmt, s32 siz, s16 texw, s16 texh, u8 red, u8 green, u8 blue, u8 alpha, const void *texture, bool shadow) {
-    if (shadow) {
-        omm_render_texrect(x + 1, y - 1, w, h, fmt, siz, texw, texh, 0, 0, 0, alpha, texture, false);
-    }
+void omm_render_texrect(s16 x, s16 y, s16 w, s16 h, s16 texw, s16 texh, u8 red, u8 green, u8 blue, u8 alpha, const void *texture, bool shadow) {
+    if (w <= 0 || h <= 0) return;
+    if (shadow) omm_render_texrect(x + 1, y - 1, w, h, texw, texh, 0, 0, 0, alpha, texture, false);
     omm_render_create_dl_ortho_matrix();
     gDPSetTexturePersp(gDisplayListHead++, G_TP_NONE);
     gDPSetRenderMode(gDisplayListHead++, G_RM_AA_XLU_SURF, G_RM_AA_XLU_SURF2);
@@ -590,12 +589,7 @@ void omm_render_texrect(s16 x, s16 y, s16 w, s16 h, s32 fmt, s32 siz, s16 texw, 
     gDPSetEnvColor(gDisplayListHead++, red, green, blue, alpha);
     gDPSetTextureFilter(gDisplayListHead++, G_TF_POINT);
     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-    switch (siz) {
-        case G_IM_SIZ_4b:  gDPLoadTextureBlock(gDisplayListHead++, texture, fmt, G_IM_SIZ_4b,  texw, texh, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0); break;
-        case G_IM_SIZ_8b:  gDPLoadTextureBlock(gDisplayListHead++, texture, fmt, G_IM_SIZ_8b,  texw, texh, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0); break;
-        case G_IM_SIZ_16b: gDPLoadTextureBlock(gDisplayListHead++, texture, fmt, G_IM_SIZ_16b, texw, texh, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0); break;
-        case G_IM_SIZ_32b: gDPLoadTextureBlock(gDisplayListHead++, texture, fmt, G_IM_SIZ_32b, texw, texh, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0); break;
-    }
+    gDPLoadTextureBlock(gDisplayListHead++, texture, G_IM_FMT_RGBA, G_IM_SIZ_32b, texw, texh, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
     gSPTextureRectangle(gDisplayListHead++, (x) << 2, (SCREEN_HEIGHT - h - y) << 2, (x + w) << 2, (SCREEN_HEIGHT - y) << 2, G_TX_RENDERTILE, 0, 0, ((0x400 * texw) / w), ((0x400 * texh) / h));
     gDPSetTexturePersp(gDisplayListHead++, G_TP_PERSP);
     gDPSetRenderMode(gDisplayListHead++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
@@ -630,14 +624,12 @@ void omm_render_number(s16 x, s16 y, s16 w, s16 h, s16 xStep, u8 alpha, s32 numb
         n = glyphs[i - 1];
         j = max_s(j, n);
         a = (alpha * (0xFF - 0xAA * (makeZerosTransparent && ((digits == 1) || (i > 1)) && (j == 0)))) / 0xFF;
-        omm_render_texrect(x, y, w, h, G_IM_FMT_RGBA, G_IM_SIZ_32b, 16, 16, 0xFF, 0xFF, 0xFF, a, sOmmNumberGlyphs[n], shadow);
+        omm_render_texrect(x, y, w, h, 16, 16, 0xFF, 0xFF, 0xFF, a, sOmmNumberGlyphs[n], shadow);
     }
 }
 
 void omm_render_string(s16 x, s16 y, u8 red, u8 green, u8 blue, u8 alpha, const u8 *str64, bool shadow) {
-    if (shadow) {
-        omm_render_string(x + 1, y - 1, 0, 0, 0, alpha, str64, false);
-    }
+    if (shadow) omm_render_string(x + 1, y - 1, 0, 0, 0, alpha, str64, false);
     omm_render_create_dl_ortho_matrix();
     u8 *temp = omm_text_capitalize(omm_text_copy(str64, false));
     gSPDisplayList(gDisplayListHead++, dl_menu_ia8_text_begin);
@@ -653,10 +645,28 @@ void omm_render_string(s16 x, s16 y, u8 red, u8 green, u8 blue, u8 alpha, const 
     gSPDisplayList(gDisplayListHead++, dl_menu_ia8_text_end);
 }
 
-void omm_render_string_hud(s16 x, s16 y, u8 red, u8 green, u8 blue, u8 alpha, const u8 *str64, bool shadow) {
-    if (shadow) {
-        omm_render_string_hud(x + 1, y - 1, 0, 0, 0, alpha, str64, false);
+void omm_render_string_sized(s16 x, s16 y, s16 w, s16 h, u8 red, u8 green, u8 blue, u8 alpha, const u8 *str64, bool shadow) {
+    if (w <= 0 || h <= 0) return;
+    if (shadow) omm_render_string_sized(x + 1, y - 1, w, h, 0, 0, 0, alpha, str64, false);
+    f32 wRatio = (f32) w / 8.f;
+    f32 hRatio = (f32) h / 8.f;
+    omm_render_create_dl_ortho_matrix();
+    u8 *temp = omm_text_capitalize(omm_text_copy(str64, false));
+    gSPDisplayList(gDisplayListHead++, dl_menu_ia8_text_begin);
+    gDPSetEnvColor(gDisplayListHead++, red, green, blue, alpha);
+    for (; *temp != DIALOG_CHAR_TERMINATOR; temp++) {
+        if (*temp != DIALOG_CHAR_SPACE) {
+            gDPLoadTextureBlock(gDisplayListHead++, gOmmFontText[*temp], G_IM_FMT_IA, G_IM_SIZ_8b, 8, 8, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
+            gSPTextureRectangle(gDisplayListHead++, x << 2, (SCREEN_HEIGHT - h - y) << 2, (x + w) << 2, (SCREEN_HEIGHT - y) << 2, G_TX_RENDERTILE, 0, 0, (s32) ((1 << 10) / wRatio), (s32) ((1 << 10) / hRatio));
+        }
+        x += (s16) ((f32) omm_render_get_char_width(*temp) * wRatio + 0.5f);
     }
+    gDPSetEnvColor(gDisplayListHead++, 0xFF, 0xFF, 0xFF, 0xFF);
+    gSPDisplayList(gDisplayListHead++, dl_menu_ia8_text_end);
+}
+
+void omm_render_string_hud(s16 x, s16 y, u8 red, u8 green, u8 blue, u8 alpha, const u8 *str64, bool shadow) {
+    if (shadow) omm_render_string_hud(x + 1, y - 1, 0, 0, 0, alpha, str64, false);
     omm_render_create_dl_ortho_matrix();
     gSPDisplayList(gDisplayListHead++, dl_rgba16_text_begin);
     gDPSetEnvColor(gDisplayListHead++, red, green, blue, alpha);
@@ -696,5 +706,5 @@ s32 omm_render_get_string_width_hud(const u8 *str64) {
 }
 
 u8 *omm_render_get_star_glyph(s32 index, bool colored) {
-    return (u8 *) gOmmFontHud[colored ? 0x80 + OMM_STAR_COLOR_[index] : GLYPH_STAR];
+    return (u8 *) gOmmFontHud[colored ? 0x80 + OMM_STAR_COLOR_[index + OMM_STAR_COLOR_OFFSET(OMM_GAME_MODE)] : GLYPH_STAR];
 }

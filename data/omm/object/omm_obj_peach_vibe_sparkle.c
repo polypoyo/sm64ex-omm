@@ -60,9 +60,9 @@ static const Gfx omm_peach_vibe_joy_sparkle_gfx[] = {
 //
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_peach_vibe_sparkle_gfx)];
-    Gfx tri[OMM_PEACH_VIBE_SPARKLE_NUM_POINTS * omm_static_array_length(omm_peach_vibe_sparkle_triangles)];
-    Vtx vtx[OMM_PEACH_VIBE_SPARKLE_NUM_POINTS * omm_static_array_length(omm_peach_vibe_sparkle_vertices)];
+    Gfx gfx[array_length(omm_peach_vibe_sparkle_gfx)];
+    Gfx tri[OMM_PEACH_VIBE_SPARKLE_NUM_POINTS * array_length(omm_peach_vibe_sparkle_triangles)];
+    Vtx vtx[OMM_PEACH_VIBE_SPARKLE_NUM_POINTS * array_length(omm_peach_vibe_sparkle_vertices)];
     Vec3f pos[OMM_PEACH_VIBE_SPARKLE_NUM_POINTS];
     bool inited;
 } OmmPeachVibeSparkleGeoData;
@@ -94,13 +94,13 @@ static void bhv_omm_peach_vibe_sparkle_init_buffers(OmmPeachVibeSparkleGeoData *
             vec3f_copy(data->pos[i], pos0);
 
             // Init triangle buffer
-            omm_copy(tri, omm_peach_vibe_sparkle_triangles, sizeof(omm_peach_vibe_sparkle_triangles));
-            gSPVertex(tri, vtx, omm_static_array_length(omm_peach_vibe_sparkle_vertices), 0);
-            tri += (omm_static_array_length(omm_peach_vibe_sparkle_triangles) - 1);
+            mem_cpy(tri, omm_peach_vibe_sparkle_triangles, sizeof(omm_peach_vibe_sparkle_triangles));
+            gSPVertex(tri, vtx, array_length(omm_peach_vibe_sparkle_vertices), 0);
+            tri += (array_length(omm_peach_vibe_sparkle_triangles) - 1);
 
             // Init vertex buffer
-            omm_copy(vtx, omm_peach_vibe_sparkle_vertices, sizeof(omm_peach_vibe_sparkle_vertices));
-            vtx += omm_static_array_length(omm_peach_vibe_sparkle_vertices);
+            mem_cpy(vtx, omm_peach_vibe_sparkle_vertices, sizeof(omm_peach_vibe_sparkle_vertices));
+            vtx += array_length(omm_peach_vibe_sparkle_vertices);
         }
         data->inited = true;
     }
@@ -127,7 +127,7 @@ static void bhv_omm_peach_vibe_sparkle_update() {
         case 0: {
             data = geo_get_geo_data(o, sizeof(OmmPeachVibeSparkleGeoData), omm_peach_vibe_sparkle_gfx, sizeof(omm_peach_vibe_sparkle_gfx));
             bhv_omm_peach_vibe_sparkle_init_buffers(data, &o->oParentRelativePosX);
-            omm_move(data->pos + OMM_PEACH_VIBE_SPARKLE_NUM_POINTS_PER_FRAME, data->pos, sizeof(Vec3f) * OMM_PEACH_VIBE_SPARKLE_NUM_POINTS_PER_FRAME * (OMM_PEACH_VIBE_SPARKLE_NUM_FRAMES - 1));
+            mem_mov(data->pos + OMM_PEACH_VIBE_SPARKLE_NUM_POINTS_PER_FRAME, data->pos, sizeof(Vec3f) * OMM_PEACH_VIBE_SPARKLE_NUM_POINTS_PER_FRAME * (OMM_PEACH_VIBE_SPARKLE_NUM_FRAMES - 1));
             f32 *pos = data->pos[0];
 
             // Phase 1: scatter
@@ -178,7 +178,7 @@ static void bhv_omm_peach_vibe_sparkle_update() {
             };
             o->oMoveAngleYaw += o->oAngleVelYaw;
             bhv_omm_peach_vibe_sparkle_init_buffers(data, pos);
-            omm_move(data->pos + OMM_PEACH_VIBE_SPARKLE_NUM_POINTS_PER_FRAME, data->pos, sizeof(Vec3f) * OMM_PEACH_VIBE_SPARKLE_NUM_POINTS_PER_FRAME * (OMM_PEACH_VIBE_SPARKLE_NUM_FRAMES - 1));
+            mem_mov(data->pos + OMM_PEACH_VIBE_SPARKLE_NUM_POINTS_PER_FRAME, data->pos, sizeof(Vec3f) * OMM_PEACH_VIBE_SPARKLE_NUM_POINTS_PER_FRAME * (OMM_PEACH_VIBE_SPARKLE_NUM_FRAMES - 1));
             vec3f_copy(data->pos[0], pos);
             if (o->oSubAction == 0 && o->oTimer >= OMM_PEACH_VIBE_SPARKLE_NUM_FRAMES) {
                 o->oSubAction = 1;
@@ -255,21 +255,24 @@ const BehaviorScript bhvOmmPeachVibeJoySparkle[] = {
 //
 
 struct Object *omm_spawn_peach_vibe_sparkle(struct Object *o, f32 x, f32 y, f32 z) {
-    struct Object *sparkle = obj_spawn_from_geo(o, omm_geo_peach_vibe_sparkle, bhvOmmPeachVibeSparkle);
-    obj_set_pos(sparkle, 0, 0, 0);
-    obj_set_vel(sparkle, random_f32_around_zero(2.5f), random_f32_around_zero(2.5f), random_f32_around_zero(2.5f));
-    obj_set_angle(sparkle, 0, 0, 0);
-    obj_set_scale(sparkle, 1.f, 1.f, 1.f);
-    obj_set_always_rendered(sparkle, true);
-    obj_update_gfx(sparkle);
-    vec3f_normalize(&sparkle->oVelX);
-    sparkle->oParentRelativePosX = x;
-    sparkle->oParentRelativePosY = y;
-    sparkle->oParentRelativePosZ = z;
-    sparkle->oOpacity = 0xFF;
-    sparkle->oAction = 0;
-    sparkle->oSubAction = 0;
-    return sparkle;
+    if (OMM_PLAYER_IS_PEACH) {
+        struct Object *sparkle = obj_spawn_from_geo(o, omm_geo_peach_vibe_sparkle, bhvOmmPeachVibeSparkle);
+        obj_set_pos(sparkle, 0, 0, 0);
+        obj_set_vel(sparkle, random_f32_around_zero(2.5f), random_f32_around_zero(2.5f), random_f32_around_zero(2.5f));
+        obj_set_angle(sparkle, 0, 0, 0);
+        obj_set_scale(sparkle, 1.f, 1.f, 1.f);
+        obj_set_always_rendered(sparkle, true);
+        obj_update_gfx(sparkle);
+        vec3f_normalize(&sparkle->oVelX);
+        sparkle->oParentRelativePosX = x;
+        sparkle->oParentRelativePosY = y;
+        sparkle->oParentRelativePosZ = z;
+        sparkle->oOpacity = 0xFF;
+        sparkle->oAction = 0;
+        sparkle->oSubAction = 0;
+        return sparkle;
+    }
+    return NULL;
 }
 
 struct Object *omm_spawn_peach_vibe_joy_sparkle(struct Object *o, f32 radius, f32 height, s16 yaw, s32 yawVel, u8 opacity) {

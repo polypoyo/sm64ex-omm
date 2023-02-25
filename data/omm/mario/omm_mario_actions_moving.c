@@ -206,7 +206,7 @@ static s32 omm_act_riding_shell_ground(struct MarioState *m) {
     action_condition(step == GROUND_STEP_LEFT_GROUND, ACT_RIDING_SHELL_FALL, 0, RETURN_BREAK, play_mario_sound(m, SOUND_ACTION_TERRAIN_JUMP, 0););
     action_condition(step == GROUND_STEP_HIT_WALL && m->forwardVel > OMM_MARIO_SHELL_RIDE_BONK_SPEED, ACT_BACKWARD_GROUND_KB, 0, RETURN_BREAK,
         mario_stop_riding_object(m);
-        play_sound((m->flags & MARIO_METAL_CAP) ? SOUND_ACTION_METAL_BONK : SOUND_ACTION_BONK, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, (m->flags & MARIO_METAL_CAP) ? SOUND_ACTION_METAL_BONK : SOUND_ACTION_BONK);
         m->particleFlags |= PARTICLE_VERTICAL_STAR;
     );
 
@@ -225,9 +225,9 @@ static s32 omm_act_riding_shell_ground(struct MarioState *m) {
         vec3s_zero(m->marioBodyState->headAngle);
     }
     if (m->floor->type == SURFACE_BURNING) {
-        play_sound(SOUND_MOVING_RIDING_SHELL_LAVA, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MOVING_RIDING_SHELL_LAVA);
     } else {
-        play_sound(SOUND_MOVING_TERRAIN_RIDING_SHELL + m->terrainSoundAddend, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MOVING_TERRAIN_RIDING_SHELL + m->terrainSoundAddend);
     }
     adjust_sound_for_speed(m);
     return OMM_MARIO_ACTION_RESULT_BREAK;
@@ -264,7 +264,7 @@ static s32 omm_act_slide(struct MarioState *m) {
 }
 
 static s32 omm_act_move_punching(struct MarioState *m) {
-    action_condition(OMM_MOVESET_ODYSSEY && OMM_PLAYER_IS_PEACH, ACT_OMM_PEACH_ATTACK_GROUND, ((m->prevAction == ACT_OMM_SPIN_GROUND) ? 4 : 0), RETURN_CANCEL);
+    action_condition(OMM_MOVESET_ODYSSEY && OMM_PERRY_SWORD_ACTION, ACT_OMM_PEACH_ATTACK_GROUND, ((m->prevAction == ACT_OMM_SPIN_GROUND) ? 4 : 0), RETURN_CANCEL);
     action_zb_pressed(OMM_MOVESET_ODYSSEY, ACT_OMM_ROLL, 0, RETURN_CANCEL);
     return OMM_MARIO_ACTION_RESULT_CONTINUE;
 }
@@ -290,7 +290,7 @@ static s32 omm_act_knockback_ground(struct MarioState *m, s32 animID, u16 landin
 
     // Death exit sound
     if (m->actionTimer == 43 && m->prevAction == ACT_SPECIAL_DEATH_EXIT) {
-        play_sound(SOUND_MARIO_MAMA_MIA, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MARIO_MAMA_MIA);
     }
 
     // Attacked sound
@@ -404,7 +404,7 @@ static s32 omm_act_roll(struct MarioState *m) {
     obj_set_shadow_pos_to_object_pos(gMarioObject);
     m->particleFlags |= PARTICLE_DUST;
     if (prevAngle > m->faceAngle[0]) {
-        play_sound(SOUND_ACTION_TWIRL, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_ACTION_TWIRL);
     }
 
     return OMM_MARIO_ACTION_RESULT_CONTINUE;

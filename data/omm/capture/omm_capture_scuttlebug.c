@@ -12,7 +12,7 @@ bool omm_cappy_scuttlebug_init(UNUSED struct Object *o) {
 }
 
 void omm_cappy_scuttlebug_end(struct Object *o) {
-    o->oHomeY = -11000.f;
+    o->oHomeY = FLOOR_LOWER_LIMIT;
 }
 
 f32 omm_cappy_scuttlebug_get_top(struct Object *o) {
@@ -71,10 +71,10 @@ s32 omm_cappy_scuttlebug_update(struct Object *o) {
             for (s32 i = 0; i < 7; ++i) {
                 struct Object *obj = spawn_object(o, MODEL_CARTOON_STAR, bhvWallTinyStarParticle);
                 obj->oMoveAngleYaw = wallAngle + sStarParticlesAngles[2 * i] + 0x8000;
-                obj->oVelY = sins(sStarParticlesAngles[2 * i + 1]) * 25.0f;
-                obj->oForwardVel = coss(sStarParticlesAngles[2 * i + 1]) * 25.0f;
+                obj->oVelY = sins(sStarParticlesAngles[2 * i + 1]) * 25.f;
+                obj->oForwardVel = coss(sStarParticlesAngles[2 * i + 1]) * 25.f;
             }
-            play_sound(SOUND_OBJ_DEFAULT_DEATH, o->oCameraToObject);
+            obj_play_sound(o, SOUND_OBJ_DEFAULT_DEATH);
         }
         gOmmObject->state.actionState = 1;
     } else {
@@ -82,16 +82,16 @@ s32 omm_cappy_scuttlebug_update(struct Object *o) {
         gOmmObject->state.actionState = 0;
     }
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
 
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -113,5 +113,5 @@ s32 omm_cappy_scuttlebug_update(struct Object *o) {
     gOmmObject->cappy.scale     = 0.8f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

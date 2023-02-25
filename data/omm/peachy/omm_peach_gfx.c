@@ -32,3 +32,10 @@ static Gfx *_geo_switch_mario_cap_on_off(s32 callContext, struct GraphNode *node
 
 #include "perry/model.inc.c"
 #include "perry/geo.inc.c"
+
+//
+// Brush
+//
+
+#include "brush/model.inc.c"
+#include "brush/geo.inc.c"

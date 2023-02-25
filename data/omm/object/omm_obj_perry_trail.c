@@ -24,7 +24,7 @@ static const Gfx omm_perry_trail_gfx[] = {
 //
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_perry_trail_gfx)];
+    Gfx gfx[array_length(omm_perry_trail_gfx)];
     Gfx tri[OMM_PERRY_TRAIL_NUM_POINTS_MAX * 7 + 1];
     Vtx vtx[OMM_PERRY_TRAIL_NUM_POINTS_MAX][4];
     Lights1 lightsFront;
@@ -75,7 +75,7 @@ static void bhv_omm_perry_trail_update() {
     );
 
     // Update previous points
-    omm_move(data->vtx + OMM_PERRY_TRAIL_NUM_POINTS_PER_FRAME, data->vtx, sizeof(data->vtx[0]) * (OMM_PERRY_TRAIL_NUM_POINTS_MAX - OMM_PERRY_TRAIL_NUM_POINTS_PER_FRAME));
+    mem_mov(data->vtx + OMM_PERRY_TRAIL_NUM_POINTS_PER_FRAME, data->vtx, sizeof(data->vtx[0]) * (OMM_PERRY_TRAIL_NUM_POINTS_MAX - OMM_PERRY_TRAIL_NUM_POINTS_PER_FRAME));
     for (s32 i = 0; i != OMM_PERRY_TRAIL_NUM_POINTS_MAX; ++i) {
         for (s32 j = 0; j != 4; ++j) {
             u8 da = (data->vtx[i][j].n.tc[0] + OMM_PERRY_TRAIL_NUM_SEGMENTS_MAX - 1) / OMM_PERRY_TRAIL_NUM_SEGMENTS_MAX;
@@ -154,7 +154,7 @@ static void bhv_omm_perry_trail_update() {
     
     // ...or progressively unload the trail
     else {
-        omm_zero(data->vtx, sizeof(data->vtx[0]) * OMM_PERRY_TRAIL_NUM_POINTS_PER_FRAME);
+        mem_clr(data->vtx, sizeof(data->vtx[0]) * OMM_PERRY_TRAIL_NUM_POINTS_PER_FRAME);
         o->oAction = 1;
         if (o->oSubAction++ > OMM_PERRY_TRAIL_NUM_SEGMENTS_MAX) {
             obj_mark_for_deletion(o);
@@ -193,7 +193,7 @@ const BehaviorScript bhvOmmPerryTrail[] = {
 //
 
 OMM_ROUTINE_UPDATE(omm_spawn_perry_trail) {
-    if (gMarioObject && OMM_PLAYER_IS_PEACH) {
+    if (gMarioObject && OMM_PERRY_SWORD_ACTION) {
         struct Object *activeTrail = obj_get_first_with_behavior_and_field_s32(bhvOmmPerryTrail, 0x31, 0);
         if (!activeTrail) {
             struct Object *perry = omm_perry_get_object();

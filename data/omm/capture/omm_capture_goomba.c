@@ -28,7 +28,7 @@ bool omm_cappy_goomba_init(struct Object *o) {
     }
 
     // Store the lowest Y value, this will be the Y value of the base
-    f32 lowestY = +20000.f;
+    f32 lowestY = CELL_HEIGHT_LIMIT;
     for (s32 i = 0; i != goombaCount; ++i) {
         lowestY = min_f(lowestY, goombas[i]->oPosY);
     }
@@ -50,6 +50,7 @@ bool omm_cappy_goomba_init(struct Object *o) {
         obj_update_gfx(goombas[i]);
     }
     gOmmObject->goomba.stackCount = (goombaCount - 1);
+    gOmmObject->state.actionTimer = 0;
     return true;
 }
 
@@ -100,8 +101,19 @@ s32 omm_cappy_goomba_update(struct Object *o) {
     // Inputs
     if (!obj_update_door(o) && !omm_mario_is_locked(gMarioState)) {
         pobj_move(o, POBJ_B_BUTTON_DOWN, false, false);
-        if (pobj_jump(o, 0, 1) == POBJ_RESULT_JUMP_START) {
-            obj_play_sound(o, SOUND_OBJ_GOOMBA_ALERT);
+        switch (pobj_jump(o, 0, 1)) {
+            case POBJ_RESULT_JUMP_START: {
+                obj_play_sound(o, SOUND_OBJ_GOOMBA_ALERT);
+                if (gOmmMario->spin.timer) {
+                    gOmmObject->state.actionTimer = 8;
+                    o->oVelY = max_f(o->oVelY, 1.35f * omm_capture_get_jump_velocity(o) * POBJ_PHYSICS_JUMP);
+                }
+            } break;
+            case POBJ_RESULT_JUMP_HOLD: {
+                if (gOmmObject->state.actionTimer) {
+                    o->oVelY = max_f(o->oVelY, 1.35f * omm_capture_get_jump_velocity(o) * POBJ_PHYSICS_JUMP);
+                }
+            } break;
         }
     }
 
@@ -110,10 +122,10 @@ s32 omm_cappy_goomba_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
@@ -148,7 +160,7 @@ s32 omm_cappy_goomba_update(struct Object *o) {
     }
 
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -156,32 +168,24 @@ s32 omm_cappy_goomba_update(struct Object *o) {
     obj_update_blink_state(o, &o->oGoombaBlinkTimer, 30, 50, 5);
     if (obj_is_on_ground(o)) {
         obj_make_step_sound_and_particle(o, &gOmmObject->state.walkDistance, omm_capture_get_walk_speed(o) * 8.f, o->oForwardVel, SOUND_OBJ_GOOMBA_WALK, OBJ_PARTICLE_NONE);
+        obj_spawn_particle_preset(o, PARTICLE_DUST * (gOmmMario->spin.timer != 0), false);
+    } else {
+        gOmmMario->spin.timer = 0;
+    }
+    if (gOmmObject->state.actionTimer) {
+        o->oGfxAngle[1] += 0x2000 * gOmmObject->state.actionTimer;
+        obj_spawn_particle_preset(o, PARTICLE_SPARKLES, false);
+        gOmmObject->state.actionTimer--;
     }
 
     // Update Goomba stack
     for (u8 i = 0; i != gOmmObject->goomba.stackCount; ++i) {
-        struct Object *obj   = gOmmObject->goomba.stackObj[i];
-        obj->oPosX           = o->oPosX;
-        obj->oPosY           = o->oPosY + omm_capture_get_hitbox_height(o) * (i + 1);
-        obj->oPosZ           = o->oPosZ;
-        obj->oHomeX          = o->oPosX;
-        obj->oHomeY          = o->oPosY;
-        obj->oHomeZ          = o->oPosZ;
-        obj->oFaceAnglePitch = o->oFaceAnglePitch;
-        obj->oFaceAngleYaw   = o->oFaceAngleYaw;
-        obj->oFaceAngleRoll  = o->oFaceAngleRoll;
-        obj->oMoveAnglePitch = o->oMoveAnglePitch;
-        obj->oMoveAngleYaw   = o->oMoveAngleYaw;
-        obj->oMoveAngleRoll  = o->oMoveAngleRoll;
-        obj->oGfxPos[0]      = o->oPosX;
-        obj->oGfxPos[1]      = o->oPosY;
-        obj->oGfxPos[2]      = o->oPosZ;
-        obj->oGfxAngle[0]    = o->oFaceAnglePitch;
-        obj->oGfxAngle[1]    = o->oFaceAngleYaw;
-        obj->oGfxAngle[2]    = o->oFaceAngleRoll;
-        obj->oGfxScale[0]    = o->oGfxScale[0];
-        obj->oGfxScale[1]    = o->oGfxScale[1];
-        obj->oGfxScale[2]    = o->oGfxScale[2];
+        struct Object *obj = gOmmObject->goomba.stackObj[i];
+        obj_set_pos(obj, o->oPosX, o->oPosY + omm_capture_get_hitbox_height(o) * (i + 1), o->oPosZ);
+        obj_set_home(obj, o->oPosX, o->oPosY, o->oPosZ);
+        obj_set_angle(obj, o->oFaceAnglePitch, o->oGfxAngle[1], o->oFaceAngleRoll);
+        obj_set_scale(obj, o->oGfxScale[0], o->oGfxScale[1], o->oGfxScale[2]);
+        obj_update_gfx(obj);
         obj_anim_play(obj, 0, 1.f);
         obj_update_blink_state(obj, &obj->oGoombaBlinkTimer, 30, 50, 5);
     }
@@ -191,5 +195,5 @@ s32 omm_cappy_goomba_update(struct Object *o) {
     gOmmObject->cappy.scale     = 0.8f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

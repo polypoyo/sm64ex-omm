@@ -93,10 +93,10 @@ static void bhv_omm_blargg_fire_ball_delete(struct Object *o) {
 static void bhv_omm_blargg_fire_ball_update() {
     struct Object *o = gCurrentObject;
     perform_object_step(o, OBJ_STEP_UPDATE_HOME);
-    o->oVelY -= 1.f;
+    o->oVelY -= 2.f;
 
-    // Collided with a floor
-    if (o->oDistToFloor <= 0.f) {
+    // Out of bounds, or collided with a floor
+    if (!o->oFloor || o->oDistToFloor <= 5) {
         bhv_omm_blargg_fire_ball_delete(o);
         return;
     }
@@ -136,9 +136,9 @@ struct Object *omm_spawn_blargg_fire_ball(struct Object *o) {
     fireball->oPosY = o->oPosY + dy;
     fireball->oPosZ = o->oPosZ + dz;
     fireball->oFaceAngleYaw = o->oFaceAngleYaw;
-    fireball->oVelX = 24.f * sins(fireball->oFaceAngleYaw);
-    fireball->oVelY = 24.f;
-    fireball->oVelZ = 24.f * coss(fireball->oFaceAngleYaw);
+    fireball->oVelX = 32.f * sins(fireball->oFaceAngleYaw);
+    fireball->oVelY = 40.f;
+    fireball->oVelZ = 32.f * coss(fireball->oFaceAngleYaw);
     obj_scale(fireball, 5.f * o->oScaleX);
     return fireball;
 }

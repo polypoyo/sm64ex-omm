@@ -15,7 +15,7 @@
 #define UVx(x)      ((TEX_SIZE * (x) - 1) * TEX_FRAC)
 
 #ifdef GFX_PC_C
-#if VSCODE
+#ifdef VSCODE
 #define OMM_ALL_HEADERS
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
@@ -81,6 +81,7 @@ const Gfx omm_level_peachy_room_gfx_disable[] = {
 #define OMM_ALL_HEADERS
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
+#include "level_commands.h"
 #if OMM_GAME_IS_SM64
 #include "levels/castle_courtyard/header.h"
 extern const Gfx omm_level_peachy_room_gfx_enable[];
@@ -348,7 +349,6 @@ static const LevelScript omm_level_peachy_room[] = {
         WARP_NODE(0x0A, LEVEL_CASTLE_COURTYARD, 4, 0x0A, WARP_NO_CHECKPOINT),
         UNPACK(WARP_NODE, 0x10, OMM_LEVEL_RETURN_TO_CASTLE),
         UNPACK(WARP_NODE, 0xF1, OMM_LEVEL_RETURN_TO_CASTLE),
-        JUMP_LINK(script_func_global_13),
         JUMP_LINK(omm_level_peachy_room_objects),
         TERRAIN(omm_level_peachy_room_collision),
         TERRAIN_TYPE(TERRAIN_STONE),
@@ -357,8 +357,8 @@ static const LevelScript omm_level_peachy_room[] = {
 };
 
 LEVEL_CMD_BRANCH(
-    level_script_find(level_castle_courtyard_entry, omm_static_array_of(LevelScript) { END_AREA() }, 1),
-    level_script_find(level_castle_courtyard_entry, omm_static_array_of(LevelScript) { FREE_LEVEL_POOL() }, 1),
+    level_script_find(level_castle_courtyard_entry, array_of(LevelScript) { END_AREA() }, 1),
+    level_script_find(level_castle_courtyard_entry, array_of(LevelScript) { FREE_LEVEL_POOL() }, 1),
     omm_level_peachy_room
 );
 

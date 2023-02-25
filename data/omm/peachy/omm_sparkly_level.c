@@ -82,7 +82,7 @@ static void all_secrets() {
 static void all_mushrooms() {
     if (OMM_SPARKLY_STATE_IS_OK && gOmmSparklyContext->mushroomsDiff > 0) {
         bool captureRequired = sLevel->params[1];
-        if (!captureRequired || sMario->action == ACT_OMM_POSSESSION) {
+        if (!captureRequired || omm_mario_is_capture(sMario)) {
             s32 mushrooms = sLevel->params[0];
             s32 collected = gOmmSparklyContext->mushrooms;
             spawn_object_relative(collected, 0, 0, 0, sMario->marioObj, MODEL_NUMBER, bhvOrangeNumber)->oPosY += 80;
@@ -192,7 +192,7 @@ static void secrets_in_order() {
             f32 x = sLevel->params[3 * i + 1];
             f32 y = sLevel->params[3 * i + 2];
             f32 z = sLevel->params[3 * i + 3];
-            spawn_object_abs_with_rot(sMario->marioObj, 0, MODEL_NONE, bhvHiddenStarTrigger, x, y, z, 0, 0, 0)->oBhvArgs = i + 1;
+            spawn_object_abs_with_rot(sMario->marioObj, 0, MODEL_NONE, bhvHiddenStarTrigger, x, y, z, 0, 0, 0)->oBehParams = i + 1;
         }
         gOmmSparklyContext->objectsSpawned = true;
         return;
@@ -202,7 +202,7 @@ static void secrets_in_order() {
     if (OMM_SPARKLY_STATE_IS_OK && gOmmSparklyContext->secretsDiff < 0) {
         s32 expectedIndex = numSecrets - gOmmSparklyContext->secrets;
         for_each_object_with_behavior(trigger, bhvHiddenStarTrigger) {
-            if (trigger->oBhvArgs == expectedIndex) {
+            if (trigger->oBehParams == expectedIndex) {
                 expectedIndex = -1;
                 omm_sparkly_state_set(OMM_SPARKLY_STATE_FAIL, 1);
                 break;
@@ -217,7 +217,7 @@ static void secrets_in_order() {
 }
 
 static void ten_goombas_stack() {
-    if (OMM_SPARKLY_STATE_IS_OK && sMario->action == ACT_OMM_POSSESSION && gOmmCapture->behavior == bhvGoomba && gOmmObject->goomba.stackCount >= 9) {
+    if (OMM_SPARKLY_STATE_IS_OK && omm_mario_is_capture(sMario) && gOmmCapture->behavior == bhvGoomba && gOmmObject->goomba.stackCount >= 9) {
         gOmmSparklyContext->successful = true;
     }
 }
@@ -294,7 +294,7 @@ static void dont_touch_floor() {
     // After leaving the ground, don't touch it again
     if (OMM_SPARKLY_STATE_IS_OK) {
         if (!gOmmSparklyContext->eventStarted) {
-            gOmmSparklyContext->eventStarted = ((sMario->action == ACT_OMM_POSSESSION) || (((sMario->action & ACT_GROUP_MASK) != ACT_GROUP_CUTSCENE) && !onGround));
+            gOmmSparklyContext->eventStarted = (omm_mario_is_capture(sMario) || (((sMario->action & ACT_GROUP_MASK) != ACT_GROUP_CUTSCENE) && !onGround));
         } else if (onGround && sMario->action != ACT_READING_AUTOMATIC_DIALOG) {
             omm_sparkly_state_set(OMM_SPARKLY_STATE_FAIL, 1);
         }
@@ -303,7 +303,7 @@ static void dont_touch_floor() {
 }
 
 static void toads_on_pillars() {
-    if (sMario->action != ACT_OMM_POSSESSION && OMM_SPARKLY_STATE_IS_OK) {
+    if (!omm_mario_is_capture(sMario) && OMM_SPARKLY_STATE_IS_OK) {
         struct Object *toad1 = obj_get_first_with_behavior(bhvToadMessage);
         struct Object *toad2 = obj_get_next_with_behavior(toad1, bhvToadMessage);
         if (toad1 && toad2) {
@@ -348,8 +348,8 @@ static void toads_hide_and_seek() {
             s16 yaw = sLevel->params[5 * i + 5];
             struct Object *toad = spawn_object(sMario->marioObj, MODEL_TOAD, bhvToadMessage2);
             toad->behavior = bhvToadMessage;
-            toad->oBhvArgs = dialogId << 24;
-            toad->oBhvArgs2ndByte = 1;
+            toad->oBehParams = dialogId << 24;
+            toad->oBehParams2ndByte = 1;
             obj_set_pos(toad, x, y, z);
             obj_set_home(toad, x, y, z);
             obj_set_angle(toad, 0, yaw, 0);
@@ -364,9 +364,9 @@ static void toads_hide_and_seek() {
     s32 cappyRoom = obj_get_room(omm_cappy_get_object());
     for_each_object_with_behavior(toad, bhvToadMessage) {
         if (marioRoom == cappyRoom && marioRoom == obj_get_room(toad)) {
-            toad->oBhvArgs2ndByte = 0;
+            toad->oBehParams2ndByte = 0;
         } else {
-            toad->oBhvArgs2ndByte = 1;
+            toad->oBehParams2ndByte = 1;
         }
     }
 
@@ -388,7 +388,11 @@ static void toads_hide_and_seek() {
 }
 
 static void invalidate_if_not_flooded() {
-    if (!omm_world_is_flooded()) {
+    if (omm_world_is_flooded()) {
+        for_each_object_with_behavior(obj, bhvBobombBuddy) { obj_set_dormant(obj, true); }
+        for_each_object_with_behavior(obj, bhvBobombBuddyOpensCannon) { obj_set_dormant(obj, true); }
+        for_each_object_with_behavior(obj, bhvKoopaShellUnderwater) { obj_set_dormant(obj, true); }
+    } else {
         omm_sparkly_state_set(OMM_SPARKLY_STATE_INVALID, 0);
     }
 }
@@ -548,6 +552,7 @@ static void jrb__flooded_frozen() {
             for_each_object_with_behavior(obj, bhvUnagiSubobject) { obj_set_dormant(obj, true); }
             for_each_object_with_behavior(obj, bhvBobombBuddy) { obj_set_dormant(obj, true); }
             for_each_object_with_behavior(obj, bhvBobombBuddyOpensCannon) { obj_set_dormant(obj, true); }
+            for_each_object_with_behavior(obj, bhvKoopaShellUnderwater) { obj_set_dormant(obj, true); }
 
             // Force Calm Vibe, and set freeze timer to about to damage Peach
             omm_peach_vibe_activate(sMario, OMM_PEACH_VIBE_TYPE_CALM);
@@ -602,7 +607,7 @@ static void wdw__bring_chuckya_to_point() {
         }
         gOmmSparklyContext->zones[chuckyaFlagPrev] = false;
 
-        // As soon as Mario reaches the underwater city with a Chuckya in his hands, lower the water level and rescale the breakable boxes
+        // As soon as Mario reaches the underwater city with a Chuckya in his hands, lower the water sparkly_level and rescale the breakable boxes
         if (gCurrAreaIndex == 2 && sMario->pos[2] > -1400) {
             if (!gOmmSparklyContext->eventStarted && omm_mario_is_holding(sMario) && sMario->heldObj && sMario->heldObj->behavior == bhvChuckya) {
                 play_sound(SOUND_GENERAL_WATER_LEVEL_TRIG, gGlobalSoundArgs);
@@ -664,7 +669,7 @@ static void bitdw__goomba_and_coins() {
 
     // Verifying conditions...
     // Mario must be possessing a goomba or standing inside the safe zone without touching a coin
-    if (sMario->action != ACT_OMM_POSSESSION || gOmmCapture->behavior != bhvGoomba) {
+    if (!omm_mario_is_capture(sMario) || gOmmCapture->behavior != bhvGoomba) {
         bool isInsideSafeZone = (sMario->pos[0] > -7925 && sMario->pos[0] < -6975 && sMario->pos[2] > +3350 && sMario->pos[2] < +4425);
         if (!isInsideSafeZone || (sMario->numCoins != 0 && !gOmmSparklyContext->starSpawned)) {
             omm_sparkly_state_set(OMM_SPARKLY_STATE_FAIL, 1);
@@ -674,9 +679,9 @@ static void bitdw__goomba_and_coins() {
     // Spawns a dormant goomba at the center of the safe zone
     static struct Object *sBitdwGoomba = NULL;
     if (!obj_get_first_with_behavior(bhvOmmSparklyStarHint) && OMM_SPARKLY_STATE_IS_OK) {
-        sBitdwGoomba = spawn_object_abs_with_rot(sMario->marioObj, 0, MODEL_GOOMBA, bhvGoomba, -7450, +20000, 3887, 0, 0, 0);
-        sBitdwGoomba->oBhvArgs = GOOMBA_SIZE_REGULAR << 16;
-        sBitdwGoomba->oBhvArgs2ndByte = GOOMBA_SIZE_REGULAR;
+        sBitdwGoomba = spawn_object_abs_with_rot(sMario->marioObj, 0, MODEL_GOOMBA, bhvGoomba, -7450, CELL_HEIGHT_LIMIT, 3887, 0, 0, 0);
+        sBitdwGoomba->oBehParams = GOOMBA_SIZE_REGULAR << 16;
+        sBitdwGoomba->oBehParams2ndByte = GOOMBA_SIZE_REGULAR;
         sBitdwGoomba->parentObj = sBitdwGoomba;
         sBitdwGoomba->prevObj = NULL;
         sBitdwGoomba->unused1 = 1;
@@ -696,7 +701,7 @@ static void bitdw__goomba_and_coins() {
     
     // Hard mode: 7 Goombas stack and 74 coins
     if (OMM_SPARKLY_MODE_IS_HARD && OMM_SPARKLY_STATE_IS_OK) {
-        if (sMario->action == ACT_OMM_POSSESSION && gOmmCapture->behavior == bhvGoomba && gOmmObject->goomba.stackCount >= 6) {
+        if (omm_mario_is_capture(sMario) && gOmmCapture->behavior == bhvGoomba && gOmmObject->goomba.stackCount >= 6) {
             s32 collectedCoins = (
                 gOmmSparklyContext->coinsYellow * 1 +
                 gOmmSparklyContext->coinsBlue * 5 +
@@ -709,12 +714,12 @@ static void bitdw__goomba_and_coins() {
     }
 
     // Start the timer as soon as Mario captures the goomba
-    sUpdateTimer = (sMario->action == ACT_OMM_POSSESSION || gOmmSparklyContext->timerStarted);
+    sUpdateTimer = (omm_mario_is_capture(sMario) || gOmmSparklyContext->timerStarted);
 }
 
 static void bitfs__six_secrets() {
     static f32 sMarioLastGroundedY = 0.f;
-    if (!(sMario->action & ACT_FLAG_AIR) && (sMario->action != ACT_OMM_POSSESSION || obj_is_on_ground(gOmmCapture))) {
+    if (!(sMario->action & ACT_FLAG_AIR) && (!omm_mario_is_capture(sMario) || obj_is_on_ground(gOmmCapture))) {
         sMarioLastGroundedY = sMario->pos[1];
     }
 
@@ -779,7 +784,7 @@ static void bits__bobomb_and_enemies() {
 
     // Verifying conditions...
     // Mario must be possessing a bob-omb or standing inside the safe zone before starting or after the mission is complete
-    bool isBobombCaptured = (sMario->action == ACT_OMM_POSSESSION && gOmmCapture->behavior == bhvBobomb);
+    bool isBobombCaptured = (omm_mario_is_capture(sMario) && gOmmCapture->behavior == bhvBobomb);
     bool isInsideSafeZone = (sMario->pos[0] < -5400 && sMario->floorHeight > -5000 && sMario->floorHeight < -4500);
     if (!isBobombCaptured && (!isInsideSafeZone || (gOmmSparklyContext->timerStarted && !gOmmSparklyContext->starSpawned))) {
         omm_sparkly_state_set(OMM_SPARKLY_STATE_FAIL, 1);
@@ -788,7 +793,7 @@ static void bits__bobomb_and_enemies() {
     // Spawns a dormant bob-omb inside the safe zone
     static struct Object *sBitsBobomb = NULL;
     if (!obj_get_first_with_behavior(bhvOmmSparklyStarHint) && OMM_SPARKLY_STATE_IS_OK) {
-        sBitsBobomb = spawn_object_abs_with_rot(sMario->marioObj, 0, MODEL_BLACK_BOBOMB, bhvBobomb, -6969, +20000, 0, 0, 0, 0);
+        sBitsBobomb = spawn_object_abs_with_rot(sMario->marioObj, 0, MODEL_BLACK_BOBOMB, bhvBobomb, -6969, CELL_HEIGHT_LIMIT, 0, 0, 0, 0);
         sBitsBobomb->parentObj = sBitsBobomb;
         sBitsBobomb->prevObj = NULL;
         sBitsBobomb->unused1 = 1;
@@ -811,11 +816,11 @@ static void bits__bobomb_and_enemies() {
     gOmmSparklyContext->successful |= (remainingEnemies == 0);
 
     // Start the timer as soon as Mario captures the bob-omb
-    sUpdateTimer = (sMario->action == ACT_OMM_POSSESSION || gOmmSparklyContext->timerStarted);
+    sUpdateTimer = (omm_mario_is_capture(sMario) || gOmmSparklyContext->timerStarted);
 }
 
-static void bits__shadow_all_star_rings() {
-    if (omm_world_is_shadow()) {
+static void bits__dark_all_star_rings() {
+    if (omm_world_is_dark()) {
         all_star_rings();
     } else {
         omm_sparkly_state_set(OMM_SPARKLY_STATE_INVALID, 0);
@@ -875,31 +880,31 @@ static void basement__catch_mips() {
 }
 
 //
-// Update per difficulty and level
+// Update per difficulty and sparkly_level
 //
 
-#define level(mode_, index_, func_, ...) \
+#define sparkly_level(mode_, index_, func_, ...) \
 { const s32 params[] = __VA_ARGS__; \
-OmmSparklyContextLevel *lvl = omm_new(OmmSparklyContextLevel, 1); \
+OmmSparklyContextLevel *lvl = mem_new(OmmSparklyContextLevel, 1); \
 lvl->func = func_; \
-lvl->params = omm_dup(params, sizeof(params)); \
+lvl->params = mem_dup(params, sizeof(params)); \
 omm_hmap_insert(sOmmSparklyContextLevels[mode_], index_ + 1, lvl); }
 
 void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData *data) {
     static OmmHMap *sOmmSparklyContextLevels = NULL;
     if (!sOmmSparklyContextLevels) {
-        sOmmSparklyContextLevels = omm_new(OmmHMap, 4);
+        sOmmSparklyContextLevels = mem_new(OmmHMap, 4);
 
 // ------- Normal ------- //
 
         // Bob //
-        level(OMM_SPARKLY_MODE_NORMAL, 0, all_secrets, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 0, all_secrets, NO_PARAM);
 
         // JRB //
-        level(OMM_SPARKLY_MODE_NORMAL, 2, invalidate_if_not_flooded, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 2, invalidate_if_not_flooded, NO_PARAM);
 
         // LLL //
-        level(OMM_SPARKLY_MODE_NORMAL, 6, eight_shards_and_lava, { 0, 3570, 2, 4096,
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 6, eight_shards_and_lava, { 0, 3570, 2, 4096,
             -1700,   60,  -440,
              2550,  630,  1120,
               250, 1210,  2640,
@@ -911,16 +916,16 @@ void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData
         });
 
         // SL //
-        level(OMM_SPARKLY_MODE_NORMAL, 9, snowmen_at_top, { 1, 0, 4860, 0 });
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 9, snowmen_at_top, { 1, 0, 4860, 0 });
 
         // THI //
-        level(OMM_SPARKLY_MODE_NORMAL, 12, ten_goombas_stack, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 12, ten_goombas_stack, NO_PARAM);
 
         // TTC //
-        level(OMM_SPARKLY_MODE_NORMAL, 13, all_boxes, { 13 });
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 13, all_boxes, { 13 });
 
         // RR //
-        level(OMM_SPARKLY_MODE_NORMAL, 14, secrets_in_order, { 6,
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 14, secrets_in_order, { 6,
              620, -3350,  7360,
              615,  -740,  3670,
             2680,  1270,   295,
@@ -930,25 +935,25 @@ void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData
         });
 
         // BITDW //
-        level(OMM_SPARKLY_MODE_NORMAL, 15, bitdw__goomba_and_coins, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 15, bitdw__goomba_and_coins, NO_PARAM);
 
         // BITFS //
-        level(OMM_SPARKLY_MODE_NORMAL, 16, all_mushrooms, { 7, 1 });
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 16, all_mushrooms, { 7, 1 });
 
         // BITS //
-        level(OMM_SPARKLY_MODE_NORMAL, 17, inc_timer_with_coins, { 30 });
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 17, inc_timer_with_coins, { 30 });
 
         // VCUTM //
-        level(OMM_SPARKLY_MODE_NORMAL, 19, vcutm__five_corners, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 19, vcutm__five_corners, NO_PARAM);
 
         // COTMC //
-        level(OMM_SPARKLY_MODE_NORMAL, 20, dont_touch_floor, { 1 });
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 20, dont_touch_floor, { 1 });
 
         // SA //
-        level(OMM_SPARKLY_MODE_NORMAL, 23, invalidate_if_not_frozen, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 23, invalidate_if_not_frozen, NO_PARAM);
 
         // Inside //
-        level(OMM_SPARKLY_MODE_NORMAL, 25, eight_shards, {
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 25, eight_shards, {
             -1024,  400,  -250,
             -1024,  800,  1400,
             -4500, 1200,  -450,
@@ -960,10 +965,10 @@ void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData
         });
         
         // Basement //
-        level(OMM_SPARKLY_MODE_NORMAL, 26, toads_on_pillars, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 26, toads_on_pillars, NO_PARAM);
         
         // Upstairs //
-        level(OMM_SPARKLY_MODE_NORMAL, 27, eight_shards, {
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 27, eight_shards, {
             -1000, 1210,  1480,
             -4780, 3200, -3240,
              3538, 1680,  3880,
@@ -975,7 +980,7 @@ void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData
         });
         
         // Courtyard //
-        level(OMM_SPARKLY_MODE_NORMAL, 28, secrets_in_order, { 8,
+        sparkly_level(OMM_SPARKLY_MODE_NORMAL, 28, secrets_in_order, { 8,
              1500,    0, -1740,
              -820,   20, -3630,
               820,   20, -3630,
@@ -989,13 +994,13 @@ void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData
 // ------- Hard ------- //
 
         // BOB //
-        level(OMM_SPARKLY_MODE_HARD, 0, all_secrets, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 0, all_secrets, NO_PARAM);
 
         // JRB //
-        level(OMM_SPARKLY_MODE_HARD, 2, invalidate_if_not_flooded, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 2, invalidate_if_not_flooded, NO_PARAM);
 
         // HMC //
-        level(OMM_SPARKLY_MODE_HARD, 5, all_flames, { 17,
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 5, all_flames, { 17,
             4936, -357, -4146,
             5018, -460, -5559,
             1997,  666,  -235,
@@ -1016,7 +1021,7 @@ void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData
         });
 
         // LLL //
-        level(OMM_SPARKLY_MODE_HARD, 6, eight_shards_and_lava, { 0, 3570, 3, 4096,
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 6, eight_shards_and_lava, { 0, 3570, 3, 4096,
             -1700,   60,  -440,
               180, 1050, -1360,
              2550,  630,  1120,
@@ -1028,69 +1033,69 @@ void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData
         });
         
         // SSL //
-        level(OMM_SPARKLY_MODE_HARD, 7, inc_timer_with_coins, { 45 });
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 7, inc_timer_with_coins, { 45 });
 
         // SL //
-        level(OMM_SPARKLY_MODE_HARD, 9, shell_ride, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 9, shell_ride, NO_PARAM);
 
         // WDW //
-        level(OMM_SPARKLY_MODE_HARD, 10, wdw__bring_chuckya_to_point, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 10, wdw__bring_chuckya_to_point, NO_PARAM);
 
         // THI //
-        level(OMM_SPARKLY_MODE_HARD, 12, ten_goombas_stack, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 12, ten_goombas_stack, NO_PARAM);
 
         // TTC //
-        level(OMM_SPARKLY_MODE_HARD, 13, dont_touch_floor, { 0 });
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 13, dont_touch_floor, { 0 });
 
         // RR //
-        level(OMM_SPARKLY_MODE_HARD, 14, all_mushrooms, { 9, 0 });
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 14, all_mushrooms, { 9, 0 });
 
         // BITDW //
-        level(OMM_SPARKLY_MODE_HARD, 15, bitdw__goomba_and_coins, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 15, bitdw__goomba_and_coins, NO_PARAM);
 
         // BITFS //
-        level(OMM_SPARKLY_MODE_HARD, 16, bitfs__six_secrets, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 16, bitfs__six_secrets, NO_PARAM);
 
         // BITS //
-        level(OMM_SPARKLY_MODE_HARD, 17, bits__bobomb_and_enemies, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 17, bits__bobomb_and_enemies, NO_PARAM);
 
         // VCUTM //
-        level(OMM_SPARKLY_MODE_HARD, 19, vcutm__five_corners, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 19, vcutm__five_corners, NO_PARAM);
 
         // COTMC //
-        level(OMM_SPARKLY_MODE_HARD, 20, dont_touch_floor, { 1 });
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 20, dont_touch_floor, { 1 });
 
         // SA //
-        level(OMM_SPARKLY_MODE_HARD, 23, invalidate_if_not_frozen, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 23, invalidate_if_not_frozen, NO_PARAM);
 
         // Inside //
-        level(OMM_SPARKLY_MODE_HARD, 25, toads_hide_and_seek, { 2,
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 25, toads_hide_and_seek, { 2,
             DIALOG_134,  -670,    0,  -320, 0xA000,
             DIALOG_135, -2300, -204, -2100, 0x0000,
         });
 
         // Basement //
-        level(OMM_SPARKLY_MODE_HARD, 26, basement__catch_mips, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 26, basement__catch_mips, NO_PARAM);
 
         // Upstairs //
-        level(OMM_SPARKLY_MODE_HARD, 27, toads_hide_and_seek, { 2,
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 27, toads_hide_and_seek, { 2,
             DIALOG_076, -2260, 2253, 4850, 0xA000,
             DIALOG_083,  -205, 2253, 7200, 0x7000,
         });
 
         // Courtyard //
-        level(OMM_SPARKLY_MODE_HARD, 28, launch_cappy_to_target, { 9, 433, -1735 });
+        sparkly_level(OMM_SPARKLY_MODE_HARD, 28, launch_cappy_to_target, { 9, 433, -1735 });
 
 // ------- Lunatic ------- //
 
         // BOB //
-        level(OMM_SPARKLY_MODE_LUNATIC, 0, koopa_the_quick_race, { 1, 6, 0, 2, 3, 4, 5, 6 });
+        sparkly_level(OMM_SPARKLY_MODE_LUNATIC, 0, koopa_the_quick_race, { 1, 6, 0, 2, 3, 4, 5, 6 });
 
         // JRB //
-        level(OMM_SPARKLY_MODE_LUNATIC, 2, jrb__flooded_frozen, NO_PARAM);
+        sparkly_level(OMM_SPARKLY_MODE_LUNATIC, 2, jrb__flooded_frozen, NO_PARAM);
 
         // BITS //
-        level(OMM_SPARKLY_MODE_LUNATIC, 15, bits__shadow_all_star_rings, { 30,
+        sparkly_level(OMM_SPARKLY_MODE_LUNATIC, 15, bits__dark_all_star_rings, { 30,
             -5430, -4725,     0, 1, 0x4000,
             -2960, -4715,     0, 0, 0x0000,
              -300, -4450,     0, 1, 0x8000,
@@ -1126,7 +1131,7 @@ void omm_sparkly_context_update_level(struct MarioState *m, const OmmSparklyData
 
     // Update
     sUpdateTimer = true;
-    s32 i = omm_hmap_find(sOmmSparklyContextLevels[gOmmSparklyMode], data->index + 1);
+    s32 i = omm_hmap_find(sOmmSparklyContextLevels[gOmmSparklyMode], data->starIndex + 1);
     if (i != -1) {
         sMario = m;
         sData = data;

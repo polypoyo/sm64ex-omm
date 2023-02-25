@@ -2,7 +2,7 @@
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
 
-#define DOUBLE_SIZE(s) max_s(8, s << 1)
+#define DOUBLE_SIZE(s) max_s(2, s << 1)
 
 OMM_INLINE bool __omm_nop_eq(__OmmNoP x, __OmmNoP y) {
     return x.as_u64 == y.as_u64;
@@ -11,10 +11,69 @@ OMM_INLINE bool __omm_nop_eq(__OmmNoP x, __OmmNoP y) {
 OMM_INLINE void *__omm_realloc(void *p, s32 s, s32 c, s32 sot) {
     void *q = calloc(s, sot);
     if (OMM_LIKELY(p)) {
-        omm_copy(q, p, c * sot);
-        omm_free(p);
+        mem_cpy(q, p, c * sot);
+        mem_del(p);
     }
     return q;
+}
+
+//
+// Strings
+//
+
+u32 __str_hash(const char *str) {
+    u32 hash = 0;
+    if (str) {
+        for (; *str; ++str) {
+            hash = (hash * 31) + *str;
+        }
+    }
+    return hash;
+}
+
+void __str_cpy(char *dst, s32 dst_siz, const char *src) {
+    if (src && dst && dst_siz) {
+        mem_cpy(dst, src, min_s(strlen(src) + 1, dst_siz - 1));
+        dst[dst_siz - 1] = 0;
+    }
+}
+
+void __str_rep(char *dst, s32 dst_siz, const char *src, char c0, char c1) {
+    if (src && dst && dst_siz) {
+        for (; *src && --dst_siz; ++src, ++dst) {
+            *dst = (*src == c0 ? c1 : *src);
+        }
+        *dst = 0;
+    }
+}
+
+void __str_lwr(char *dst, s32 dst_siz, const char *src) {
+    if (src && dst && dst_siz) {
+        for (; *src && --dst_siz; ++src, ++dst) {
+            *dst = tolower(*src);
+        }
+        *dst = 0;
+    }
+}
+
+void __str_upr(char *dst, s32 dst_siz, const char *src) {
+    if (src && dst && dst_siz) {
+        for (; *src && --dst_siz; ++src, ++dst) {
+            *dst = toupper(*src);
+        }
+        *dst = 0;
+    }
+}
+
+void __str_cat(char *dst, s32 dst_siz, const char **src) {
+    if (src && dst && dst_siz) {
+        for (; *src && dst_siz; ++src) {
+            __str_cpy(dst, dst_siz, *src);
+            int src_siz = (int) strlen(*src);
+            dst += src_siz;
+            dst_siz = max_s(0, dst_siz - src_siz);
+        }
+    }
 }
 
 //
@@ -45,7 +104,7 @@ void __omm_array_remove(OmmArray *parr, s32 index) {
     if (index == -1) {
         parr->c = 0;
     } else if (index < parr->c) {
-        omm_move(parr->p + index, parr->p + index + 1, sizeof(__OmmNoP) * (parr->c - index - 1));
+        mem_mov(parr->p + index, parr->p + index + 1, sizeof(__OmmNoP) * (parr->c - index - 1));
         parr->c--;
     }
 }
@@ -89,8 +148,8 @@ void __omm_map_remove(OmmMap *pmap, s32 index) {
     if (index == -1) {
         pmap->c = 0;
     } else if (index < pmap->c) {
-        omm_move(pmap->k + index, pmap->k + index + 1, sizeof(__OmmNoP) * (pmap->c - index - 1));
-        omm_move(pmap->v + index, pmap->v + index + 1, sizeof(__OmmNoP) * (pmap->c - index - 1));
+        mem_mov(pmap->k + index, pmap->k + index + 1, sizeof(__OmmNoP) * (pmap->c - index - 1));
+        mem_mov(pmap->v + index, pmap->v + index + 1, sizeof(__OmmNoP) * (pmap->c - index - 1));
         pmap->c--;
     }
 }
@@ -125,8 +184,8 @@ void __omm_hmap_insert(OmmHMap *phmap, u32 key, void *val) {
     }
     for (s32 i = 0; i != phmap->s; ++i) {
         if (key > phmap->k[i]) {
-            omm_move(phmap->k + i + 1, phmap->k + i, sizeof(u32)    * (phmap->s - i - 1));
-            omm_move(phmap->v + i + 1, phmap->v + i, sizeof(void *) * (phmap->s - i - 1));
+            mem_mov(phmap->k + i + 1, phmap->k + i, sizeof(u32)    * (phmap->s - i - 1));
+            mem_mov(phmap->v + i + 1, phmap->v + i, sizeof(void *) * (phmap->s - i - 1));
             phmap->k[i] = key;
             phmap->v[i] = val;
             phmap->c++;
@@ -180,24 +239,24 @@ void *omm_memory_new(void *pool, s32 size, void *caller) {
         OmmMemoryPool *omp = (OmmMemoryPool *) pool;
         OmmMemoryObject *obj = omm_memory_get_free_slot(omp);
         if (obj->size < size) {
-            omm_free(obj->data);
-            obj->data = omm_new(u8, size);
+            mem_del(obj->data);
+            obj->data = mem_new(u8, size);
             obj->size = size;
         } else {
-            omm_zero(obj->data, size);
+            mem_clr(obj->data, size);
         }
         obj->owner = caller;
         p = obj->data;
     } else {
-        p = omm_new(u8, size);
+        p = mem_new(u8, size);
     }
     return p;
 }
 
 static void omm_memory_init_pool(void **pool, s32 capacity) {
-    *pool = omm_new(OmmMemoryPool, 1);
+    *pool = mem_new(OmmMemoryPool, 1);
     OmmMemoryPool *omp = (OmmMemoryPool *) *pool;
-    omp->objects = (OmmMemoryObject *) omm_new(OmmMemoryObject, capacity);
+    omp->objects = (OmmMemoryObject *) mem_new(OmmMemoryObject, capacity);
     omp->capacity = capacity;
     omp->current = 0;
 }

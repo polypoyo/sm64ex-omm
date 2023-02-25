@@ -2,29 +2,30 @@
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
 
+s32 sOmmVibeType = OMM_PEACH_VIBE_TYPE_NONE;
+f32 sOmmVibeAlpha = 0.f;
+f32 sOmmVibeBgAlpha = 0.f;
+u8  sOmmYouGotAStarText[3][64];
+s32 sOmmYouGotAStarTimer = 0;
+s32 sOmmYouGotAStarRender = 0;
+
 //
-// Buffers
+// Gfx buffers
 //
 
-static Vtx sFreezeVtx[4];
-static Vtx sDarkModeVtx[OMM_RENDER_DARK_MODE_NUM_POINTS * 6];
-static Gfx sDarkModeGfx[OMM_RENDER_DARK_MODE_NUM_POINTS * 3 + 16];
-static s32 sVibeType = OMM_PEACH_VIBE_TYPE_NONE;
-static f32 sVibeAlpha = 0.f;
-static f32 sVibeBgAlpha = 0.f;
-static Vtx sVibeBgVtx[16];
-static Gfx sVibeBgGfx[32];
-static u8  sYouGotAStarText[3][64];
-static s32 sYouGotAStarTimer = 0;
-static s32 sYouGotAStarRender = 0;
+static Vtx sOmmFreezeVtx[4];
+static Vtx sOmmDarkModeVtx[OMM_RENDER_DARK_MODE_NUM_POINTS * 6];
+static Gfx sOmmDarkModeGfx[OMM_RENDER_DARK_MODE_NUM_POINTS * 3 + 16];
+static Vtx sOmmVibeBgVtx[16];
+static Gfx sOmmVibeBgGfx[32];
 
 //
 // Frame interpolation
 //
 
-InterpData sVibeBg[1];
-InterpData sVibeHeart[1];
-InterpData sYouGotAStar[1];
+static InterpData sOmmVibeBg[1];
+static InterpData sOmmVibeHeart[1];
+static InterpData sOmmYouGotAStar[1];
 
 static Gfx *omm_render_effect_vibe_background(Gfx *pos, f32 alpha, f32 timer);
 static Gfx *omm_render_effect_vibe_heart(Gfx *pos, f32 alpha, f32 scale);
@@ -33,28 +34,28 @@ static Gfx *omm_render_effect_you_got_a_star_pop_up(Gfx *pos, f32 timer, f32 off
 void gfx_interpolate_frame_effects(f32 t) {
 
     // Vibe background
-    if (sVibeBg->pos) {
-        interp_data_lerp(sVibeBg, t);
-        omm_render_effect_vibe_background(sVibeBg->pos, sVibeBg->a, sVibeBg->t);
+    if (sOmmVibeBg->pos) {
+        interp_data_lerp(sOmmVibeBg, t);
+        omm_render_effect_vibe_background(sOmmVibeBg->pos, sOmmVibeBg->a, sOmmVibeBg->t);
     }
 
     // Vibe heart
-    if (sVibeHeart->pos) {
-        interp_data_lerp(sVibeHeart, t);
-        omm_render_effect_vibe_heart(sVibeHeart->pos, sVibeHeart->a, sVibeHeart->s);
+    if (sOmmVibeHeart->pos) {
+        interp_data_lerp(sOmmVibeHeart, t);
+        omm_render_effect_vibe_heart(sOmmVibeHeart->pos, sOmmVibeHeart->a, sOmmVibeHeart->s);
     }
 
     // You got a star
-    if (sYouGotAStar->pos) {
-        interp_data_lerp(sYouGotAStar, t);
-        omm_render_effect_you_got_a_star_pop_up(sYouGotAStar->pos, sYouGotAStar->t, sYouGotAStar->y);
+    if (sOmmYouGotAStar->pos) {
+        interp_data_lerp(sOmmYouGotAStar, t);
+        omm_render_effect_you_got_a_star_pop_up(sOmmYouGotAStar->pos, sOmmYouGotAStar->t, sOmmYouGotAStar->y);
     }
 }
 
 void gfx_clear_frame_effects() {
-    sVibeBg->pos = NULL;
-    sVibeHeart->pos = NULL;
-    sYouGotAStar->pos = NULL;
+    sOmmVibeBg->pos = NULL;
+    sOmmVibeHeart->pos = NULL;
+    sOmmYouGotAStar->pos = NULL;
 }
 
 //
@@ -72,10 +73,10 @@ void omm_render_effect_freeze() {
         f32 x1 = GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(0);
         f32 y0 = 0.f;
         f32 y1 = SCREEN_HEIGHT;
-        sFreezeVtx[0] = (Vtx) { { { x0, y0, 0 }, 0, { 0x0000, 0x0000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } };
-        sFreezeVtx[1] = (Vtx) { { { x1, y0, 0 }, 0, { 0x4000, 0x0000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } };
-        sFreezeVtx[2] = (Vtx) { { { x1, y1, 0 }, 0, { 0x4000, 0x2000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } };
-        sFreezeVtx[3] = (Vtx) { { { x0, y1, 0 }, 0, { 0x0000, 0x2000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } };
+        sOmmFreezeVtx[0] = (Vtx) { { { x0, y0, 0 }, 0, { 0x0000, 0x0000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } };
+        sOmmFreezeVtx[1] = (Vtx) { { { x1, y0, 0 }, 0, { 0x4000, 0x0000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } };
+        sOmmFreezeVtx[2] = (Vtx) { { { x1, y1, 0 }, 0, { 0x4000, 0x2000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } };
+        sOmmFreezeVtx[3] = (Vtx) { { { x0, y1, 0 }, 0, { 0x0000, 0x2000 }, { 0xFF, 0xFF, 0xFF, 0xFF } } };
 
         omm_render_create_dl_ortho_matrix();
         OMM_RENDER_ENABLE_ALPHA(gDisplayListHead++);
@@ -83,7 +84,7 @@ void omm_render_effect_freeze() {
         gDPSetCombineLERP(gDisplayListHead++, 0, 0, 0, TEXEL0, TEXEL0, 0, ENVIRONMENT, 0, 0, 0, 0, TEXEL0, TEXEL0, 0, ENVIRONMENT, 0);
         gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
         gDPLoadTextureBlock(gDisplayListHead++, OMM_TEXTURE_EFFECT_FREEZE, G_IM_FMT_RGBA, G_IM_SIZ_32b, 256, 128, 0, G_TX_MIRROR, G_TX_MIRROR, 0, 0, G_TX_NOLOD, G_TX_NOLOD);
-        gSPVertex(gDisplayListHead++, sFreezeVtx, 4, 0);
+        gSPVertex(gDisplayListHead++, sOmmFreezeVtx, 4, 0);
         gSP2Triangles(gDisplayListHead++, 0, 1, 2, 0, 0, 2, 3, 0);
         gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
         gDPSetCombineLERP(gDisplayListHead++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
@@ -96,11 +97,11 @@ void omm_render_effect_freeze() {
 
 void omm_render_effect_dark_mode() {
     if (omm_sparkly_context_get_data(OMM_SPARKLY_DATA_DARK_MODE) && OMM_SPARKLY_STATE_IS_OK) {
-        Vtx *vtx = sDarkModeVtx;
-        Gfx *gfx = sDarkModeGfx;
+        Vtx *vtx = sOmmDarkModeVtx;
+        Gfx *gfx = sOmmDarkModeGfx;
         omm_render_create_dl_ortho_matrix();
         OMM_RENDER_ENABLE_ALPHA(gDisplayListHead++);
-        gSPDisplayList(gDisplayListHead++, sDarkModeGfx);
+        gSPDisplayList(gDisplayListHead++, sOmmDarkModeGfx);
         gSPClearGeometryMode(gfx++, G_LIGHTING | G_CULL_BOTH);
         gDPSetCombineLERP(gfx++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
         for (s32 i = 0; i != OMM_RENDER_DARK_MODE_NUM_POINTS; ++i, vtx += 6) {
@@ -130,7 +131,7 @@ void omm_render_effect_dark_mode() {
 // Vibes (Peach only)
 //
 
-static const char *sVibeTextures[5][2] = {
+static const char *sOmmVibeTextures[5][2] = {
     { OMM_TEXTURE_HUD_VIBE_NORMAL, NULL },
     { OMM_TEXTURE_HUD_VIBE_JOY, OMM_TEXTURE_EFFECT_VIBE_JOY },
     { OMM_TEXTURE_HUD_VIBE_RAGE, OMM_TEXTURE_EFFECT_VIBE_RAGE },
@@ -169,32 +170,32 @@ static Gfx *omm_render_effect_vibe_background(Gfx *pos, f32 alpha, f32 timer) {
         s32 y3 = SCREEN_HEIGHT;
 
         // Vertices
-        sVibeBgVtx[0]  = omm_render_effect_vibe_get_vertex(x0, y0, 0xA0 * alpha, timer);
-        sVibeBgVtx[1]  = omm_render_effect_vibe_get_vertex(x1, y0, 0xA0 * alpha, timer);
-        sVibeBgVtx[2]  = omm_render_effect_vibe_get_vertex(x2, y0, 0xA0 * alpha, timer);
-        sVibeBgVtx[3]  = omm_render_effect_vibe_get_vertex(x3, y0, 0xA0 * alpha, timer);
-        sVibeBgVtx[4]  = omm_render_effect_vibe_get_vertex(x0, y1, 0xA0 * alpha, timer);
-        sVibeBgVtx[5]  = omm_render_effect_vibe_get_vertex(x1, y1, 0x00 * alpha, timer);
-        sVibeBgVtx[6]  = omm_render_effect_vibe_get_vertex(x2, y1, 0x00 * alpha, timer);
-        sVibeBgVtx[7]  = omm_render_effect_vibe_get_vertex(x3, y1, 0xA0 * alpha, timer);
-        sVibeBgVtx[8]  = omm_render_effect_vibe_get_vertex(x0, y2, 0xA0 * alpha, timer);
-        sVibeBgVtx[9]  = omm_render_effect_vibe_get_vertex(x1, y2, 0x00 * alpha, timer);
-        sVibeBgVtx[10] = omm_render_effect_vibe_get_vertex(x2, y2, 0x00 * alpha, timer);
-        sVibeBgVtx[11] = omm_render_effect_vibe_get_vertex(x3, y2, 0xA0 * alpha, timer);
-        sVibeBgVtx[12] = omm_render_effect_vibe_get_vertex(x0, y3, 0xA0 * alpha, timer);
-        sVibeBgVtx[13] = omm_render_effect_vibe_get_vertex(x1, y3, 0xA0 * alpha, timer);
-        sVibeBgVtx[14] = omm_render_effect_vibe_get_vertex(x2, y3, 0xA0 * alpha, timer);
-        sVibeBgVtx[15] = omm_render_effect_vibe_get_vertex(x3, y3, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[0]  = omm_render_effect_vibe_get_vertex(x0, y0, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[1]  = omm_render_effect_vibe_get_vertex(x1, y0, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[2]  = omm_render_effect_vibe_get_vertex(x2, y0, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[3]  = omm_render_effect_vibe_get_vertex(x3, y0, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[4]  = omm_render_effect_vibe_get_vertex(x0, y1, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[5]  = omm_render_effect_vibe_get_vertex(x1, y1, 0x00 * alpha, timer);
+        sOmmVibeBgVtx[6]  = omm_render_effect_vibe_get_vertex(x2, y1, 0x00 * alpha, timer);
+        sOmmVibeBgVtx[7]  = omm_render_effect_vibe_get_vertex(x3, y1, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[8]  = omm_render_effect_vibe_get_vertex(x0, y2, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[9]  = omm_render_effect_vibe_get_vertex(x1, y2, 0x00 * alpha, timer);
+        sOmmVibeBgVtx[10] = omm_render_effect_vibe_get_vertex(x2, y2, 0x00 * alpha, timer);
+        sOmmVibeBgVtx[11] = omm_render_effect_vibe_get_vertex(x3, y2, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[12] = omm_render_effect_vibe_get_vertex(x0, y3, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[13] = omm_render_effect_vibe_get_vertex(x1, y3, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[14] = omm_render_effect_vibe_get_vertex(x2, y3, 0xA0 * alpha, timer);
+        sOmmVibeBgVtx[15] = omm_render_effect_vibe_get_vertex(x3, y3, 0xA0 * alpha, timer);
 
         // Display list
-        Gfx *gfx = sVibeBgGfx;
+        Gfx *gfx = sOmmVibeBgGfx;
         OMM_RENDER_ENABLE_ALPHA(pos++);
-        gSPDisplayList(pos++, sVibeBgGfx);
+        gSPDisplayList(pos++, sOmmVibeBgGfx);
         gSPClearGeometryMode(gfx++, G_LIGHTING | G_CULL_BOTH);
         gDPSetCombineLERP(gfx++, TEXEL0, 0, SHADE, 0, TEXEL0, 0, SHADE, 0, TEXEL0, 0, SHADE, 0, TEXEL0, 0, SHADE, 0);
         gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-        gDPLoadTextureBlock(gfx++, sVibeTextures[sVibeType][1], G_IM_FMT_RGBA, G_IM_SIZ_32b, 256, 256, 0, G_TX_WRAP, G_TX_WRAP, 0, 0, G_TX_NOLOD, G_TX_NOLOD);
-        gSPVertex(gfx++, sVibeBgVtx, 16, 0);
+        gDPLoadTextureBlock(gfx++, sOmmVibeTextures[sOmmVibeType][1], G_IM_FMT_RGBA, G_IM_SIZ_32b, 256, 256, 0, G_TX_WRAP, G_TX_WRAP, 0, 0, G_TX_NOLOD, G_TX_NOLOD);
+        gSPVertex(gfx++, sOmmVibeBgVtx, 16, 0);
         gSP2Triangles(gfx++, 0, 1, 5, 0, 0, 4, 5, 0);
         gSP2Triangles(gfx++, 2, 3, 6, 0, 3, 6, 7, 0);
         gSP2Triangles(gfx++, 8, 9, 12, 0, 9, 12, 13, 0);
@@ -225,7 +226,7 @@ static Gfx *omm_render_effect_vibe_heart(Gfx *pos, f32 alpha, f32 size) {
         gDPSetCombineLERP(pos++, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
         gDPSetEnvColor(pos++, 0xFF, 0xFF, 0xFF, (255.9f * alpha));
         gSPTexture(pos++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-        gDPLoadTextureBlock(pos++, sVibeTextures[gOmmPeach->vibeType][0], G_IM_FMT_RGBA, G_IM_SIZ_32b, 16, 16, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
+        gDPLoadTextureBlock(pos++, sOmmVibeTextures[gOmmPeach->vibeType][0], G_IM_FMT_RGBA, G_IM_SIZ_32b, 16, 16, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
         gSPTextureRectangle(pos++, x0, y0, x1, y1, G_TX_RENDERTILE, 0, 0, (s16) (0x4000 / w), (s16) (0x4000 / h));
         gDPSetRenderMode(pos++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
         gDPSetCombineLERP(pos++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
@@ -239,24 +240,24 @@ void omm_render_effect_vibe() {
     if (OMM_PLAYER_IS_PEACH) {
         
         // Update vibe values
-        sVibeAlpha = 1.f - clamp_0_1_f(gOmmPeach->vibeTimer / 15.f);
+        sOmmVibeAlpha = 1.f - clamp_0_1_f(gOmmPeach->vibeTimer / 15.f);
         if (gOmmPeach->vibeType != OMM_PEACH_VIBE_TYPE_NONE) {
-            sVibeType = gOmmPeach->vibeType;
-            sVibeBgAlpha = 1.f - sVibeAlpha;
+            sOmmVibeType = gOmmPeach->vibeType;
+            sOmmVibeBgAlpha = 1.f - sOmmVibeAlpha;
         } else {
-            sVibeBgAlpha = sVibeAlpha;
+            sOmmVibeBgAlpha = sOmmVibeAlpha;
         }
 
         // Vibe background
         omm_render_create_dl_ortho_matrix();
-        interp_data_update(sVibeBg, gOmmPeach->vibeTimer > 0, gDisplayListHead, 0, 0, 0, sVibeBgAlpha, 0, gGlobalTimer);
-        gDisplayListHead = omm_render_effect_vibe_background(gDisplayListHead, sVibeBg->a0, sVibeBg->t0);
+        interp_data_update(sOmmVibeBg, gOmmPeach->vibeTimer > 0, gDisplayListHead, 0, 0, 0, sOmmVibeBgAlpha, 0, gGlobalTimer);
+        gDisplayListHead = omm_render_effect_vibe_background(gDisplayListHead, sOmmVibeBg->a0, sOmmVibeBg->t0);
 
         // Vibe heart
-        f32 heartSize = lerp_f(1.f - sVibeAlpha, 1, SCREEN_HEIGHT);
+        f32 heartSize = lerp_f(1.f - sOmmVibeAlpha, 1, SCREEN_HEIGHT);
         omm_render_create_dl_ortho_matrix();
-        interp_data_update(sVibeHeart, gOmmPeach->vibeTimer > 0, gDisplayListHead, 0, 0, 0, sVibeAlpha, heartSize, 0);
-        gDisplayListHead = omm_render_effect_vibe_heart(gDisplayListHead, sVibeHeart->a0, sVibeHeart->s0);
+        interp_data_update(sOmmVibeHeart, gOmmPeach->vibeTimer > 0, gDisplayListHead, 0, 0, 0, sOmmVibeAlpha, heartSize, 0);
+        gDisplayListHead = omm_render_effect_vibe_heart(gDisplayListHead, sOmmVibeHeart->a0, sOmmVibeHeart->s0);
     }
 }
 
@@ -266,16 +267,16 @@ void omm_render_effect_vibe() {
 
 void omm_render_effect_you_got_a_star_begin(const char *title, const u8 *courseName, const u8 *starName) {
     const u8 *converted = omm_text_convert(title, false);
-    omm_copy(sYouGotAStarText[0], converted, omm_text_length(converted) + 1);
-    omm_copy(sYouGotAStarText[1], courseName, omm_text_length(courseName) + 1);
-    omm_copy(sYouGotAStarText[2], starName, omm_text_length(starName) + 1);
-    sYouGotAStarTimer = 4;
-    sYouGotAStarRender = 1;
+    mem_cpy(sOmmYouGotAStarText[0], converted, omm_text_length(converted) + 1);
+    mem_cpy(sOmmYouGotAStarText[1], courseName, omm_text_length(courseName) + 1);
+    mem_cpy(sOmmYouGotAStarText[2], starName, omm_text_length(starName) + 1);
+    sOmmYouGotAStarTimer = 4;
+    sOmmYouGotAStarRender = 1;
 }
 
 void omm_render_effect_you_got_a_star_end() {
-    sYouGotAStarTimer = 60;
-    sYouGotAStarRender = 0;
+    sOmmYouGotAStarTimer = 60;
+    sOmmYouGotAStarRender = 0;
 }
 
 static Gfx *omm_render_effect_you_got_a_star_pop_up(Gfx *pos, f32 timer, f32 offset) {
@@ -298,27 +299,27 @@ static Gfx *omm_render_effect_you_got_a_star_pop_up(Gfx *pos, f32 timer, f32 off
     gSP2Triangles(gDisplayListHead++, 0, 2, 1, 0x0, 2, 3, 1, 0x0);
 
     // You got a star
-    omm_render_string_hud_centered(OMM_RENDER_YOU_GOT_A_STAR_LINE_1_Y + offset, 0xFF, 0xFF, 0xFF, alpha, sYouGotAStarText[0], false);
-    omm_render_string_centered    (OMM_RENDER_YOU_GOT_A_STAR_LINE_2_Y + offset, 0xFF, 0xFF, 0xFF, alpha, sYouGotAStarText[1], true);
-    omm_render_string_centered    (OMM_RENDER_YOU_GOT_A_STAR_LINE_3_Y + offset, 0xFF, 0xFF, 0xFF, alpha, sYouGotAStarText[2], true);
+    omm_render_string_hud_centered(OMM_RENDER_YOU_GOT_A_STAR_LINE_1_Y + offset, 0xFF, 0xFF, 0xFF, alpha, sOmmYouGotAStarText[0], false);
+    omm_render_string_centered    (OMM_RENDER_YOU_GOT_A_STAR_LINE_2_Y + offset, 0xFF, 0xFF, 0xFF, alpha, sOmmYouGotAStarText[1], true);
+    omm_render_string_centered    (OMM_RENDER_YOU_GOT_A_STAR_LINE_3_Y + offset, 0xFF, 0xFF, 0xFF, alpha, sOmmYouGotAStarText[2], true);
     OMM_RENDER_RESTORE_DL_HEAD(pos);
     return pos;
 }
 
 void omm_render_effect_you_got_a_star() {
-    if (sYouGotAStarTimer != 0 || sYouGotAStarRender) {
+    if (sOmmYouGotAStarTimer != 0 || sOmmYouGotAStarRender) {
         f32 timer, offset;
-        if (sYouGotAStarRender) { // Fade-in
-            timer = (f32) (4 - sYouGotAStarTimer) / 4.f;
-            offset = 2.f * (2 - abs_s(sYouGotAStarTimer - 2));
+        if (sOmmYouGotAStarRender) { // Fade-in
+            timer = (f32) (4 - sOmmYouGotAStarTimer) / 4.f;
+            offset = 2.f * (2 - abs_s(sOmmYouGotAStarTimer - 2));
         } else { // Fade-out
-            timer = min_f(1.f, sYouGotAStarTimer / 15.f);
+            timer = min_f(1.f, sOmmYouGotAStarTimer / 15.f);
             offset = 0;
         }
-        interp_data_update(sYouGotAStar, true, gDisplayListHead, 0, offset, 0, 0, 0, timer);
-        gDisplayListHead = omm_render_effect_you_got_a_star_pop_up(gDisplayListHead, sYouGotAStar->t0, sYouGotAStar->y0);
+        interp_data_update(sOmmYouGotAStar, true, gDisplayListHead, 0, offset, 0, 0, 0, timer);
+        gDisplayListHead = omm_render_effect_you_got_a_star_pop_up(gDisplayListHead, sOmmYouGotAStar->t0, sOmmYouGotAStar->y0);
     }
-    if (sYouGotAStarTimer != 0) {
-        sYouGotAStarTimer--;
+    if (sOmmYouGotAStarTimer != 0) {
+        sOmmYouGotAStarTimer--;
     }
 }

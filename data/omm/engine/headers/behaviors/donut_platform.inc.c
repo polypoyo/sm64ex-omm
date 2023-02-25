@@ -40,7 +40,7 @@ static Vec3s sDonutPlatformPositions[] = {
 };
 
 void bhv_donut_platform_spawner_update(void) {
-    for (s32 i = 0; i != omm_static_array_length(sDonutPlatformPositions); ++i) {
+    for (s32 i = 0; i != array_length(sDonutPlatformPositions); ++i) {
         struct Object *donut = spawn_object_relative(i, sDonutPlatformPositions[i][0], sDonutPlatformPositions[i][1], sDonutPlatformPositions[i][2], o, MODEL_RR_DONUT_PLATFORM, bhvDonutPlatform);
         if (donut) {
             obj_set_home(donut, donut->oPosX, donut->oPosY, donut->oPosZ);

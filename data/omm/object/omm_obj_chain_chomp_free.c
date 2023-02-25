@@ -149,7 +149,7 @@ static void bhv_omm_chain_chomp_free_wander(struct Object* o) {
             o->oFloor = NULL;
             o->oChainChompFreeTimer = 45;
             o->oChainChompFreeState = 1;
-            play_sound(SOUND_GENERAL_CHAIN_CHOMP2, o->oCameraToObject);
+            obj_play_sound(o, SOUND_GENERAL_CHAIN_CHOMP2);
         }
         
         // Make a small hop
@@ -161,7 +161,7 @@ static void bhv_omm_chain_chomp_free_wander(struct Object* o) {
             o->oFaceAngleYaw = nextAngle;
             o->oMoveAngleYaw = nextAngle;
             o->oChainChompFreeAngle = nextAngle;
-            play_sound(SOUND_GENERAL_CHAIN_CHOMP1, o->oCameraToObject);
+            obj_play_sound(o, SOUND_GENERAL_CHAIN_CHOMP1);
         }
     }
 }
@@ -184,7 +184,7 @@ static void bhv_omm_chain_chomp_free_chase(struct Object *o) {
             o->oVelY = 20.f;
             o->oFloor = NULL;
             o->oChainChompFreeAngle = o->oAngleToMario;
-            play_sound(SOUND_GENERAL_CHAIN_CHOMP1, o->oCameraToObject);
+            obj_play_sound(o, SOUND_GENERAL_CHAIN_CHOMP1);
         }
     }
 }

@@ -22,7 +22,7 @@ static void bhv_omm_flaming_bobomb_explosion_update(void) {
         return;
     }
 
-    f32 scale = (f32) o->oTimer / 4.f + 1.0f;
+    f32 scale = (f32) o->oTimer / 4.f + 1.f;
     obj_scale(o, scale);
     obj_set_params(o, 0, 0, 0, 0, false);
     obj_reset_hitbox(o, 0, 0, 0, 0, 0, 0);
@@ -45,7 +45,7 @@ const BehaviorScript bhvOmmFlamingBobombExplosion[] = {
 struct Object *omm_spawn_flaming_bobomb_explosion(struct Object *o) {
     struct Object *explosion  = obj_spawn_from_geo(o, omm_geo_flaming_bobomb_explosion, bhvOmmFlamingBobombExplosion);
     explosion->oAnimState     = -1;
-    explosion->oGraphYOffset += 100.0f;
+    explosion->oGraphYOffset += 100;
     explosion->oOpacity       = 255;
     create_sound_spawner(SOUND_GENERAL2_BOBOMB_EXPLOSION);
     set_environmental_camera_shake(SHAKE_ENV_EXPLOSION);

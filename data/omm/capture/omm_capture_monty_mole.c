@@ -13,6 +13,16 @@ bool omm_cappy_monty_mole_init(struct Object *o) {
     gOmmObject->state.actionState = MONTY_MOLE_ACT_SELECT_HOLE;
     gOmmObject->state.actionTimer = 0;
 
+    // Construct the list of Monty mole holes
+    gOmmObject->monty_mole.count = 0;
+    for_each_object_with_behavior(obj, bhvMontyMoleHole) {
+        gOmmObject->monty_mole.holes[gOmmObject->monty_mole.count] = obj;
+        if (obj == o->oMontyMoleCurrentHole) {
+            gOmmObject->monty_mole.current = gOmmObject->monty_mole.count;
+        }
+        gOmmObject->monty_mole.count++;
+    }
+
     // Remove all rocks from Monty moles
     obj_deactivate_all_with_behavior(bhvMontyMoleRock);
     for_each_object_with_behavior(obj, bhvMontyMole) {
@@ -22,16 +32,12 @@ bool omm_cappy_monty_mole_init(struct Object *o) {
 }
 
 void omm_cappy_monty_mole_end(struct Object *o) {
-    obj_anim_play(o, 1, 1.f);
     obj_drop_to_floor(o);
-    o->oPosY += 120.f;
-    o->oVelY = -4.f;
-    o->oGravity = 0.f;
-    o->oMoveFlags = 0;
-    o->oFaceAnglePitch = 0x8000;
-    o->oAction = MONTY_MOLE_ACT_HIDE;
-    obj_update_gfx(o);
-    monty_mole_spawn_dirt_particles(-80, 15);
+    monty_mole_spawn_dirt_particles(40, 15);
+    o->oAction = MONTY_MOLE_ACT_SELECT_HOLE;
+    o->oVelY = 0;
+    o->oIntangibleTimer = -1;
+    o->oNodeFlags |= GRAPH_RENDER_INVISIBLE;
 }
 
 f32 omm_cappy_monty_mole_get_top(struct Object *o) {
@@ -45,22 +51,22 @@ f32 omm_cappy_monty_mole_get_top(struct Object *o) {
 static s32 omm_cappy_monty_mole_update_pos_and_vel(struct Object *o) {
     Vec3f previousPos = { o->oPosX, o->oPosY, o->oPosZ };
     perform_object_step(o, POBJ_STEP_FLAGS);
-    if ((gOmmObject->state.actionState == MONTY_MOLE_ACT_SELECT_HOLE ||
-         gOmmObject->state.actionState == MONTY_MOLE_ACT_THROW_ROCK) &&
-        !obj_is_on_ground(o)) {
+    if (gOmmObject->state.actionState == MONTY_MOLE_ACT_SELECT_HOLE && !obj_is_on_ground(o)) {
         vec3f_copy(&o->oPosX, previousPos);
         obj_drop_to_floor(o);
     }
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
-    POBJ_RETURN_OK;
+    pobj_stop_if_unpossessed();
+    pobj_return_ok;
 }
 
 s32 omm_cappy_monty_mole_update(struct Object *o) {
+    o->oMontyMoleTargetHole = NULL;
 
     // Properties
     POBJ_SET_ABOVE_WATER;
+    POBJ_SET_UNDER_WATER;
     POBJ_SET_IMMUNE_TO_SAND;
     POBJ_SET_IMMUNE_TO_WIND;
     POBJ_SET_ABLE_TO_MOVE_ON_SLOPES;
@@ -75,13 +81,24 @@ s32 omm_cappy_monty_mole_update(struct Object *o) {
             if (!omm_mario_is_locked(gMarioState)) {
                 pobj_move(o, false, false, false);
                 obj_set_angle(o, 0, o->oFaceAngleYaw, 0);
+
+                // Jump into hole
                 if (POBJ_A_BUTTON_PRESSED) {
                     gOmmObject->state.actionState = MONTY_MOLE_ACT_BEGIN_JUMP_INTO_HOLE;
                     gOmmObject->state.actionTimer = 0;
                     monty_mole_spawn_dirt_particles(0, 10);
-                } else if (POBJ_B_BUTTON_PRESSED) {
-                    gOmmObject->state.actionState = MONTY_MOLE_ACT_THROW_ROCK;
+                }
+
+                // Throw rock
+                // Hold B to shoot faster, further and with bigger projectiles
+                if (POBJ_B_BUTTON_DOWN) {
+                    gOmmObject->state.actionTimer = min_s(gOmmObject->state.actionTimer + 1, 20);
+                } else if (gOmmObject->state.actionTimer > 0) {
+                    f32 power = 1.f + 1.5f * (gOmmObject->state.actionTimer / 20.f);
+                    omm_spawn_monty_mole_rock(o, power);
                     gOmmObject->state.actionTimer = 0;
+                    obj_anim_play_with_sound(o, 8, 1.f, 0, true);
+                    obj_anim_clamp_frame(o, 8, 99);
                 }
             }
 
@@ -93,13 +110,15 @@ s32 omm_cappy_monty_mole_update(struct Object *o) {
             // Update gfx
             obj_update_gfx(o);
             o->oGfxPos[1] += 50.f;
-            if (abs_f(o->oForwardVel) > 1.f) {
-                obj_anim_play(o, 4, 1.f);
-                if (obj_anim_is_near_end(o)) {
-                    monty_mole_spawn_dirt_particles(0, 10);
+            if (obj_anim_get_id(o) != 8 || obj_anim_is_near_end(o)) {
+                if (abs_f(o->oForwardVel) > 1.f) {
+                    obj_anim_play(o, 4, 1.f);
+                    if (obj_anim_is_near_end(o)) {
+                        monty_mole_spawn_dirt_particles(0, 10);
+                    }
+                } else {
+                    obj_anim_play(o, 3, 1.f);
                 }
-            } else {
-                obj_anim_play(o, 3, 1.f);
             }
         } break;
 
@@ -126,7 +145,7 @@ s32 omm_cappy_monty_mole_update(struct Object *o) {
                 obj_play_sound(o, SOUND_OBJ2_MONTY_MOLE_APPEAR);
             }
         } break;
-        
+
         // Jump into hole (second part)
         case MONTY_MOLE_ACT_JUMP_INTO_HOLE: {
             omm_mario_lock(gMarioState, -1);
@@ -143,12 +162,13 @@ s32 omm_cappy_monty_mole_update(struct Object *o) {
 
             // Update state
             if (obj_is_on_ground(o)) {
+                o->oSubAction = -1;
                 o->oNodeFlags |= GRAPH_RENDER_INVISIBLE;
                 gOmmObject->state.actionState = MONTY_MOLE_ACT_HIDE;
                 omm_mario_unlock(gMarioState);
             }
         } break;
-        
+
         // Hide
         case MONTY_MOLE_ACT_HIDE: {
             POBJ_SET_INVULNERABLE;
@@ -164,15 +184,77 @@ s32 omm_cappy_monty_mole_update(struct Object *o) {
             obj_update_gfx(o);
             o->oNodeFlags |= GRAPH_RENDER_INVISIBLE;
 
-            // Update state
-            if (!POBJ_A_BUTTON_DOWN) {
+            // Select the nearest hole in the direction pointed by the left stick in a 45 degrees arc
+            if (gPlayer1Controller->stickMag > 60) {
+                u16 nearestHoleAngleDiff = 0x1000;
+                for (s32 i = 0; i != gOmmObject->monty_mole.count; ++i) {
+                    struct Object *hole = gOmmObject->monty_mole.holes[i];
+                    if (hole != o->oMontyMoleCurrentHole) {
+                        s16 holeAngle = atan2s(hole->oPosZ - o->oPosZ, hole->oPosX - o->oPosX);
+                        u16 angleDiff = (u16) abs_s((s32) ((s16) ((s32) holeAngle - (s32) gMarioState->intendedYaw)));
+                        if (angleDiff < nearestHoleAngleDiff) {
+                            nearestHoleAngleDiff = angleDiff;
+                            o->oSubAction = i;
+                        }
+                    }
+                }
+            }
+
+            // If no hole selected, select the next hole in the list
+            if (o->oSubAction == -1) {
+                o->oSubAction = (gOmmObject->monty_mole.current + 1) % gOmmObject->monty_mole.count;
+            }
+
+            // If it's not the same as current, target that hole
+            struct Object *currHole = o->oMontyMoleCurrentHole;
+            struct Object *nextHole = gOmmObject->monty_mole.holes[o->oSubAction];
+            if (currHole != nextHole) {
+                o->oMontyMoleTargetHole = nextHole;
+
+                // Press B to teleport to the target hole
+                if (POBJ_B_BUTTON_PRESSED) {
+                    currHole->oMontyMoleHoleCooldown = 0;
+
+                    // If that hole is occupied, move the Monty mole that occupies it
+                    for_each_object_with_behavior(mole, bhvMontyMole) {
+                        if (mole->oMontyMoleCurrentHole == nextHole) {
+                            currHole->oMontyMoleHoleCooldown = -1;
+                            mole->oPosX += (currHole->oPosX - nextHole->oPosX);
+                            mole->oPosY += (currHole->oPosY - nextHole->oPosY);
+                            mole->oPosZ += (currHole->oPosZ - nextHole->oPosZ);
+                            mole->oFloorHeight += (currHole->oPosY - nextHole->oPosY);
+                            mole->oMontyMoleCurrentHole = currHole;
+                            mole->oAction = MONTY_MOLE_ACT_SELECT_HOLE;
+                            mole->oVelY = 0;
+                            mole->oIntangibleTimer = -1;
+                            mole->oNodeFlags |= GRAPH_RENDER_INVISIBLE;
+                            mole->prevObj = NULL;
+                            monty_mole_spawn_dirt_particles(80, 15);
+                            break;
+                        }
+                    }
+
+                    // Move to the selected hole
+                    nextHole->oMontyMoleHoleCooldown = -1;
+                    o->oPosX = nextHole->oPosX;
+                    o->oPosY = nextHole->oPosY;
+                    o->oPosZ = nextHole->oPosZ;
+                    o->oFloorHeight = nextHole->oPosY;
+                    o->oMontyMoleCurrentHole = nextHole;
+                    gOmmObject->monty_mole.current = o->oSubAction;
+                    o->oSubAction = -1;
+                }
+            }
+
+            // Rise from hole
+            if (POBJ_A_BUTTON_PRESSED) {
                 gOmmObject->state.actionState = MONTY_MOLE_ACT_RISE_FROM_HOLE;
                 gOmmObject->state.actionTimer = 0;
                 monty_mole_spawn_dirt_particles(0, 10);
                 obj_play_sound(o, SOUND_OBJ2_MONTY_MOLE_APPEAR);
             }
         } break;
-        
+
         // Rise from hole
         case MONTY_MOLE_ACT_RISE_FROM_HOLE: {
             omm_mario_lock(gMarioState, -1);
@@ -195,30 +277,6 @@ s32 omm_cappy_monty_mole_update(struct Object *o) {
                 gOmmObject->state.actionTimer = 0;
             }
         } break;
-        
-        // Throw a rock
-        case MONTY_MOLE_ACT_THROW_ROCK: {
-            omm_mario_lock(gMarioState, -1);
-            
-            // Update pos and vel
-            o->oVelY = 0.f;
-            s32 returnValue = omm_cappy_monty_mole_update_pos_and_vel(o);
-            if (returnValue) return returnValue;
-
-            // Update gfx
-            obj_update_gfx(o);
-            o->oGfxPos[1] += 50.f;
-            obj_anim_play(o, 8, 1.f);
-
-            // Throw a rock at frame 10
-            if (gOmmObject->state.actionTimer++ == 10) {
-                omm_spawn_rock(o);
-                obj_play_sound(o, SOUND_OBJ_MONTY_MOLE_ATTACK);
-            } else if (obj_anim_is_at_end(o)) {
-                omm_mario_unlock(gMarioState);
-                gOmmObject->state.actionState = MONTY_MOLE_ACT_SELECT_HOLE;
-            }
-        } break;
     }
     
     // Update hole
@@ -234,8 +292,8 @@ s32 omm_cappy_monty_mole_update(struct Object *o) {
     o->oWallHitboxRadius = omm_capture_get_wall_hitbox_radius(o);
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Cappy values
     gOmmObject->cappy.copyGfx   = true;
@@ -243,5 +301,5 @@ s32 omm_cappy_monty_mole_update(struct Object *o) {
     gOmmObject->cappy.scale     = 0.6f * !(o->oNodeFlags & GRAPH_RENDER_INVISIBLE);
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

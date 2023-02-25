@@ -102,7 +102,7 @@ s32 omm_cappy_snowmans_body_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Peak height
     if (obj_is_on_ground(o)) {
@@ -112,13 +112,13 @@ s32 omm_cappy_snowmans_body_update(struct Object *o) {
         // Break the snowman if fell from too high
         if (diff > 1000.f) {
             omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 6);
-            POBJ_RETURN_UNPOSSESS;
+            pobj_return_unpossess;
         }
     }
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Snowman's head
     // Distance must be computed again after movement
@@ -127,7 +127,7 @@ s32 omm_cappy_snowmans_body_update(struct Object *o) {
         gOmmObject->snowmans_body.headFound = true;
         omm_mario_unpossess_object(gMarioState, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, true, 6);
         gMarioState->invincTimer = 30;
-        POBJ_RETURN_UNPOSSESS;
+        pobj_return_unpossess;
     }
 
     // Scale
@@ -142,7 +142,7 @@ s32 omm_cappy_snowmans_body_update(struct Object *o) {
     // Gfx
     o->oFaceAnglePitch += (o->oForwardVel / scale) * 0x40;
     o->oMoveAnglePitch = o->oFaceAnglePitch;
-    o->oGraphYOffset = scale * 180.0f;
+    o->oGraphYOffset = scale * 180.f;
     obj_update_gfx(o);
     if (obj_is_on_ground(o)) {
         f32 walkDistance = gOmmObject->state.walkDistance;
@@ -159,5 +159,5 @@ s32 omm_cappy_snowmans_body_update(struct Object *o) {
     gOmmObject->cappy.scale     = 2.f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

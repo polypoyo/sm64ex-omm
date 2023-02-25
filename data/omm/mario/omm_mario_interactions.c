@@ -140,6 +140,7 @@ bool omm_mario_interact_coin(struct MarioState *m, struct Object *o) {
     else if (o->oDamageOrCoinValue == 1) gOmmSparklyContext->coinsYellow++;
     else if (o->oDamageOrCoinValue == 2) gOmmSparklyContext->coinsRed++;
     else if (o->oDamageOrCoinValue == 5) gOmmSparklyContext->coinsBlue++;
+    gOmmStats->coinsCollected += o->oDamageOrCoinValue;
     interact_coin(m, INTERACT_COIN, o);
     return true;
 }
@@ -154,13 +155,13 @@ bool omm_mario_interact_star_or_key(struct MarioState *m, struct Object *o) {
         
         // Collect star or key
         omm_sparkly_interact_grand_star(m, o);
-        save_file_collect_star_or_key(m->numCoins, (o->oBhvArgs >> 24) & 0x1F);
-        m->numStars = save_file_get_total_star_count(gCurrSaveFileNum - 1, COURSE_MIN - 1, COURSE_MAX - 1);
+        omm_save_file_collect_star_or_key(gCurrSaveFileNum - 1, OMM_GAME_MODE, gCurrLevelNum - 1, (o->oBehParams >> 24) & 0x1F, m->numCoins);
+        m->numStars = omm_save_file_get_total_star_count(gCurrSaveFileNum - 1, OMM_GAME_MODE, COURSE_MIN - 1, COURSE_MAX - 1);
 
         // Update Mario
         mario_stop_riding_and_holding(m);
         update_mario_sound_and_camera(m);
-        play_sound(SOUND_MENU_STAR_SOUND, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MENU_STAR_SOUND);
         spawn_object(o, MODEL_NONE, bhvStarKeyCollectionPuffSpawner);
         o->oInteractStatus = INT_STATUS_INTERACTED;
         m->interactObj = o;
@@ -187,7 +188,7 @@ bool omm_mario_interact_star_or_key(struct MarioState *m, struct Object *o) {
             m->capTimer = min_s(m->capTimer, 1);
             drop_queued_background_music();
             fadeout_level_music(126);
-        } else if (m->action == ACT_OMM_POSSESSION) {
+        } else if (omm_mario_is_capture(m) && (!OMM_GAME_IS_SM64 || !(gCurrCourseNum == COURSE_WF && gLastCompletedStarNum == 1))) {
             omm_mario_lock_star_grab(m);
             return true;
         }
@@ -197,8 +198,9 @@ bool omm_mario_interact_star_or_key(struct MarioState *m, struct Object *o) {
         if (m->action & ACT_FLAG_SWIMMING) starGrabAction = ACT_STAR_DANCE_WATER;
         if (m->action & ACT_FLAG_METAL_WATER) starGrabAction = ACT_STAR_DANCE_WATER;
         if (m->action & ACT_FLAG_AIR) starGrabAction = ACT_FALL_AFTER_STAR_GRAB;
-        omm_mario_unpossess_object(m, OMM_MARIO_UNPOSSESS_ACT_NONE, false, 0);
+        omm_mario_unpossess_object(m, OMM_MARIO_UNPOSSESS_ACT_JUMP_OUT, false, 0);
         omm_mario_set_action(m, starGrabAction, noExit, 0);
+        vec3f_copy(&m->marioObj->oPosX, m->pos);
         return true;
     }
     return false;
@@ -211,12 +213,12 @@ bool omm_mario_interact_warp(struct MarioState *m, struct Object *o) {
         m->interactObj = o;
         m->usedObj = o;
         mario_stop_riding_and_holding(m);
-        play_sound(SOUND_MENU_ENTER_PIPE, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MENU_ENTER_PIPE);
         play_transition(WARP_TRANSITION_FADE_INTO_MARIO, 0x15, 0x00, 0x00, 0x00);
         
         // Left to right: Luigi, Mario, Wario
         s32 target = OMM_PLAYER_MARIO;
-        switch (o->oBhvArgs) {
+        switch (o->oBehParams) {
             case 0: target = OMM_PLAYER_LUIGI; break;
             case 1: target = OMM_PLAYER_MARIO; break;
             case 2: target = OMM_PLAYER_WARIO; break;
@@ -240,9 +242,9 @@ bool omm_mario_interact_warp(struct MarioState *m, struct Object *o) {
     // Grand star?
     // Some rom-hacks replace the jumbo star cutscene by a warp to a 'we saved the world' cutscene level
     if (o->behavior == bhvGrandStar) {
-        omm_speedrun_split(-1);
+        omm_speedrun_split(OMM_SPLIT_BOWSER);
         mario_stop_riding_and_holding(m);
-        play_sound(SOUND_MENU_STAR_SOUND, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MENU_STAR_SOUND);
         spawn_object(o, MODEL_NONE, bhvStarKeyCollectionPuffSpawner);
         interact_warp(m, INTERACT_WARP, o);
         return true;
@@ -271,7 +273,7 @@ static bool omm_mario_interact_flame(struct MarioState *m, struct Object *o) {
         m->marioObj->oMarioBurnTimer = 0;
         update_mario_sound_and_camera(m);
         drop_and_set_mario_action(m, ACT_BURNING_JUMP, 1);
-        play_sound(SOUND_MARIO_ON_FIRE, m->marioObj->oCameraToObject);
+        obj_play_sound(m->marioObj, SOUND_MARIO_ON_FIRE);
         return true;
     }
 #else
@@ -348,28 +350,31 @@ bool omm_mario_interact_cap(struct MarioState *m, struct Object *o) {
         return true;
     }
     s32 cap = get_cap(o);
-    if (cap && OMM_POWER_UPS_IMPROVED && (m->action != ACT_OMM_POSSESSION) && (m->action != ACT_GETTING_BLOWN)) {
-        m->interactObj = o;
-        m->flags &= ~MARIO_CAP_ON_HEAD & ~MARIO_CAP_IN_HAND;
-        m->flags |= cap;
-        switch (cap) {
-            case MARIO_NORMAL_CAP: audio_stop_cap_music();        m->capTimer = 1; break;
-            case MARIO_WING_CAP:   audio_play_wing_cap_music();   m->capTimer = max_s(m->capTimer, OMM_IMPROVED_WING_CAP_DURATION); break;
-            case MARIO_METAL_CAP:  audio_play_metal_cap_music();  m->capTimer = max_s(m->capTimer, OMM_IMPROVED_METAL_CAP_DURATION); break;
-            case MARIO_VANISH_CAP: audio_play_vanish_cap_music(); m->capTimer = max_s(m->capTimer, OMM_IMPROVED_VANISH_CAP_DURATION); break;
-        }
-        
-        play_sound(SOUND_MENU_STAR_SOUND, m->marioObj->oCameraToObject);
-        play_sound(SOUND_MARIO_HERE_WE_GO, m->marioObj->oCameraToObject);
-        o->oInteractStatus = INT_STATUS_INTERACTED;
+    if (cap && !omm_mario_is_capture(m) && m->action != ACT_GETTING_BLOWN) {
+        gOmmStats->capsCollected++;
+        if (OMM_POWER_UPS_IMPROVED) {
+            m->interactObj = o;
+            m->flags &= ~MARIO_CAP_ON_HEAD & ~MARIO_CAP_IN_HAND;
+            m->flags |= cap;
+            switch (cap) {
+                case MARIO_NORMAL_CAP: audio_stop_cap_music();        m->capTimer = 1; break;
+                case MARIO_WING_CAP:   audio_play_wing_cap_music();   m->capTimer = max_s(m->capTimer, OMM_IMPROVED_WING_CAP_DURATION); break;
+                case MARIO_METAL_CAP:  audio_play_metal_cap_music();  m->capTimer = max_s(m->capTimer, OMM_IMPROVED_METAL_CAP_DURATION); break;
+                case MARIO_VANISH_CAP: audio_play_vanish_cap_music(); m->capTimer = max_s(m->capTimer, OMM_IMPROVED_VANISH_CAP_DURATION); break;
+            }
+            
+            obj_play_sound(m->marioObj, SOUND_MENU_STAR_SOUND);
+            obj_play_sound(m->marioObj, SOUND_MARIO_HERE_WE_GO);
+            o->oInteractStatus = INT_STATUS_INTERACTED;
 
-        if ((m->action & ACT_FLAG_IDLE) || (m->action == ACT_WALKING)) {
-            m->flags |= MARIO_CAP_IN_HAND;
-            omm_mario_set_action(m, ACT_PUTTING_ON_CAP, 0, 0);
-        } else {
-            m->flags |= MARIO_CAP_ON_HEAD;
+            if ((m->action & ACT_FLAG_IDLE) || (m->action == ACT_WALKING)) {
+                m->flags |= MARIO_CAP_IN_HAND;
+                omm_mario_set_action(m, ACT_PUTTING_ON_CAP, 0, 0);
+            } else {
+                m->flags |= MARIO_CAP_ON_HEAD;
+            }
+            return true;
         }
-        return true;
     }
     return false;
 }

@@ -110,7 +110,7 @@
 #define BUTTONS_PRESSED(x)                          ((m->controller->buttonPressed & (x)) == (x))
 #define BUTTONS_DOWN(x)                             ((m->controller->buttonDown & (x)) == (x))
 #define BUTTONS_RELEASED(x)                         ((m->controller->buttonDown & (x)) == 0)
-#define SFX(x)                                      play_sound((x), m->marioObj->oCameraToObject)
+#define SFX(x)                                      obj_play_sound(m->marioObj, (x))
 #define PFX(x)                                      m->particleFlags |= (x)
 #define NO_RETURN
 #define RETURN_BREAK                                return OMM_MARIO_ACTION_RESULT_BREAK
@@ -270,6 +270,7 @@ if ((m->input & INPUT_NONZERO_ANALOG) && (cond)) { \
 //
 
 #define ACT_OMM_POSSESSION                          (0x00 | ACT_GROUP_CUTSCENE | ACT_FLAG_OMM_ACTION | ACT_FLAG_STATIONARY | ACT_FLAG_INVULNERABLE)
+#define ACT_OMM_POSSESSION_UNDERWATER               (0x00 | ACT_GROUP_CUTSCENE | ACT_FLAG_OMM_ACTION | ACT_FLAG_STATIONARY | ACT_FLAG_INVULNERABLE | ACT_FLAG_METAL_WATER)
 #define ACT_OMM_STAR_DANCE                          (0x01 | ACT_GROUP_CUTSCENE | ACT_FLAG_OMM_ACTION | ACT_FLAG_STATIONARY | ACT_FLAG_INTANGIBLE)
 #define ACT_OMM_DEATH                               (0x02 | ACT_GROUP_CUTSCENE | ACT_FLAG_OMM_ACTION | ACT_FLAG_STATIONARY | ACT_FLAG_INTANGIBLE)
 #define ACT_OMM_DEATH_WATER                         (0x03 | ACT_GROUP_CUTSCENE | ACT_FLAG_OMM_ACTION | ACT_FLAG_SWIMMING | ACT_FLAG_INTANGIBLE)

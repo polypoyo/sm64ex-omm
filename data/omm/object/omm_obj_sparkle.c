@@ -61,7 +61,7 @@ static const Gfx omm_sparkle_gfx_4[] = {
 //
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_sparkle_gfx)];
+    Gfx gfx[array_length(omm_sparkle_gfx)];
 } OmmSparkleGeoData;
 
 //

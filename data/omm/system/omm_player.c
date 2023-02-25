@@ -2,7 +2,7 @@
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
 
-static s32 sOmmPlayer = OMM_PLAYER_MARIO;
+s32 sOmmPlayerIndex = OMM_PLAYER_MARIO;
 
 //
 // Properties
@@ -109,7 +109,7 @@ static const OmmPlayerProperties sOmmPlayerProperties[] = {
     { MODEL_PEACHS_WINGED_METAL_CAP_OMM, omm_geo_peachs_metal_cap },
     } },
 
-    /* Peach */ {
+    /* Peach (Calm) */ {
     OMM_TEXT_PEACH_UPPER, 0xFF80FFFF, &gMarioAnimsData,
     { 1.00f, 1.00f, 1.00f, 1.00f, 0.98f, 0.98f, 1.00f }, {
     { MODEL_PEACH_OMM, omm_geo_peach },
@@ -129,7 +129,7 @@ static const OmmPlayerProperties sOmmPlayerProperties[] = {
 
 // Ignore 'characterType', set the model according to the selected character
 void setCharacterModel(UNUSED s32 characterType) {
-    omm_player_select(sOmmPlayer);
+    omm_player_select(sOmmPlayerIndex);
 }
 
 // Useless, always return 0
@@ -179,9 +179,9 @@ s8 get_notification_status() {
 // In the main menu, checks all files, but in-game, checks only the current savefile
 //
 
-static bool is_unlocked(s32 (get_collectibles_count(s32)), s32 required) {
+static bool is_unlocked(s32 (get_collectibles_count(s32, s32)), s32 required) {
     for (s32 i = (omm_is_main_menu() ? 0 : gCurrSaveFileNum - 1); i != (omm_is_main_menu() ? NUM_SAVE_FILES : gCurrSaveFileNum); ++i) {
-        if (get_collectibles_count(i) >= required) {
+        if (get_collectibles_count(i, OMM_GAME_MODE) >= required) {
             return true;
         }
     }
@@ -194,106 +194,106 @@ static bool is_unlocked(s32 (get_collectibles_count(s32)), s32 required) {
 // Select
 //
 
-bool omm_player_is_unlocked(s32 index) {
-    switch (index) {
+bool omm_player_is_unlocked(s32 playerIndex) {
+    switch (playerIndex) {
         case OMM_PLAYER_MARIO: return true;
         case OMM_PLAYER_PEACH: return OMM_SPARKLY_IS_PEACH_UNLOCKED;
 #if OMM_GAME_IS_R96X
-        case OMM_PLAYER_LUIGI: return is_unlocked(save_file_get_keys, NUM_KEYS);
-        case OMM_PLAYER_WARIO: return is_unlocked(save_file_get_wario_coins, NUM_WARIO_COINS);
+        case OMM_PLAYER_LUIGI: return is_unlocked(omm_save_file_get_luigi_keys_count, NUM_KEYS);
+        case OMM_PLAYER_WARIO: return is_unlocked(omm_save_file_get_wario_coins_count, NUM_WARIO_COINS);
 #endif
     }
     return false;
 }
 
 // If the game tries to select a locked character, select Mario instead
-void omm_player_select(s32 index) {
-    sOmmPlayer = (omm_player_is_unlocked(index) ? index : OMM_PLAYER_MARIO);
-    gOmmCharacter = sOmmPlayer;
-    gSaveFileModified = true;
+void omm_player_select(s32 playerIndex) {
+    sOmmPlayerIndex = (omm_player_is_unlocked(playerIndex) ? playerIndex : OMM_PLAYER_MARIO);
+    gOmmCharacter = sOmmPlayerIndex;
+    omm_save_file_do_save();
 }
 
-bool omm_player_is_selected(s32 index) {
-    return sOmmPlayer == index;
+bool omm_player_is_selected(s32 playerIndex) {
+    return sOmmPlayerIndex == playerIndex;
 }
 
 s32 omm_player_get_selected_index() {
-    return sOmmPlayer;
+    return sOmmPlayerIndex;
 }
 
 //
 // Player properties
 //
 
-const char *omm_player_properties_get_name(s32 index) {
-    return sOmmPlayerProperties[index].name;
+const char *omm_player_properties_get_name(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].name;
 }
 
-u32 omm_player_properties_get_color(s32 index) {
-    return sOmmPlayerProperties[index].color;
+u32 omm_player_properties_get_color(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].color;
 }
 
-const void *omm_player_properties_get_anims(s32 index) {
-    return sOmmPlayerProperties[index].anims;
+const void *omm_player_properties_get_anims(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].anims;
 }
 
 //
 // Physics properties
 //
 
-f32 omm_player_physics_get_ground(s32 index) {
-    return (gMarioState->action == ACT_WALKING ? sOmmPlayerProperties[index].physics.walk : sOmmPlayerProperties[index].physics.ground);
+f32 omm_player_physics_get_ground(s32 playerIndex) {
+    return (gMarioState->action == ACT_WALKING ? sOmmPlayerProperties[playerIndex].physics.walk : sOmmPlayerProperties[playerIndex].physics.ground);
 }
 
-f32 omm_player_physics_get_air(s32 index) {
-    return sOmmPlayerProperties[index].physics.air;
+f32 omm_player_physics_get_air(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].physics.air;
 }
 
-f32 omm_player_physics_get_swim(s32 index) {
-    return sOmmPlayerProperties[index].physics.swim;
+f32 omm_player_physics_get_swim(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].physics.swim;
 }
 
-f32 omm_player_physics_get_jump(s32 index) {
-    return sOmmPlayerProperties[index].physics.jump;
+f32 omm_player_physics_get_jump(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].physics.jump;
 }
 
-f32 omm_player_physics_get_gravity(s32 index) {
-    return sOmmPlayerProperties[index].physics.gravity;
+f32 omm_player_physics_get_gravity(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].physics.gravity;
 }
 
-f32 omm_player_physics_get_slide(s32 index) {
-    return sOmmPlayerProperties[index].physics.slide;
+f32 omm_player_physics_get_slide(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].physics.slide;
 }
 
 //
 // Graphics properties
 //
 
-s32 omm_player_graphics_get_model(s32 index) {
-    return sOmmPlayerProperties[index].graphics.body.id;
+s32 omm_player_graphics_get_model(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].graphics.body.id;
 }
 
-s32 omm_player_graphics_get_normal_cap(s32 index) {
-    return sOmmPlayerProperties[index].graphics.cap.id;
+s32 omm_player_graphics_get_normal_cap(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].graphics.cap.id;
 }
 
-s32 omm_player_graphics_get_wing_cap(s32 index) {
-    return sOmmPlayerProperties[index].graphics.wcap.id;
+s32 omm_player_graphics_get_wing_cap(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].graphics.wcap.id;
 }
 
-s32 omm_player_graphics_get_metal_cap(s32 index) {
-    return sOmmPlayerProperties[index].graphics.mcap.id;
+s32 omm_player_graphics_get_metal_cap(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].graphics.mcap.id;
 }
 
-s32 omm_player_graphics_get_winged_metal_cap(s32 index) {
-    return sOmmPlayerProperties[index].graphics.wmcap.id;
+s32 omm_player_graphics_get_winged_metal_cap(s32 playerIndex) {
+    return sOmmPlayerProperties[playerIndex].graphics.wmcap.id;
 }
 
-s32 omm_player_graphics_get_cap(s32 index, bool wing, bool metal) {
-    if (wing && metal) return omm_player_graphics_get_winged_metal_cap(index);
-    if (        metal) return omm_player_graphics_get_metal_cap(index);
-    if (wing         ) return omm_player_graphics_get_wing_cap(index);
-    else               return omm_player_graphics_get_normal_cap(index);
+s32 omm_player_graphics_get_cap(s32 playerIndex, bool wing, bool metal) {
+    if (wing && metal) return omm_player_graphics_get_winged_metal_cap(playerIndex);
+    if (        metal) return omm_player_graphics_get_metal_cap(playerIndex);
+    if (wing         ) return omm_player_graphics_get_wing_cap(playerIndex);
+    else               return omm_player_graphics_get_normal_cap(playerIndex);
 }
 
 //
@@ -315,7 +315,7 @@ OMM_ROUTINE_UPDATE(omm_player_update) {
 
 OMM_ROUTINE_PRE_RENDER(omm_player_update_gfx) {
     if (gLoadedGraphNodes && gMarioObject) {
-        const OmmPlayerProperties *pp            = &sOmmPlayerProperties[sOmmPlayer];
+        const OmmPlayerProperties *pp            = &sOmmPlayerProperties[sOmmPlayerIndex];
         gLoadedGraphNodes[pp->graphics.body.id]  = geo_layout_to_graph_node(NULL, pp->graphics.body.geo);
         gLoadedGraphNodes[pp->graphics.cap.id]   = geo_layout_to_graph_node(NULL, pp->graphics.cap.geo);
         gLoadedGraphNodes[pp->graphics.wcap.id]  = geo_layout_to_graph_node(NULL, pp->graphics.wcap.geo);

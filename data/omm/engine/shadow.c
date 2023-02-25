@@ -6,7 +6,6 @@
 // Constants
 //
 
-#define SHADOW_FLOOR_LIMIT -10000.f
 #define SHADOW_SHAPE_CIRCLE 10
 #define SHADOW_SHAPE_SQUARE 20
 
@@ -134,7 +133,7 @@ static bool init_shadow(Vec3f pos, f32 scale, u8 solidity) {
         sShadow->floor.height = waterLevel;
         sShadow->floor.originOffset = -waterLevel;
         sShadow->isAboveWater = true;
-    } else if (floor->normal.y > 0.f && floorHeight > SHADOW_FLOOR_LIMIT) {
+    } else if (floor->normal.y > 0.f && floorHeight > FLOOR_LOWER_LIMIT_SHADOW) {
         vec3f_copy(sShadow->floor.normal, (f32 *) &floor->normal);
         sShadow->floor.type = floor->type;
         sShadow->floor.height = floorHeight;

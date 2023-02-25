@@ -16,16 +16,16 @@ static const f32 sOmmCameraDistances[OMM_CAM_DIST_NUM_MODES] = { 400.f, 800.f, 1
 // Data
 //
 
-static s32 sOmmCamFpMode      = 0;
-static s16 sOmmCamPitch       = 0x0C00;
-static s16 sOmmCamPitchFp     = 0x0000;
-static s16 sOmmCamPitchTarget = 0x0C00;
-static s16 sOmmCamYaw         = 0x0000;
-static s16 sOmmCamYawTarget   = 0x0000;
-static s32 sOmmCamDistMode    = OMM_CAM_DIST_MODE_MEDIUM;
-static f32 sOmmCamDistance    = 0.f;
-static f32 sOmmCamPos[3];
-static f32 sOmmCamFocus[3];
+s32 sOmmCamFpMode      = 0;
+s16 sOmmCamPitch       = 0x0C00;
+s16 sOmmCamPitchFp     = 0x0000;
+s16 sOmmCamPitchTarget = 0x0C00;
+s16 sOmmCamYaw         = 0x0000;
+s16 sOmmCamYawTarget   = 0x0000;
+s32 sOmmCamDistMode    = OMM_CAM_DIST_MODE_MEDIUM;
+f32 sOmmCamDistance    = 0.f;
+f32 sOmmCamPos[3];
+f32 sOmmCamFocus[3];
 
 OMM_INLINE s16 approach(s16 value, s16 target, s16 inc) {
     return target - approach_s32((s16) (target - value), 0, inc, inc);
@@ -47,7 +47,7 @@ OMM_INLINE s16 get_nearest_dir_angle(s16 value) {
 //
 
 bool omm_camera_is_available(struct MarioState *m) {
-    return !omm_is_ending_cutscene() && (!OMM_CAMERA_CLASSIC || omm_cappy_get_object_play_as()) && (m->action != ACT_IN_CANNON);
+    return m->action != ACT_JUMBO_STAR_CUTSCENE && !omm_is_ending_cutscene() && (!OMM_CAMERA_CLASSIC || omm_cappy_get_object_play_as()) && (m->action != ACT_IN_CANNON);
 }
 
 s16 omm_camera_get_intended_yaw(struct MarioState *m) {
@@ -265,10 +265,10 @@ static void omm_camera_process_inputs(struct Camera *c, struct MarioState *m) {
         // Camera rotation - C-left/right
         if (m->controller->buttonPressed & R_CBUTTONS) {
             play_sound(SOUND_MENU_CAMERA_TURN + 0x0100, gGlobalSoundArgs);
-            sOmmCamYawTarget += OMM_CAM_DELTA_ANGLE;
+            sOmmCamYawTarget += OMM_CAM_DELTA_ANGLE * CAMERA_X_THIRD_PERSON_VIEW;
         } else if (m->controller->buttonPressed & L_CBUTTONS) {
             play_sound(SOUND_MENU_CAMERA_TURN + 0x0100, gGlobalSoundArgs);
-            sOmmCamYawTarget -= OMM_CAM_DELTA_ANGLE;
+            sOmmCamYawTarget -= OMM_CAM_DELTA_ANGLE * CAMERA_X_THIRD_PERSON_VIEW;
         }
 
         // Zooms-in - C-up
@@ -328,11 +328,11 @@ static void omm_camera_update_first_person_mode(struct MarioState *m) {
     omm_mario_set_action(m, ACT_FIRST_PERSON, 0, 0);
 
     // Pitch (from -89 deg to +89 deg)
-    sOmmCamPitchFp += (s16) (m->controller->stickY * 10.f);
+    sOmmCamPitchFp += (s16) (m->controller->stickY * CAMERA_Y_FIRST_PERSON_VIEW * 10);
     sOmmCamPitchFp = clamp_s(sOmmCamPitchFp, -0x3C00, +0x3C00);
 
     // Yaw
-    m->faceAngle[1] -= (s16) (m->controller->stickX * 10.f);
+    m->faceAngle[1] += (s16) (m->controller->stickX * CAMERA_X_FIRST_PERSON_VIEW * 10);
 
     // Mario's neck
     sMarioCamState->headRotation[0] = (sOmmCamPitchFp * 3) / 4;
@@ -356,7 +356,7 @@ static void omm_camera_update_first_person_mode(struct MarioState *m) {
     
     // TOTWC entrance
     if (m->floor && m->floor->type == SURFACE_LOOK_UP_WARP) {
-        if (save_file_get_total_star_count(gCurrSaveFileNum - 1, COURSE_MIN - 1, COURSE_MAX - 1) >= OMM_CAMERA_LOOK_UP_WARP_STARS) {
+        if (omm_save_file_get_total_star_count(gCurrSaveFileNum - 1, OMM_GAME_MODE, COURSE_MIN - 1, COURSE_MAX - 1) >= OMM_CAMERA_LOOK_UP_WARP_STARS) {
             if (sMarioCamState->headRotation[0] <= -0x1800 && (m->faceAngle[1] < -0x6FFF || m->faceAngle[1] >= 0x7000)) {
                 level_trigger_warp(m, WARP_OP_UNKNOWN_01);
             }
@@ -375,7 +375,7 @@ static void omm_camera_calc_y_offsets(f32 *camPosOffsetY, f32 *camFocOffsetY) {
 }
 
 static bool omm_camera_is_bowser_fight() {
-    for_each_(const BehaviorScript *, bhv, 2, omm_static_array_of(const BehaviorScript *) { bhvBowser, bhvOmmBowser }) {
+    for_each_(const BehaviorScript *, bhv, 2, array_of(const BehaviorScript *) { bhvBowser, bhvOmmBowser }) {
         for_each_object_with_behavior(obj, *bhv) {
             if (!obj_is_dormant(obj)) {
 #if OMM_GAME_IS_R96X
@@ -392,6 +392,11 @@ static bool omm_camera_is_bowser_fight() {
 }
 
 static bool omm_camera_is_slide(struct MarioState *m) {
+
+    // Flat floor is no slide
+    if (!m->floor || m->floor->normal.y > 0.999f) {
+        return false;
+    }
 
     // Slide level
     if (gCurrLevelNum == OMM_LEVEL_SLIDE) {
@@ -415,62 +420,60 @@ static bool omm_camera_is_slide(struct MarioState *m) {
 }
 
 static void omm_camera_update_angles_from_state(struct MarioState *m, s16 camPitchTarget) {
+    static s32 sWasFlyingSwimmingSliding = 0;
     if (!omm_cappy_get_object_play_as()) {
-        
+
         // Flying
         if ((m->action == ACT_FLYING) ||
             (m->action == ACT_SHOT_FROM_CANNON) || (
-            (m->action == ACT_OMM_POSSESSION && gOmmObject->state.camBehindMario))) {
+            (omm_mario_is_capture(m) && gOmmObject->state.camBehindMario))) {
             sOmmCamPitch = approach(sOmmCamPitch, (-m->faceAngle[0] * 0.75f) + 0xC00, max_f(m->forwardVel, 4.f) * 0x20);
             sOmmCamYaw = approach(sOmmCamYaw, m->faceAngle[1] + 0x8000, max_f(m->forwardVel, 4.f) * 0x80);
             sOmmCamYawTarget = sOmmCamYaw;
+            sWasFlyingSwimmingSliding = 1;
             return;
         }
 
-        // Underwater
+        // Swimming
         if (m->action & ACT_FLAG_SWIMMING) {
             sOmmCamPitch = approach(sOmmCamPitch, (-m->faceAngle[0] * 0.75f) + 0xC00, max_f(m->forwardVel, 4.f) * 0x20);
             sOmmCamYaw = approach(sOmmCamYaw, m->faceAngle[1] + 0x8000, max_f(m->forwardVel, 8.f) * 0x80);
             sOmmCamYawTarget = sOmmCamYaw;
+            sWasFlyingSwimmingSliding = 2;
             return;
         }
 
-        // Sliding states
-        if (omm_camera_is_slide(m)) {
-        
-            // Ground states
-            if ((m->action & ACT_FLAG_BUTT_OR_STOMACH_SLIDE) ||
-                (m->action == ACT_DIVE_SLIDE) ||
-                (m->action == ACT_CROUCH_SLIDE) ||
-                (m->action == ACT_SLIDE_KICK_SLIDE) ||
-                (m->action == ACT_BUTT_SLIDE) ||
-                (m->action == ACT_STOMACH_SLIDE) ||
-                (m->action == ACT_HOLD_BUTT_SLIDE) ||
-                (m->action == ACT_HOLD_STOMACH_SLIDE) ||
-                (m->action == ACT_OMM_ROLL)) {
-                sOmmCamPitch = approach(sOmmCamPitch, camPitchTarget, 0x400);
-                sOmmCamYaw = approach(sOmmCamYaw, m->faceAngle[1] + 0x8000, max_f(m->forwardVel, 4.f) * 0x80);
-                sOmmCamYawTarget = sOmmCamYaw;
-                return;
-            }
-        
-            // Air states
-            if ((m->action == ACT_DIVE) ||
-                (m->action == ACT_SLIDE_KICK) ||
-                (m->action == ACT_BUTT_SLIDE_AIR) ||
-                (m->action == ACT_HOLD_BUTT_SLIDE_AIR) ||
-                (m->action == ACT_OMM_ROLL_AIR)) {
-                sOmmCamPitch = approach(sOmmCamPitch, camPitchTarget, 0x400);
-                sOmmCamYaw = approach(sOmmCamYaw, sOmmCamYawTarget, 0x800);
-                return;
-            }
+        // Sliding
+        if ((omm_camera_is_slide(m) || sWasFlyingSwimmingSliding == 3) && (
+            (m->action & ACT_FLAG_BUTT_OR_STOMACH_SLIDE) ||
+            (m->action == ACT_DIVE_SLIDE) ||
+            (m->action == ACT_CROUCH_SLIDE) ||
+            (m->action == ACT_SLIDE_KICK_SLIDE) ||
+            (m->action == ACT_BUTT_SLIDE) ||
+            (m->action == ACT_STOMACH_SLIDE) ||
+            (m->action == ACT_HOLD_BUTT_SLIDE) ||
+            (m->action == ACT_HOLD_STOMACH_SLIDE) ||
+            (m->action == ACT_OMM_ROLL))) {
+            sOmmCamPitch = approach(sOmmCamPitch, camPitchTarget, 0x400);
+            sOmmCamYaw = approach(sOmmCamYaw, m->faceAngle[1] + 0x8000, max_f(m->forwardVel, 4.f) * 0x80);
+            sOmmCamYawTarget = sOmmCamYaw;
+            sWasFlyingSwimmingSliding = 3;
+            return;
+        }
+
+        // Airborne
+        if (sWasFlyingSwimmingSliding && (m->action & ACT_FLAG_AIR)) {
+            sOmmCamPitch = approach(sOmmCamPitch, camPitchTarget, 0x400);
+            sOmmCamYaw = approach(sOmmCamYaw, sOmmCamYawTarget, 0x800);
+            return;
         }
     }
-    
+
     // Default
     sOmmCamYawTarget = get_nearest_dir_angle(sOmmCamYawTarget);
     sOmmCamPitch = approach(sOmmCamPitch, camPitchTarget, 0x400);
     sOmmCamYaw = approach(sOmmCamYaw, sOmmCamYawTarget, 0x800);
+    sWasFlyingSwimmingSliding = 0;
 }
 
 static void omm_camera_update_transform(struct MarioState *m) {
@@ -496,7 +499,7 @@ static void omm_camera_update_transform(struct MarioState *m) {
     // Possessed Goomba tower
     // The camera focus and distance are computed to always show
     // the entire stack if the distance setting is at its max value
-    if (sOmmCamDistMode == OMM_CAM_DIST_MODE_MAX && m->action == ACT_OMM_POSSESSION && omm_obj_is_goomba(gOmmCapture)) {
+    if (sOmmCamDistMode == OMM_CAM_DIST_MODE_MAX && omm_mario_is_capture(m) && omm_obj_is_goomba(gOmmCapture)) {
         f32 goombaHeight = omm_capture_get_top(gOmmCapture);
         camFocHeight = max_f(camFocHeight, goombaHeight / 1.8f);
         camDistTarget = max_f(camDistTarget, goombaHeight * 2.5f);

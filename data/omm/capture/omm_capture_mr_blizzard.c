@@ -32,7 +32,7 @@ bool omm_cappy_mr_blizzard_init(struct Object *o) {
 void omm_cappy_mr_blizzard_end(struct Object *o) {
 
     // Turns the Mr. Blizzard into a snowball thrower one
-    o->oBhvArgs2ndByte = MR_BLIZZARD_STYPE_NO_CAP;
+    o->oBehParams2ndByte = MR_BLIZZARD_STYPE_NO_CAP;
     o->oAction = 0;
     obj_anim_play(o, 0, 1.f);
 
@@ -67,8 +67,7 @@ s32 omm_cappy_mr_blizzard_update(struct Object *o) {
 
     // Inputs
     if (!omm_mario_is_locked(gMarioState)) {
-        gOmmObject->state.actionState = 0;
-        pobj_move(o, false, false, gOmmObject->state.actionTimer != 0);
+        pobj_move(o, false, false, false);
         switch (pobj_jump(o, 2.f, 1)) {
             case POBJ_RESULT_HOP_SMALL: {
                 obj_play_sound(o, SOUND_OBJ_SNOW_SAND1);
@@ -87,7 +86,7 @@ s32 omm_cappy_mr_blizzard_update(struct Object *o) {
             if (!o->oMrBlizzardHeldObj) {
                 o->oMrBlizzardHeldObj = omm_spawn_snowball(o);
             }
-            f32 scale = 1.f + min_f(gOmmObject->state.actionTimer, 30) * 0.05f;
+            f32 scale = 1.f + min_f(gOmmObject->state.actionTimer, 20) * 0.1f;
             o->oMrBlizzardHeldObj->oScaleX = scale;
             o->oMrBlizzardHeldObj->oScaleY = scale;
             o->oMrBlizzardHeldObj->oScaleZ = scale;
@@ -96,11 +95,10 @@ s32 omm_cappy_mr_blizzard_update(struct Object *o) {
 
         // Throw snowball
         else if (gOmmObject->state.actionTimer != 0) {
-            cur_obj_play_sound_2(SOUND_OBJ2_SCUTTLEBUG_ALERT);
+            obj_anim_play_with_sound(o, 1, 1.5f, SOUND_OBJ2_SCUTTLEBUG_ALERT, true);
             o->oMrBlizzardHeldObj = NULL;
             gOmmObject->state.actionState = 1;
             gOmmObject->state.actionTimer = 0;
-            omm_mario_lock(gMarioState, 15);
         }
     }
 
@@ -109,21 +107,24 @@ s32 omm_cappy_mr_blizzard_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
-    obj_anim_play(o, gOmmObject->state.actionState, 1.f);
+    obj_anim_play(o, gOmmObject->state.actionState, gOmmObject->state.actionState ? 1.5f : 1);
     obj_anim_clamp_frame(o, 5 + 10 * (1 - gOmmObject->state.actionState), 127);
+    if (gOmmObject->state.actionState && obj_anim_is_near_end(o)) {
+        gOmmObject->state.actionState = 0;
+    }
 
     // Cappy values
     gOmmObject->cappy.offset[1] = 200.f;
     gOmmObject->cappy.scale     = 1.2f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

@@ -19,7 +19,7 @@ static void omm_peach_play_random_attack_sound(struct MarioState *m) {
             case 2: nextSound = SOUND_MARIO_PUNCH_HOO; break;
         }
     } while (nextSound == prevSound);
-    play_sound(nextSound, m->marioObj->oCameraToObject); 
+    obj_play_sound(m->marioObj, nextSound); 
     prevSound = nextSound;
 }
 
@@ -119,7 +119,7 @@ s32 omm_act_peach_glide(struct MarioState *m) {
 }
 
 s32 omm_act_peach_attack_ground(struct MarioState *m) {
-    action_condition(!OMM_PLAYER_IS_PEACH, ACT_FREEFALL, 0, RETURN_CANCEL);
+    action_condition(!OMM_PERRY_SWORD_ACTION, ACT_FREEFALL, 0, RETURN_CANCEL);
     action_condition((m->actionState == 0) && (m->controller->buttonDown & A_BUTTON), ACT_JUMP_KICK, 0, RETURN_CANCEL);
     action_init(((abs_f(m->forwardVel) < 12.f) ? 12.f : m->forwardVel), 0.f, 0, 0);
     action_cappy(1, ACT_OMM_CAPPY_THROW_GROUND, 0, RETURN_CANCEL);
@@ -205,7 +205,7 @@ s32 omm_act_peach_attack_ground(struct MarioState *m) {
 
 s32 omm_act_peach_attack_fast(struct MarioState *m) {
     static s32 sAttackTimer = 0;
-    action_condition(!OMM_PLAYER_IS_PEACH, ACT_FREEFALL, 0, RETURN_CANCEL);
+    action_condition(!OMM_PERRY_SWORD_ACTION, ACT_FREEFALL, 0, RETURN_CANCEL);
     action_init(m->forwardVel * 1.2f, 0.f, PARTICLE_HORIZONTAL_STAR, 0, sAttackTimer = 0;);
     action_cappy(1, ACT_OMM_CAPPY_THROW_GROUND, 0, RETURN_CANCEL);
     action_a_pressed(1, ACT_JUMP, 0, RETURN_CANCEL);
@@ -267,7 +267,7 @@ s32 omm_act_peach_attack_air(struct MarioState *m) {
     }
     
     // Cancels
-    action_condition(!OMM_PLAYER_IS_PEACH, ACT_FREEFALL, 0, RETURN_CANCEL);
+    action_condition(!OMM_PERRY_SWORD_ACTION, ACT_FREEFALL, 0, RETURN_CANCEL);
     action_cappy(1, ACT_OMM_CAPPY_THROW_AIRBORNE, 0, RETURN_CANCEL);
     action_z_pressed(OMM_MOVESET_ODYSSEY, ACT_GROUND_POUND, 0, RETURN_CANCEL);
     action_b_pressed(omm_mario_has_wing_cap(m), ACT_FLYING, 0, RETURN_CANCEL);
@@ -541,6 +541,7 @@ static PerryChargeAction sOmmPerryChargeActions[] = {
     { ACT_OMM_SPIN_AIR,                  0, 1, 1, 0 },
     { ACT_OMM_SPIN_JUMP,                 0, 1, 1, 0 },
     { ACT_OMM_SPIN_POUND,                0, 1, 0, 0 },
+    { ACT_OMM_MIDAIR_SPIN,               0, 1, 1, 0 },
 
     // Peach
     { ACT_OMM_PEACH_ATTACK_GROUND,       1, 1, 1, 1 },
@@ -553,7 +554,7 @@ static PerryChargeAction sOmmPerryChargeActions[] = {
 };
 
 static PerryChargeAction *get_action(struct MarioState *m) {
-    for (s32 i = 0; i != (s32) omm_static_array_length(sOmmPerryChargeActions); ++i) {
+    for (s32 i = 0; i != (s32) array_length(sOmmPerryChargeActions); ++i) {
         if (sOmmPerryChargeActions[i].action == m->action) {
             return &sOmmPerryChargeActions[i];
         }
@@ -584,7 +585,7 @@ OMM_ROUTINE_PRE_RENDER(omm_act_peach_perry_charge_update) {
 
         // Cancel charge if...
         if (!OMM_SPARKLY_IS_PERRY_CHARGE_UNLOCKED || // Not unlocked
-            !OMM_PLAYER_IS_PEACH ||                  // Not Peach
+            !OMM_PERRY_SWORD_ACTION ||               // Not wielding a sword
             !OMM_MOVESET_ODYSSEY ||                  // Not Odyssey Moveset
             (!OMM_PERRY_CHARGED && !a->charge) ||    // Not a valid action during the charge
             (OMM_PERRY_CHARGED && !a->charged))      // Not a valid action when fully charged

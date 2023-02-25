@@ -3,6 +3,7 @@
 #undef OMM_ALL_HEADERS
 #if OMM_GAME_IS_SM64
 #include "levels/castle_grounds/header.h"
+#include "level_commands.h"
 
 //
 // Gfx data
@@ -609,8 +610,8 @@ static const LevelScript omm_level_bowser_4[] = {
 };
 
 LEVEL_CMD_BRANCH(
-    level_script_find(level_castle_grounds_entry, omm_static_array_of(LevelScript) { END_AREA() }, 1),
-    level_script_find(level_castle_grounds_entry, omm_static_array_of(LevelScript) { FREE_LEVEL_POOL() }, 1),
+    level_script_find(level_castle_grounds_entry, array_of(LevelScript) { END_AREA() }, 1),
+    level_script_find(level_castle_grounds_entry, array_of(LevelScript) { FREE_LEVEL_POOL() }, 1),
     omm_level_bowser_4
 );
 

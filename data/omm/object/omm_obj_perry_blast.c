@@ -47,7 +47,7 @@ static const Gfx omm_perry_blast_gfx[] = {
 //
 
 typedef struct {
-    Gfx gfx[omm_static_array_length(omm_perry_blast_gfx)];
+    Gfx gfx[array_length(omm_perry_blast_gfx)];
     Gfx tri[(OMM_PERRY_BLAST_NUM_SEGMENTS + 0) * (OMM_PERRY_BLAST_POINTS_PER_SEGMENT + 1) + 1];
     Vtx vtx[(OMM_PERRY_BLAST_NUM_SEGMENTS + 1) * (OMM_PERRY_BLAST_POINTS_PER_SEGMENT + 1)];
 } OmmPerryBigShotGeoData;

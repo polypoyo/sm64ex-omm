@@ -71,7 +71,7 @@ static OmmCrashHandlerText sOmmCrashHandlerText[256];
     pText->r = _r_;                                                     \
     pText->g = _g_;                                                     \
     pText->b = _b_;                                                     \
-    snprintf(pText->s, 128, _fmt_, __VA_ARGS__);                        \
+    str_fmt(pText->s, 128, _fmt_, __VA_ARGS__);                         \
     pText++;                                                            \
 }
 
@@ -100,7 +100,7 @@ static void omm_crash_handler_produce_one_frame() {
     gDPSetCombineLERP(gDisplayListHead++, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
     gDPSetEnvColor(gDisplayListHead++, 0xFF, 0xFF, 0xFF, 0xFF);
     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-    gDPLoadTextureBlock(gDisplayListHead++, (const void *) "omm_crash", G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 16, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
+    gDPLoadTextureBlock(gDisplayListHead++, (const void *) "misc/omm_texture_misc_crash.rgba32", G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 16, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0, 0, 0);
     gSPTextureRectangle(gDisplayListHead++, (x) << 2, (SCREEN_HEIGHT - w - y) << 2, (x + w) << 2, (SCREEN_HEIGHT - y) << 2, G_TX_RENDERTILE, 0, 0, (0x4000 / w), (0x4000 / w));
     gDPSetRenderMode(gDisplayListHead++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
     gDPSetCombineLERP(gDisplayListHead++, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE, 0, 0, 0, SHADE);
@@ -120,8 +120,8 @@ static void omm_crash_handler_produce_one_frame() {
                 omm_render_texrect(
                     GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE((x + 1) * CHAR_WIDTH), 
                     SCREEN_HEIGHT - CHAR_HEIGHT - (4 + LINE_SPACING * y),
-                    CHAR_WIDTH, CHAR_HEIGHT, G_IM_FMT_RGBA, G_IM_SIZ_32b,
-                    64, 128, text->r, text->g, text->b, 0xFF,
+                    CHAR_WIDTH, CHAR_HEIGHT, 64, 128,
+                    text->r, text->g, text->b, 0xFF,
                     OMM_TEXTURE_MENU_FONT_[*c - 0x20], false
                 );
             }
@@ -136,7 +136,7 @@ static void omm_crash_handler_produce_one_frame() {
 }
 
 static LONG omm_crash_handler(EXCEPTION_POINTERS *ExceptionInfo) {
-    omm_zero(sOmmCrashHandlerText, sizeof(sOmmCrashHandlerText));
+    mem_clr(sOmmCrashHandlerText, sizeof(sOmmCrashHandlerText));
     OmmCrashHandlerText *pText = &sOmmCrashHandlerText[0];
 
     // Oops, the game crashed
@@ -155,7 +155,7 @@ static LONG omm_crash_handler(EXCEPTION_POINTERS *ExceptionInfo) {
         omm_crash_handler_set_text(-1, 3, 0xFF, 0x00, 0x00, "%s", " with error code ");
         omm_crash_handler_set_text(-1, 3, 0xFF, 0x00, 0xFF, "0x%08X", (u32) er->ExceptionCode);
         omm_crash_handler_set_text(-1, 3, 0xFF, 0x00, 0x00, "%s", ":");
-        for (s32 i = 0; i != omm_static_array_length(sOmmCrashHandlerErrors); ++i) {
+        for (s32 i = 0; i != array_length(sOmmCrashHandlerErrors); ++i) {
             if (sOmmCrashHandlerErrors[i].code == (u32) er->ExceptionCode || sOmmCrashHandlerErrors[i].code == 0) {
                 omm_crash_handler_set_text( 0, 4, 0xFF, 0x00, 0x00, "%s", sOmmCrashHandlerErrors[i].error);
                 omm_crash_handler_set_text(-1, 4, 0xFF, 0xFF, 0xFF, "%s", " - ");
@@ -246,37 +246,25 @@ static LONG omm_crash_handler(EXCEPTION_POINTERS *ExceptionInfo) {
     // Stack trace
     omm_crash_handler_set_text(0, 13, 0xFF, 0xFF, 0xFF, "%s", "Stack trace:");
     if (ExceptionInfo && ExceptionInfo->ContextRecord) {
-        static const char sGlobalFunctionIdentifier[] = "(sec1)(fl0x00)(ty20)(scl2)(nx0)0x";
-        static const char sStaticFunctionIdentifier[] = "(sec1)(fl0x00)(ty20)(scl3)(nx0)0x";
         typedef struct Symbol { uintptr_t offset; char name[128]; struct Symbol *next; } Symbol;
         Symbol *symbols = NULL;
         Symbol *symbol0 = NULL;
 
         // Load symbols
-        omm_cat_paths(filename, SYS_MAX_PATH, sys_exe_path(), "res/omm.map");
+        str_cat_paths_sa(filename, SYS_MAX_PATH, sys_exe_path(), "res/omm.map");
         FILE *f = fopen(filename, "r");
         if (f) {
             char buffer[1024];
             while (fgets(buffer, 1024, f)) {
-
-                // Remove spaces
-                char bufferNoSpace[1024] = { 0 };
-                for (char *p0 = buffer, *p1 = bufferNoSpace; *p0 != 0; ++p0) {
-                    if (*p0 > 0x20) {
-                        *(p1++) = *p0;
-                    }
-                }
-
-                // Try to find indentifiers
-                char *id0 = strstr(bufferNoSpace, sGlobalFunctionIdentifier);
-                char *id1 = strstr(bufferNoSpace, sStaticFunctionIdentifier);
-                if (id0 || id1) {
-                    char *addr = (char *) max((uintptr_t) id0, (uintptr_t) id1) + sizeof(sGlobalFunctionIdentifier) - 1;
-                    char *name = addr + 16;
+                s32 length = strlen(buffer);
+                if (length > 17) {
+                    buffer[length - 1] = 0;
+                    const char *addr = buffer;
+                    const char *name = buffer + 17;
 
                     // New symbol
-                    Symbol *newSymbol = omm_new(Symbol, 1);
-                    snprintf(newSymbol->name, 128, "%s", name); *name = 0;
+                    Symbol *newSymbol = mem_new(Symbol, 1);
+                    str_fmt(newSymbol->name, 128, "%s", name);
                     sscanf(addr, "%016llX", &newSymbol->offset);
                     newSymbol->next = NULL;
 
@@ -298,7 +286,7 @@ static LONG omm_crash_handler(EXCEPTION_POINTERS *ExceptionInfo) {
                     }
 
                     // Reference
-                    if (omm_same(newSymbol->name, "set_mario_action", sizeof("set_mario_action"))) {
+                    if (mem_eq(newSymbol->name, "set_mario_action", sizeof("set_mario_action"))) {
                         symbol0 = newSymbol;
                     }
                 }

@@ -17,7 +17,7 @@ s32 omm_health_to_ticks(s32 health) {
 }
 
 s32 omm_health_get_max(s32 health) {
-    if (gOmmOneHealthMode) return OMM_HEALTH_1_SEGMENT;
+    if (OMM_MOVESET_ODYSSEY_1H) return OMM_HEALTH_1_SEGMENT;
     if (OMM_SPARKLY_LUNATIC_HEALTH) return OMM_HEALTH_1_SEGMENT;
     if (OMM_SPARKLY_STATE_IS_OK && omm_sparkly_context_get_data(OMM_SPARKLY_DATA_3_HEALTH)) return OMM_HEALTH_ODYSSEY_3_SEGMENTS;
     if (OMM_MOVESET_CLASSIC) return OMM_HEALTH_CLASSIC_MAX;
@@ -139,7 +139,7 @@ static bool omm_update_freeze(struct MarioState *m) {
 
 static void increase_O2_level(s32 inc) {
     if (gOmmMario->state.o2 >= OMM_O2_MAX_DURATION / 100) { // <= 99%
-        play_sound(SOUND_MENU_POWER_METER, gMarioObject->oCameraToObject);
+        play_sound(SOUND_MENU_POWER_METER, gGlobalSoundArgs);
     }
     gOmmMario->state.o2 = max_s(0, gOmmMario->state.o2 - inc);
 }
@@ -167,7 +167,7 @@ static void omm_health_update_O2_level(struct MarioState *m) {
     // "Metal Mario doesn't even have to breathe"
     if (!(m->flags & MARIO_METAL_CAP) &&
         !(m->action & ACT_FLAG_INTANGIBLE) &&
-        !(m->action == ACT_OMM_POSSESSION)) {
+        !omm_mario_is_capture(m)) {
 
         // Poison gas
         if (m->input & INPUT_IN_POISON_GAS) {
@@ -175,6 +175,7 @@ static void omm_health_update_O2_level(struct MarioState *m) {
 
             // Insta-kill if out of breath in the poison gas
             if (gOmmMario->state.o2 >= OMM_O2_MAX_DURATION) {
+                gOmmStats->hitsTaken += (m->health > OMM_HEALTH_ODYSSEY_DEAD);
                 m->health = OMM_HEALTH_ODYSSEY_DEAD;
                 m->healCounter = 0;
                 m->hurtCounter = 0;
@@ -185,7 +186,7 @@ static void omm_health_update_O2_level(struct MarioState *m) {
         else if ((m->action & ACT_GROUP_MASK) == ACT_GROUP_SUBMERGED) {
 
             // Above water
-            if (m->pos[1] >= m->waterLevel - 140) {
+            if (!omm_world_is_flooded() && m->pos[1] >= m->waterLevel - 140) {
                 increase_O2_level(OMM_O2_HEAL_INC * 2);
             }
 
@@ -202,7 +203,8 @@ static void omm_health_update_O2_level(struct MarioState *m) {
                 }
 
                 // Insta-kill if out of breath in One-health mode
-                if (gOmmOneHealthMode && gOmmMario->state.o2 >= OMM_O2_MAX_DURATION) {
+                if (OMM_MOVESET_ODYSSEY_1H && gOmmMario->state.o2 >= OMM_O2_MAX_DURATION) {
+                    gOmmStats->hitsTaken += (m->health > OMM_HEALTH_ODYSSEY_DEAD);
                     m->health = OMM_HEALTH_ODYSSEY_DEAD;
                     m->healCounter = 0;
                     m->hurtCounter = 0;
@@ -227,19 +229,8 @@ static void omm_health_update_O2_level(struct MarioState *m) {
 //
 
 static void omm_health_update_classic(struct MarioState *m) {
-
-    // One-health mode: Prevent the game from draining health in water or poison
-    // by setting both heal counter and hurt counter to non-zero values.
-    // If the hurt counter is non-zero, prevent damage cancelation by
-    // setting the heal counter to 0.
-    if (gOmmOneHealthMode) {
-        if (m->hurtCounter == 0) {
-            m->healCounter = 1;
-            m->hurtCounter = 1;
-        } else {
-            m->healCounter = 0;
-        }
-    }
+    static u8 sPrevHurtCounter = 0;
+    gOmmStats->hitsTaken += (sPrevHurtCounter == 0 && m->hurtCounter != 0);
 
     // Drain even more health in cold water
     // 8 health per frame ~= 1 segment per second, meaning that Mario cannot
@@ -247,28 +238,19 @@ static void omm_health_update_classic(struct MarioState *m) {
     if (omm_world_is_cold() &&
        !omm_peach_vibe_is_calm() &&
         (m->action & ACT_FLAG_SWIMMING) &&
-       !(m->action & ACT_FLAG_INTANGIBLE)) {
-
-        // One-health mode prevents health drain underwater, so the freeze
-        // effect must be used instead to damage Mario in cold water
-        if (gOmmOneHealthMode) {
-            if (omm_update_freeze(m)) {
-                m->health = OMM_HEALTH_CLASSIC_DEAD;
-                set_camera_shake_from_hit(SHAKE_FALL_DAMAGE);
-                omm_mario_set_action(m, ACT_WATER_DEATH, 0, 0);
-                mario_set_forward_vel(m, 0);
-            }
-        } else if (m->healCounter == 0 && m->hurtCounter == 0) {
-            m->health = max_s(0xFF, m->health - 5);
-        }
+       !(m->action & ACT_FLAG_INTANGIBLE) &&
+        (m->healCounter == 0) &&
+        (m->hurtCounter == 0)) {
+        m->health = max_s(0xFF, m->health - 5);
     }
 
     // Don't play the beeping sound underwater if Metal or Hard mode
     u32 action = m->action;
-    m->action &= ~(ACT_GROUP_MASK * ((m->flags & MARIO_METAL_CAP) || gOmmOneHealthMode || OMM_SPARKLY_LUNATIC_HEALTH));
+    m->action &= ~(ACT_GROUP_MASK * ((m->flags & MARIO_METAL_CAP) || OMM_MOVESET_ODYSSEY_1H || OMM_SPARKLY_LUNATIC_HEALTH));
     update_mario_health(m);
     m->action = action;
     m->health = clamp_s(m->health, OMM_HEALTH_CLASSIC_DEAD, omm_health_get_max(m->health));
+    sPrevHurtCounter = m->hurtCounter;
 }
 
 void omm_health_update(struct MarioState *m) {
@@ -304,6 +286,7 @@ void omm_health_update(struct MarioState *m) {
             m->health -= OMM_HEALTH_ODYSSEY_PER_SEGMENT;
             m->hurtCounter = 0;
             omm_sound_play(OMM_SOUND_EFFECT_DAMAGE, NULL);
+            gOmmStats->hitsTaken++;
         }
 
         // Update coin counter and heal Mario every N coins
@@ -322,7 +305,7 @@ void omm_health_update(struct MarioState *m) {
     s32 ticks = omm_health_to_ticks(m->health);
     if (gOmmMario->state.ticks < ticks) {
         gOmmMario->state.ticks++;
-        if (!isLifeUpCutscene && (gOmmMario->state.ticks % OMM_HEALTH_ODYSSEY_NUM_TICKS_PER_SEGMENT) == (OMM_HEALTH_ODYSSEY_NUM_TICKS_PER_SEGMENT / 2)) {
+        if (!isLifeUpCutscene && !OMM_MOVESET_ODYSSEY_1H && (gOmmMario->state.ticks % OMM_HEALTH_ODYSSEY_NUM_TICKS_PER_SEGMENT) == (OMM_HEALTH_ODYSSEY_NUM_TICKS_PER_SEGMENT / 2)) {
             omm_sound_play(OMM_SOUND_EFFECT_HEAL, NULL);
         }
     } else if (gOmmMario->state.ticks > ticks) {
@@ -390,9 +373,9 @@ OMM_ROUTINE_UPDATE(omm_health_state_update) {
         sOmmHealthPreviousState = 0;
         return;
     }
-    
-    // Update state if Mario is loaded
-    if (gMarioObject) {    
+
+    // Update state if Mario is loaded and game is not paused
+    if (gMarioObject && !omm_is_game_paused()) {
         struct MarioState *m = gMarioState;
 
         // Classic 8-segments health system

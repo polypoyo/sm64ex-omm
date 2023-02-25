@@ -73,6 +73,8 @@ s32 omm_cappy_whomp_update(struct Object *o) {
         // Body slam
         if (POBJ_B_BUTTON_PRESSED) {
             gOmmObject->state.actionState = OMM_CAPPY_WHOMP_ACTION_BEGIN_ATTACK;
+            o->oVelY = omm_capture_get_jump_velocity(o) * POBJ_PHYSICS_JUMP * (obj_is_on_ground(o) ? 1.f : 1.5f);
+            obj_anim_play_with_sound(o, 1, 3.f, 0, true);
         }
     }
 
@@ -93,18 +95,16 @@ s32 omm_cappy_whomp_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
 
     // Begin Body slam
     if (gOmmObject->state.actionState == OMM_CAPPY_WHOMP_ACTION_BEGIN_ATTACK) {
         omm_mario_lock(gMarioState, -1);
-        obj_anim_play(o, 1, 2.0f);
         if (obj_anim_is_near_end(o)) {
-            o->oVelY = 40.0f;
             gOmmObject->state.actionState = OMM_CAPPY_WHOMP_ACTION_ATTACK;
         }
     }
@@ -112,9 +112,11 @@ s32 omm_cappy_whomp_update(struct Object *o) {
     // Body slam
     else if (gOmmObject->state.actionState == OMM_CAPPY_WHOMP_ACTION_ATTACK) {
         omm_mario_lock(gMarioState, -1);
-        o->oFaceAnglePitch = min_s(o->oFaceAnglePitch + 0x400, 0x4000);
+        o->oFaceAnglePitch = min_s(o->oFaceAnglePitch + 0x800, 0x4000);
         if (o->oFaceAnglePitch == 0x4000) {
             gOmmObject->state.actionState = OMM_CAPPY_WHOMP_ACTION_FALLING;
+        } else {
+            pobj_apply_gravity(o, 1.f);
         }
     }
 
@@ -136,7 +138,7 @@ s32 omm_cappy_whomp_update(struct Object *o) {
     // Landing
     else if (gOmmObject->state.actionState == OMM_CAPPY_WHOMP_ACTION_LAND) {
         omm_mario_lock(gMarioState, -1);
-        if (gOmmObject->state.actionTimer++ == 30) {
+        if (gOmmObject->state.actionTimer++ == 20) {
             gOmmObject->state.actionState = OMM_CAPPY_WHOMP_ACTION_END_ATTACK;
         }
     }
@@ -144,7 +146,7 @@ s32 omm_cappy_whomp_update(struct Object *o) {
     // Getting up
     else if (gOmmObject->state.actionState == OMM_CAPPY_WHOMP_ACTION_END_ATTACK) {
         omm_mario_lock(gMarioState, -1);
-        o->oFaceAnglePitch = max_s(o->oFaceAnglePitch - 0x200, 0);
+        o->oFaceAnglePitch = max_s(o->oFaceAnglePitch - 0x400, 0);
         if (o->oFaceAnglePitch == 0 && omm_mario_unlock(gMarioState)) {
             gOmmObject->state.actionState = OMM_CAPPY_WHOMP_ACTION_DEFAULT;
         }
@@ -167,5 +169,5 @@ s32 omm_cappy_whomp_update(struct Object *o) {
     gOmmObject->cappy.scale     = 1.5f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

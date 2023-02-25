@@ -75,9 +75,9 @@ s32 omm_cappy_chain_chomp_update(struct Object *o) {
         // Bite
         if (POBJ_B_BUTTON_PRESSED) {
             obj_set_forward_vel(o, o->oFaceAngleYaw, 1.f, omm_capture_get_dash_speed(o));
-            play_sound(SOUND_GENERAL_CHAIN_CHOMP2, o->oCameraToObject);
+            obj_play_sound(o, SOUND_GENERAL_CHAIN_CHOMP2);
             gOmmObject->chain_chomp.isBiting = true;
-            omm_mario_lock(gMarioState, 30);
+            omm_mario_lock(gMarioState, 20);
         }
     }
 
@@ -86,7 +86,7 @@ s32 omm_cappy_chain_chomp_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // If not freed, restrict position
     if (!gOmmObject->chain_chomp.isFreed) {
@@ -129,8 +129,9 @@ s32 omm_cappy_chain_chomp_update(struct Object *o) {
     }
 
     // Interactions
-    POBJ_INTERACTIONS();
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_process_interactions();
+    pobj_stop_if_unpossessed();
+    omm_obj_process_interactions(o, POBJ_INT_PRESET_CHAIN_CHOMP);
 
     // Gfx
     obj_update_gfx(o);
@@ -142,5 +143,5 @@ s32 omm_cappy_chain_chomp_update(struct Object *o) {
     gOmmObject->cappy.scale     = 2.f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

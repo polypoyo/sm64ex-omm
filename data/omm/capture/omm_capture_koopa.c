@@ -44,8 +44,8 @@ static s32 sCappyKoopaCappyParams[][7] = {
 bool omm_cappy_koopa_init(struct Object *o) {
 
     // Can't possess KTQ
-    if (o->oBhvArgs2ndByte == KOOPA_BP_KOOPA_THE_QUICK_BOB ||
-        o->oBhvArgs2ndByte == KOOPA_BP_KOOPA_THE_QUICK_THI) {
+    if (o->oBehParams2ndByte == KOOPA_BP_KOOPA_THE_QUICK_BOB ||
+        o->oBehParams2ndByte == KOOPA_BP_KOOPA_THE_QUICK_THI) {
         return false;
     }
 
@@ -130,10 +130,10 @@ s32 omm_cappy_koopa_update(struct Object *o) {
     pobj_decelerate(o, 0.80f, 0.95f);
     pobj_apply_gravity(o, 1.f);
     pobj_handle_special_floors(o);
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Interactions
-    POBJ_INTERACTIONS(
+    pobj_process_interactions(
 
     // Doors
     obj_open_door(o, obj);
@@ -149,7 +149,7 @@ s32 omm_cappy_koopa_update(struct Object *o) {
     }
 
     );
-    POBJ_STOP_IF_UNPOSSESSED;
+    pobj_stop_if_unpossessed();
 
     // Gfx
     obj_update_gfx(o);
@@ -220,5 +220,5 @@ s32 omm_cappy_koopa_update(struct Object *o) {
     gOmmObject->cappy.scale     = (f32) cappyParams[6] / 100.f;
 
     // OK
-    POBJ_RETURN_OK;
+    pobj_return_ok;
 }

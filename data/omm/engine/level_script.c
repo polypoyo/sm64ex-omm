@@ -3,6 +3,7 @@
 #undef OMM_ALL_HEADERS
 #include "buffers/framebuffers.h"
 #include "buffers/zbuffer.h"
+#include "level_commands.h"
 s32 gDemoInputListID_2;
 #define WHIRLPOOL_COND_BOWSER2 1
 #if LEVEL_SCRIPT_PRESSED_START
@@ -312,7 +313,7 @@ static void level_cmd_23(void) {
 
 // It's-a me, Mario!
 static void level_cmd_init_mario(void) {
-    omm_zero(gMarioSpawnInfo, sizeof(*gMarioSpawnInfo));
+    mem_clr(gMarioSpawnInfo, sizeof(*gMarioSpawnInfo));
     gMarioSpawnInfo->activeAreaIndex = -1;
     gMarioSpawnInfo->behaviorArg = 1;
     gMarioSpawnInfo->behaviorScript = (void *) bhvMario;
@@ -321,9 +322,9 @@ static void level_cmd_init_mario(void) {
 }
 
 static void level_cmd_place_object(void) {
-    u8 act = (1 << (gCurrActNum - 1));
-    u8 acts = level_cmd_get(u8, 2);
-    if (sCurrAreaIndex != -1 && (OMM_STARS_NON_STOP_NOT_ENDING_CUTSCENE || (acts == (ALL_ACTS_MACRO)) || (acts & act))) {
+    u8 actBit = (1 << (gCurrActNum - 1));
+    u8 actBits = level_cmd_get(u8, 2);
+    if (sCurrAreaIndex != -1 && (OMM_STARS_NON_STOP_NOT_ENDING_CUTSCENE || (actBits == (ALL_ACTS_MACRO)) || (actBits & actBit))) {
         struct SpawnInfo *spawnInfo = alloc_only_pool_alloc(sLevelPool, sizeof(struct SpawnInfo));
         spawnInfo->startPos[0] = level_cmd_get(s16, 4);
         spawnInfo->startPos[1] = level_cmd_get(s16, 6);
@@ -407,7 +408,7 @@ static void level_cmd_3A(void) {
 static void level_cmd_create_whirlpool(void) {
     s32 index = level_cmd_get(u8, 2);
     s32 cond = level_cmd_get(u8, 3);
-    s32 beatBowser2 = (save_file_get_flags() & (SAVE_FLAG_HAVE_KEY_2 | SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR)) != 0;
+    s32 beatBowser2 = (omm_save_file_get_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE) & (SAVE_FLAG_HAVE_KEY_2 | SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR)) != 0;
     if (cond == WHIRLPOOL_COND_ALWAYS ||
        (cond == WHIRLPOOL_COND_BOWSER2 && !beatBowser2) ||
        (cond == WHIRLPOOL_COND_BOWSER2_BEATEN && beatBowser2) ||
@@ -442,7 +443,7 @@ static void level_cmd_set_terrain_data(void) {
         Collision *data = level_cmd_get(Collision *, 4);
         s32 size = (s32) (get_area_terrain_size(data) * sizeof(Collision));
         gAreas[sCurrAreaIndex].terrainData = alloc_only_pool_alloc(sLevelPool, size);
-        omm_copy(gAreas[sCurrAreaIndex].terrainData, data, size);
+        mem_cpy(gAreas[sCurrAreaIndex].terrainData, data, size);
     }
     sLevelCommand = level_cmd_next;
 }
@@ -459,7 +460,7 @@ static void level_cmd_set_macro_objects(void) {
         MacroObject *data = level_cmd_get(MacroObject *, 4);
         s32 size = 0; while (data[size++] != MACRO_OBJECT_END()) { size += 4; }
         gAreas[sCurrAreaIndex].macroObjects = alloc_only_pool_alloc(sLevelPool, size * sizeof(MacroObject));
-        omm_copy(gAreas[sCurrAreaIndex].macroObjects, data, size * sizeof(MacroObject));
+        mem_cpy(gAreas[sCurrAreaIndex].macroObjects, data, size * sizeof(MacroObject));
     }
     sLevelCommand = level_cmd_next;
 }
@@ -592,7 +593,7 @@ typedef struct { void *from; void *to; void *script; } LevelBranch;
 static OmmMap sLevelBranches = omm_map_zero;
 void level_create_branch(void *from, void *to, void *script) {
     if (from && to && script) {
-        LevelBranch *branch = omm_new(LevelBranch, 1);
+        LevelBranch *branch = mem_new(LevelBranch, 1);
         branch->from = from;
         branch->to = to;
         branch->script = script;
@@ -712,6 +713,7 @@ struct LevelCommand *level_script_execute(struct LevelCommand *cmd) {
 
     // geo_process_root and render_hud
     omm_profiler_start(OMM_PRF_GEO);
+    omm_models_update();
     render_game();
     omm_profiler_stop(OMM_PRF_GEO);
 
@@ -857,7 +859,7 @@ void level_script_preprocess(const LevelScript *script, LevelScriptPreprocessFun
     struct LevelCommand *levelCommand = sLevelCommand;
     uintptr_t *levelStackTop = sLevelStackTop;
     uintptr_t *levelStackBase = sLevelStackBase;
-    uintptr_t levelStack[32]; omm_copy(levelStack, sLevelStack, sizeof(sLevelStack));
+    uintptr_t levelStack[32]; mem_cpy(levelStack, sLevelStack, sizeof(sLevelStack));
 
     // Init level script state for preprocessing
     sLevelCommand = (struct LevelCommand *) script;
@@ -882,12 +884,12 @@ void level_script_preprocess(const LevelScript *script, LevelScriptPreprocessFun
     sLevelCommand = levelCommand;
     sLevelStackTop = levelStackTop;
     sLevelStackBase = levelStackBase;
-    omm_copy(sLevelStack, levelStack, sizeof(levelStack));
+    mem_cpy(sLevelStack, levelStack, sizeof(levelStack));
 }
 
 void *level_script_find(const LevelScript *script, const LevelScript *commands, s32 numCommands) {
     for (struct LevelCommand *cmd = (struct LevelCommand *) script;; cmd = (struct LevelCommand *) (((u8 *) cmd) + (cmd->size << __shift))) {
-        if (omm_same(cmd, commands, numCommands * sizeof(LevelScript))) {
+        if (mem_eq(cmd, commands, numCommands * sizeof(LevelScript))) {
             return (void *) cmd;
         }
         if (cmd->type == LEVEL_CMD_RETURN || cmd->type == LEVEL_CMD_EXIT || cmd->type == LEVEL_CMD_EXIT_AND_EXECUTE) {

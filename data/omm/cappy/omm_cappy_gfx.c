@@ -1,6 +1,11 @@
 #define OMM_ALL_HEADERS
 #include "data/omm/omm_includes.h"
 #undef OMM_ALL_HEADERS
+#if OMM_MK_MARIO_COLORS
+extern u8 mario_texture_metal[];
+#endif
+#define OMM_TEXTURE_CAPPY     (count < 12 ? OMM_TEXTURE_CAPPY_32     : (count < 20 ? OMM_TEXTURE_CAPPY_64     : OMM_TEXTURE_CAPPY_128    ))
+#define OMM_TEXTURE_CAPPY_EYE (count < 12 ? OMM_TEXTURE_CAPPY_EYE_32 : (count < 20 ? OMM_TEXTURE_CAPPY_EYE_64 : OMM_TEXTURE_CAPPY_EYE_128))
 
 Lights1 omm_cappy_eye_top_light = gdSPDefLights1(
     0xff, 0x00, 0x00,
@@ -13,10 +18,6 @@ Lights1 omm_cappy_eye_bottom_light = gdSPDefLights1(
     0xff, 0x40, 0x80,
     0x28, 0x28, 0x28
 );
-
-#define OMM_TEXTURE_CAPPY       (count < 12 ? OMM_TEXTURE_CAPPY_32       : (count < 20 ? OMM_TEXTURE_CAPPY_64       : OMM_TEXTURE_CAPPY_128      ))
-#define OMM_TEXTURE_CAPPY_EYE   (count < 12 ? OMM_TEXTURE_CAPPY_EYE_32   : (count < 20 ? OMM_TEXTURE_CAPPY_EYE_64   : OMM_TEXTURE_CAPPY_EYE_128  ))
-#define OMM_TEXTURE_CAPPY_METAL (count < 12 ? OMM_TEXTURE_CAPPY_METAL_32 : (count < 20 ? OMM_TEXTURE_CAPPY_METAL_64 : OMM_TEXTURE_CAPPY_METAL_128))
 
 //
 // Vec3f, but better
@@ -50,8 +51,8 @@ OMM_INLINE f32 v3f_mag(v3f v) {
 
 static bool omm_cappy_gfx_read_data_from_file(u32 id, v3fa *points, v3fa *normals, v3fa *tops, s32 *count, f32 *radius, f32 *offset) {
     char filename[SYS_MAX_PATH];
-    omm_sprintf(pattern, SYS_MAX_PATH, "%08X.txt", id);
-    if (fs_find(filename, SYS_MAX_PATH, pattern)) {
+    str_fmt_sa(pattern, SYS_MAX_PATH, "%08X.txt", id);
+    if (fs_find(filename, SYS_MAX_PATH, pattern, FS_DIR_READ)) {
         fs_file_t *f = fs_open(filename);
         if (f) {
 
@@ -254,11 +255,11 @@ static Gfx **omm_cappy_gfx_get_display_lists(u32 id, bool metal, bool mirror) {
     ori.z += fwd.z * offset;
 
     // Data
-    Vtx *vtx0 = omm_new(Vtx, count * 12);
-    Vtx *vtx1 = omm_new(Vtx, count * 4);
-    Gfx *tri0 = omm_new(Gfx, count * 6 + 1);
-    Gfx *tri1 = omm_new(Gfx, count * 7 + 1);
-    Gfx **gfx = omm_new(Gfx *, 2);
+    Vtx *vtx0 = mem_new(Vtx, count * 12);
+    Vtx *vtx1 = mem_new(Vtx, count * 4);
+    Gfx *tri0 = mem_new(Gfx, count * 6 + 1);
+    Gfx *tri1 = mem_new(Gfx, count * 7 + 1);
+    Gfx **gfx = mem_new(Gfx *, 2);
 
     // Display lists
     const Gfx gfx_[4][0x20] = { {
@@ -283,8 +284,10 @@ static Gfx **omm_cappy_gfx_get_display_lists(u32 id, bool metal, bool mirror) {
         gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF),
         gsSPSetGeometryMode(G_TEXTURE_GEN),
         gsDPSetCombineLERP(0, 0, 0, TEXEL0, 0, 0, 0, ENVIRONMENT, 0, 0, 0, TEXEL0, 0, 0, 0, ENVIRONMENT), // G_CC_DECALFADE
-        gsDPLoadTextureBlock(OMM_TEXTURE_CAPPY_METAL, G_IM_FMT_RGBA, G_IM_SIZ_32b, 128, 128, 0, 0, 0, 0, 0, 0, 0),
-        gsSPTexture(0x1F00, 0x1F00, 0, G_TX_RENDERTILE, G_ON),
+#if OMM_MK_MARIO_COLORS
+        gsDPLoadTextureBlock(mario_texture_metal, G_IM_FMT_RGBA, G_IM_SIZ_16b, 64, 32, 0, 0, 0, 6, 5, 0, 0),
+        gsSPTexture(0x0F80, 0x07C0, 0, G_TX_RENDERTILE, G_ON),
+#endif
         gsSPEndDisplayList(),
     }, {
         gsDPSetEnvColor(0xFF, 0xFF, 0xFF, 0xFF),
@@ -311,15 +314,17 @@ static Gfx **omm_cappy_gfx_get_display_lists(u32 id, bool metal, bool mirror) {
         gsDPSetCombineLERP(0, 0, 0, SHADE, 0, 0, 0, ENVIRONMENT, 0, 0, 0, SHADE, 0, 0, 0, ENVIRONMENT), // G_CC_SHADEFADEA
         gsSPClearGeometryMode(G_TEXTURE_ALPHA),
         gsDPPipeSync(), // gfx + 16: gsDPPipeSync if Vanish, gsSPEndDisplayList otherwise
-        gsSPClearGeometryMode(G_LIGHTING),
+        //gsSPClearGeometryMode(G_LIGHTING), // fixed visual glitches in castle inside, uncomment if breaks something else
         gsSPSetGeometryMode(G_TEXTURE_GEN),
         gsDPSetCombineLERP(0, 0, 0, TEXEL0, 0, 0, 0, ENVIRONMENT, 0, 0, 0, TEXEL0, 0, 0, 0, ENVIRONMENT), // G_CC_DECALFADE
-        gsDPLoadTextureBlock(OMM_TEXTURE_CAPPY_METAL, G_IM_FMT_RGBA, G_IM_SIZ_32b, 128, 128, 0, 0, 0, 0, 0, 0, 0),
-        gsSPTexture(0x1F00, 0x1F00, 0, G_TX_RENDERTILE, G_ON),
+#if OMM_MK_MARIO_COLORS
+        gsDPLoadTextureBlock(mario_texture_metal, G_IM_FMT_RGBA, G_IM_SIZ_16b, 64, 32, 0, 0, 0, 6, 5, 0, 0),
+        gsSPTexture(0x0F80, 0x07C0, 0, G_TX_RENDERTILE, G_ON),
+#endif
         gsSPEndDisplayList(),
     } };
-    gfx[0] = omm_dup(gfx_[0 + metal], sizeof(gfx_[0 + metal]));
-    gfx[1] = omm_dup(gfx_[2 + metal], sizeof(gfx_[2 + metal]));
+    gfx[0] = mem_dup(gfx_[0 + metal], sizeof(gfx_[0 + metal]));
+    gfx[1] = mem_dup(gfx_[2 + metal], sizeof(gfx_[2 + metal]));
     
     // Triangles and vertices
     for (s32 sign = -1; sign <= +1; sign += 2) {
@@ -342,12 +347,12 @@ static Gfx **omm_cappy_gfx_get_display_lists(u32 id, bool metal, bool mirror) {
                 s32 j1 = j0 + 1;
                 gSPLight(tri1++, &omm_cappy_eye_top_light.l, 1);
                 gSPLight(tri1++, &omm_cappy_eye_top_light.a, 2);
-                gSPVertex(tri1++, vtx1, 2, 0);
+                gSPVertexTC(tri1++, vtx1, 2, 0);
                 *(vtx1++) = omm_cappy_gfx_get_pupil_vertex(ori, hrz, vrt, fwd, OMM_CAPPY_EYES_GAP * radius, radius, sign, count, j0, 1);
                 *(vtx1++) = omm_cappy_gfx_get_pupil_vertex(ori, hrz, vrt, fwd, OMM_CAPPY_EYES_GAP * radius, radius, sign, count, j1, 1);
                 gSPLight(tri1++, &omm_cappy_eye_bottom_light.l, 1);
                 gSPLight(tri1++, &omm_cappy_eye_bottom_light.a, 2);
-                gSPVertex(tri1++, vtx1, 2, 2);
+                gSPVertexTC(tri1++, vtx1, 2, 2);
                 *(vtx1++) = omm_cappy_gfx_get_pupil_vertex(ori, hrz, vrt, fwd, OMM_CAPPY_EYES_GAP * radius, radius, sign, count, j0, -1);
                 *(vtx1++) = omm_cappy_gfx_get_pupil_vertex(ori, hrz, vrt, fwd, OMM_CAPPY_EYES_GAP * radius, radius, sign, count, j1, -1);
                 gSP2Triangles(tri1++, 2, 1, 0, 0, 1, 2, 3, 0);
@@ -452,18 +457,18 @@ static void omm_cappy_gfx_process_display_list(const Gfx *displayList) {
         for (const Gfx *head = displayList;; ++head) {
         
             // End
-            if (omm_same(head, sSPEndDisplayList, sizeof(sSPEndDisplayList))) {
+            if (mem_eq(head, sSPEndDisplayList, sizeof(sSPEndDisplayList))) {
                 return;
             }
 
             // Display list
-            if (omm_same(&head->words.w0, &sSPDisplayList->words.w0, sizeof(sSPDisplayList->words.w0))) {
+            if (mem_eq(&head->words.w0, &sSPDisplayList->words.w0, sizeof(sSPDisplayList->words.w0))) {
                 omm_cappy_gfx_process_display_list((const Gfx *) head->words.w1);
                 continue;
             }
 
             // Branch list
-            if (omm_same(&head->words.w0, &sSPBranchList->words.w0, sizeof(sSPBranchList->words.w0))) {
+            if (mem_eq(&head->words.w0, &sSPBranchList->words.w0, sizeof(sSPBranchList->words.w0))) {
                 omm_cappy_gfx_process_display_list((const Gfx *) head->words.w1);
                 return;
             }
