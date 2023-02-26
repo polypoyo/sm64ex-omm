@@ -702,6 +702,8 @@ OMM_AT_STARTUP static
 void omm_opt_init() {
     static bool inited = false;
     if (!inited) {
+        extern void omm_data_init();
+        omm_data_init();
         omm_save_file_load_all();
         omm_player_select(gOmmCharacter);
 

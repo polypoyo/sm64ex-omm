@@ -82,10 +82,10 @@ static u32 omm_get_inputs() {
     static bool inputHold = false;
     static s32 inputTimer = 0;
     u32  inputs = (gPlayer1Controller->buttonPressed);
-    bool inputU = (gPlayer1Controller->stickY > +60 || (JPAD_INPUT(gPlayer1Controller->buttonDown) & U_JPAD));
-    bool inputD = (gPlayer1Controller->stickY < -60 || (JPAD_INPUT(gPlayer1Controller->buttonDown) & D_JPAD));
-    bool inputL = (gPlayer1Controller->stickX < -60 || (JPAD_INPUT(gPlayer1Controller->buttonDown) & L_JPAD));
-    bool inputR = (gPlayer1Controller->stickX > +60 || (JPAD_INPUT(gPlayer1Controller->buttonDown) & R_JPAD));
+    bool inputU = (gPlayer1Controller->stickY > +60 || (gPlayer1Controller->buttonDown & U_JPAD));
+    bool inputD = (gPlayer1Controller->stickY < -60 || (gPlayer1Controller->buttonDown & D_JPAD));
+    bool inputL = (gPlayer1Controller->stickX < -60 || (gPlayer1Controller->buttonDown & L_JPAD));
+    bool inputR = (gPlayer1Controller->stickX > +60 || (gPlayer1Controller->buttonDown & R_JPAD));
     if (!inputU && !inputD && !inputL && !inputR) {
         inputHold = 0;
         inputTimer = 0;

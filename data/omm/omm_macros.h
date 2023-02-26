@@ -123,9 +123,7 @@ s32 dynos_gfx_get_mario_model_pack_index() { \
 // Buttons
 #define X_BUTTON 0x0040
 #define Y_BUTTON 0x0080
-#define JPAD_MASK (U_JPAD | D_JPAD | L_JPAD | R_JPAD)
-#define JPAD_INPUT(x) ((x) & ~(IS_SPIN_INPUT(x) * JPAD_MASK))
-#define IS_SPIN_INPUT(x) (((x) & JPAD_MASK) == JPAD_MASK)
+#define SPIN_BUTTON 0x100000
 
 // OMM_BOWSER | Replaces Vanilla Bowser with OMM Bowser
 #if defined(OMM_BOWSER)

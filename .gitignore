@@ -46,6 +46,7 @@
 *.swp
 .idea/*
 .vs/*
+.vscode/settings.json
 exe/*
 
 # General project-specific ignores

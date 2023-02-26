@@ -243,7 +243,7 @@ bool omm_cappy_perform_step_return_to_mario(struct Object *cappy, struct MarioSt
 // Cappy does a quick homing attack before returning if the D-Pad is pressed
 static void omm_cappy_call_back(struct Object *cappy, struct MarioState *m, s32 frameStart) {
     if (cappy->oCappyLifeTimer >= frameStart) {
-        u32 udlrx = JPAD_INPUT(m->controller->buttonPressed) & (U_JPAD | D_JPAD | L_JPAD | R_JPAD | X_BUTTON);
+        u32 udlrx = m->controller->buttonPressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD | X_BUTTON);
         if (udlrx != 0) {
 
             // D-Pad

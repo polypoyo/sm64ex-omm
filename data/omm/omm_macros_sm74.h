@@ -168,7 +168,7 @@
 #define OMM_STATS_BOARD_Y                               (OMM_GAME_MODE == OMM_SM74_MODE_NORMAL ? -861 : -900)
 #define OMM_STATS_BOARD_Z                               (OMM_GAME_MODE == OMM_SM74_MODE_NORMAL ? 6000 : 7000)
 #define OMM_STATS_BOARD_ANGLE                           (OMM_GAME_MODE == OMM_SM74_MODE_NORMAL ? 0xC000 : 0x4000)
-#define OMM_CAMERA_LOOK_UP_WARP_STARS                   0
+#define OMM_CAMERA_LOOK_UP_WARP_STARS                   10
 #define OMM_CAMERA_IS_BOWSER_FIGHT                      omm_camera_is_bowser_fight()
 #define OMM_NUM_PLAYABLE_CHARACTERS                     2
 #define OMM_NUM_SAVE_MODES                              OMM_SM74_MODE_COUNT

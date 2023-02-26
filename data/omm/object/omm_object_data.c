@@ -48,6 +48,7 @@ static void omm_data_reset_mario_fields() {
     gOmmData->mario->wallSlide.height = CELL_HEIGHT_LIMIT;
 
     // Spin moves data
+    gOmmData->mario->spin.pressed = false;
     gOmmData->mario->spin.yaw = 0;
     gOmmData->mario->spin.timer = 0;
     gOmmData->mario->spin.decel = 0;
@@ -274,18 +275,20 @@ OMM_ROUTINE_LEVEL_ENTRY(omm_data_reset_fields) {
     omm_data_reset_object_fields();
 }
 
-OMM_AT_STARTUP static void omm_data_init() {
-    gOmmData = mem_new(struct OmmData, 1);
-    gOmmData->reset = omm_data_reset_fields;
-    gOmmData->resetMario = omm_data_reset_mario_fields;
-    gOmmData->resetObject = omm_data_reset_object_fields;
-    gOmmData->update = omm_data_update_fields;
-    gOmmData->updateMario = omm_data_update_mario_fields;
-    gOmmData->updateObject = omm_data_update_object_fields;
-    gOmmData->readStats = omm_data_read_stats;
-    gOmmData->writeStats = omm_data_write_stats;
-    gOmmData->reset();
-    gOmmPeachVibeTypeRef = &gOmmData->mario->peach.vibeType;
+OMM_AT_STARTUP void omm_data_init() {
+    if (!gOmmData) {
+        gOmmData = mem_new(struct OmmData, 1);
+        gOmmData->reset = omm_data_reset_fields;
+        gOmmData->resetMario = omm_data_reset_mario_fields;
+        gOmmData->resetObject = omm_data_reset_object_fields;
+        gOmmData->update = omm_data_update_fields;
+        gOmmData->updateMario = omm_data_update_mario_fields;
+        gOmmData->updateObject = omm_data_update_object_fields;
+        gOmmData->readStats = omm_data_read_stats;
+        gOmmData->writeStats = omm_data_write_stats;
+        gOmmData->reset();
+        gOmmPeachVibeTypeRef = &gOmmData->mario->peach.vibeType;
+    }
 }
 
 OMM_ROUTINE_UPDATE(omm_data_stats_update) {

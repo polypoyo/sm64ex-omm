@@ -315,6 +315,9 @@ void omm_pre_render() {
         music_fade_out(SEQ_PLAYER_LEVEL, 1);
         music_pause();
     }
+
+    // Clear the spin bit
+    gOmmMario->spin.pressed = false;
 }
 
 //

@@ -879,7 +879,7 @@ void level_script_preprocess(const LevelScript *script, LevelScriptPreprocessFun
             case LEVEL_SCRIPT_STOP:     sLevelCommand = NULL; break;
         }
     }
-    
+
     // Restore the level script state
     sLevelCommand = levelCommand;
     sLevelStackTop = levelStackTop;

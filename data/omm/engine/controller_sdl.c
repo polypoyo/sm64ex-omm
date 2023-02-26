@@ -71,7 +71,7 @@ static void controller_sdl_bind(void) {
     controller_sdl_add_binds(X_BUTTON, gOmmControlsButtonX);
     controller_sdl_add_binds(Y_BUTTON, gOmmControlsButtonY);
     controller_sdl_add_binds(START_BUTTON, gOmmControlsButtonStart);
-    controller_sdl_add_binds(JPAD_MASK, gOmmControlsButtonSpin);
+    controller_sdl_add_binds(SPIN_BUTTON, gOmmControlsButtonSpin);
     controller_sdl_add_binds(L_TRIG, gOmmControlsTriggerL);
     controller_sdl_add_binds(R_TRIG, gOmmControlsTriggerR);
     controller_sdl_add_binds(Z_TRIG, gOmmControlsTriggerZ);
@@ -178,6 +178,7 @@ static void controller_sdl_read(OSContPad *pad) {
 
         // Pad stick and buttons
         pad->button |= padButtons;
+        gOmmMario->spin.pressed |= (padButtons & SPIN_BUTTON) != 0;
         switch (padButtons & STICK_XMASK) {
             case STICK_LEFT:  pad->stick_x = -0x7F; break;
             case STICK_RIGHT: pad->stick_x = +0x7F; break;

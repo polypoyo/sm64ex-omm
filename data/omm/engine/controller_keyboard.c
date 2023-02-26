@@ -30,7 +30,7 @@ static void keyboard_bindkeys(void) {
     keyboard_add_binds(X_BUTTON, gOmmControlsButtonX);
     keyboard_add_binds(Y_BUTTON, gOmmControlsButtonY);
     keyboard_add_binds(START_BUTTON, gOmmControlsButtonStart);
-    keyboard_add_binds(JPAD_MASK, gOmmControlsButtonSpin);
+    keyboard_add_binds(SPIN_BUTTON, gOmmControlsButtonSpin);
     keyboard_add_binds(L_TRIG, gOmmControlsTriggerL);
     keyboard_add_binds(R_TRIG, gOmmControlsTriggerR);
     keyboard_add_binds(Z_TRIG, gOmmControlsTriggerZ);
@@ -54,6 +54,7 @@ static void keyboard_init(void) {
 
 static void keyboard_read(OSContPad *pad) {
     pad->button |= sKeyboardDownMask;
+    gOmmMario->spin.pressed |= (sKeyboardDownMask & SPIN_BUTTON) != 0;
     switch (sKeyboardDownMask & STICK_XMASK) {
         case STICK_LEFT:  pad->stick_x = -0x7F; break;
         case STICK_RIGHT: pad->stick_x = +0x7F; break;

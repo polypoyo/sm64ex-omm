@@ -774,7 +774,7 @@ void omm_mario_update_spin(struct MarioState *m) {
     }
 
     // Hidden spin shortcut (joystick button or mouse scroll click)
-    if (IS_SPIN_INPUT(m->controller->buttonDown)) {
+    if (gOmmMario->spin.pressed) {
         sSpinNumHitCheckpoints = OMM_MARIO_SPIN_MIN_HIT_CHECKPOINTS;
     }
 
@@ -1003,7 +1003,7 @@ void omm_mario_update_action(struct MarioState *m) {
         omm_save_file_get_star_flags(gCurrSaveFileNum - 1, OMM_GAME_MODE, gCurrCourseNum - 1) == omm_stars_get_bits_total(gCurrLevelNum, OMM_GAME_MODE))) {
         if (gPlayer1Controller->buttonDown & L_TRIG) {
             const BehaviorScript *capBhv = NULL;
-            switch (JPAD_INPUT(gPlayer1Controller->buttonPressed) & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
+            switch (gPlayer1Controller->buttonPressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
                 case U_JPAD: capBhv = bhvWingCap; break;
                 case L_JPAD: capBhv = bhvVanishCap; break;
                 case R_JPAD: capBhv = bhvMetalCap; break;

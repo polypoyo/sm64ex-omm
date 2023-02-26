@@ -64,6 +64,7 @@ struct OmmData {
 
         // Spin moves data
         struct {
+            bool pressed;
             s16 yaw;
             s32 timer;
             s32 decel;
