@@ -243,7 +243,7 @@ void omm_save_file_load_all() {
                         READ_KBINDS(gOmmControlsStickRight);
                         READ_CHOICE(gOmmFrameRate);
                         READ_TOGGLE(gOmmShowFPS);
-                        READ_CHOICE(gOmmPreloadTextures);
+                        READ_CHOICE(gOmmTextureCaching);
                         READ_CHOICE_SC(gOmmCharacter);
                         READ_CHOICE_SC(gOmmMovesetType);
                         READ_CHOICE_SC(gOmmCapType);
@@ -541,7 +541,7 @@ static void omm_save_file_write() {
     WRITE_KBINDS(gOmmControlsStickRight);
     WRITE_CHOICE(gOmmFrameRate);
     WRITE_TOGGLE(gOmmShowFPS);
-    WRITE_CHOICE(gOmmPreloadTextures);
+    WRITE_CHOICE(gOmmTextureCaching);
     WRITE_CHOICE_SC(gOmmCharacter);
     WRITE_CHOICE_SC(gOmmMovesetType);
     WRITE_CHOICE_SC(gOmmCapType);

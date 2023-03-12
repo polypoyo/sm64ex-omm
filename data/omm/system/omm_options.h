@@ -44,9 +44,10 @@ extern bool **gOmmOptModelsEnabled;
 #endif
 
 enum OmmFps { OMM_FPS_30, OMM_FPS_60, OMM_FPS_AUTO, OMM_FPS_INF };
+enum OmmTextureCaching { OMM_TEXTURE_CACHING_DISABLED, OMM_TEXTURE_CACHING_AT_START_UP, OMM_TEXTURE_CACHING_PERMANENT };
 DECLARE_CHOICE(gOmmFrameRate);
 DECLARE_TOGGLE(gOmmShowFPS);
-DECLARE_CHOICE(gOmmPreloadTextures);
+DECLARE_CHOICE(gOmmTextureCaching);
 DECLARE_KBINDS(gOmmControlsButtonA);
 DECLARE_KBINDS(gOmmControlsButtonB);
 DECLARE_KBINDS(gOmmControlsButtonX);

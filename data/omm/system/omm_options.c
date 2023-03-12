@@ -99,7 +99,7 @@ DEFINE_TOGGLE(gOmmCheatBljAnywhere, 0);                                     // D
 #endif
 DEFINE_CHOICE(gOmmFrameRate, OMM_FPS_30, 4);                                // 30 FPS
 DEFINE_TOGGLE(gOmmShowFPS, 0);                                              // Disabled
-DEFINE_CHOICE(gOmmPreloadTextures, 2, 3);                                   // From Disk
+DEFINE_CHOICE(gOmmTextureCaching, 2, 3);                                    // Permanent
 DEFINE_CHOICE_SC(gOmmCharacter, 0, OMM_NUM_PLAYABLE_CHARACTERS);            // Mario
 DEFINE_CHOICE_SC(gOmmMovesetType, 1, 4);                                    // Odyssey (3-Health)
 DEFINE_CHOICE_SC(gOmmCapType, 2, 4);                                        // Cappy (Capture - Press)
