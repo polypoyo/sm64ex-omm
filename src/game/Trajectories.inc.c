@@ -2,6 +2,7 @@
 #include "level_misc_macros.h"
 #include "macros.h"
 #include "types.h"
+
 const Trajectory KoopaBoB_path[] = {
 	TRAJECTORY_POS(0,-4832,-2096,-4532),
 	TRAJECTORY_POS(1,-2989,-2002,-3879),
@@ -20,6 +21,7 @@ const Trajectory KoopaBoB_path[] = {
 	TRAJECTORY_POS(14,-3103,1358,3251),
 	TRAJECTORY_END(),
 };
+
 const Trajectory KoopaTHI_path[] = {
 	TRAJECTORY_POS(0,-272,-675,-1443),
 	TRAJECTORY_POS(1,-472,-392,15),
@@ -48,6 +50,7 @@ const Trajectory KoopaTHI_path[] = {
 	TRAJECTORY_POS(24,-3989,4554,2852),
 	TRAJECTORY_END(),
 };
+
 const Trajectory rr_seg7_trajectory_0702EC3C_RM2C_path[] = {
 	TRAJECTORY_POS(0,-2450,-890,4599),
 	TRAJECTORY_POS(1,-685,-161,5630),
@@ -67,6 +70,7 @@ const Trajectory rr_seg7_trajectory_0702EC3C_RM2C_path[] = {
 	TRAJECTORY_POS(15,-2855,6689,5674),
 	TRAJECTORY_END(),
 };
+
 const Trajectory rr_seg7_trajectory_0702ECC0_RM2C_path[] = {
 	TRAJECTORY_POS(0,-451,642,4457),
 	TRAJECTORY_POS(1,221,382,4358),
@@ -102,6 +106,7 @@ const Trajectory rr_seg7_trajectory_0702ECC0_RM2C_path[] = {
 	TRAJECTORY_POS(31,-1153,1944,5423),
 	TRAJECTORY_END(),
 };
+
 const Trajectory ccm_seg7_trajectory_0701669C_RM2C_path[] = {
 	TRAJECTORY_POS(0,6965,-938,-5751),
 	TRAJECTORY_POS(1,5951,-938,-2630),
@@ -122,6 +127,7 @@ const Trajectory ccm_seg7_trajectory_0701669C_RM2C_path[] = {
 	TRAJECTORY_POS(16,-4596,1785,-3291),
 	TRAJECTORY_END(),
 };
+
 const Trajectory bitfs_seg7_trajectory_070159AC_RM2C_path[] = {
 	TRAJECTORY_POS(0,-2521,2863,3114),
 	TRAJECTORY_POS(1,-3082,2863,2918),
@@ -139,7 +145,6 @@ const Trajectory bitfs_seg7_trajectory_070159AC_RM2C_path[] = {
 	TRAJECTORY_POS(13,-6075,2134,-6769),
 	TRAJECTORY_END(),
 };
-//hmc_seg7_trajectory_0702B86C_RM2C Has the default vanilla value or an unrecognizable pointer
 
 const Trajectory hmc_seg7_trajectory_0702B86C_RM2C_path[] = {
     TRAJECTORY_POS(0, /*pos*/ 1272, 2000, 5120),
@@ -158,7 +163,6 @@ const Trajectory hmc_seg7_trajectory_0702B86C_RM2C_path[] = {
     TRAJECTORY_POS(13, /*pos*/ 1272, 2000, 5400),
     TRAJECTORY_END(),
 };
-//lll_seg7_trajectory_0702856C_RM2C Has the default vanilla value or an unrecognizable pointer
 
 const Trajectory lll_seg7_trajectory_0702856C_RM2C_path[] = {
     TRAJECTORY_POS(0, /*pos*/  -764,     0,  1664),
@@ -193,7 +197,6 @@ const Trajectory lll_seg7_trajectory_0702856C_RM2C_path[] = {
     TRAJECTORY_POS(29, /*pos*/  -410,   810, -1190),
     TRAJECTORY_END(),
 };
-//lll_seg7_trajectory_07028660_RM2C Has the default vanilla value or an unrecognizable pointer
 
 const Trajectory lll_seg7_trajectory_07028660_RM2C_path[] = {
     TRAJECTORY_POS(0, /*pos*/   184,   980, -1366),
@@ -227,7 +230,6 @@ const Trajectory lll_seg7_trajectory_07028660_RM2C_path[] = {
     TRAJECTORY_POS(28, /*pos*/  1076,   950,  -441),
     TRAJECTORY_END(),
 };
-//rr_seg7_trajectory_0702ED9C_RM2C Has the default vanilla value or an unrecognizable pointer
 
 const Trajectory rr_seg7_trajectory_0702ED9C_RM2C_path[] = {
     TRAJECTORY_POS(0, /*pos*/  1580,   980,  -180),
@@ -272,7 +274,6 @@ const Trajectory rr_seg7_trajectory_0702ED9C_RM2C_path[] = {
     TRAJECTORY_POS(39, /*pos*/  1580,  2460,   140),
     TRAJECTORY_END(),
 };
-//rr_seg7_trajectory_0702EEE0_RM2C Has the default vanilla value or an unrecognizable pointer
 
 const Trajectory rr_seg7_trajectory_0702EEE0_RM2C_path[] = {
     TRAJECTORY_POS(0, /*pos*/   540,   925,  -160),
@@ -319,6 +320,7 @@ const Trajectory rr_seg7_trajectory_0702EEE0_RM2C_path[] = {
     TRAJECTORY_POS(41, /*pos*/ -4200,  6740, -5100),
     TRAJECTORY_END(),
 };
+
 const Trajectory ccm_seg7_trajectory_penguin_race_RM2C_path[] = {
 	TRAJECTORY_POS(0,4780,-253,-5872),
 	TRAJECTORY_POS(1,5421,-415,-5646),
@@ -334,4 +336,23 @@ const Trajectory ccm_seg7_trajectory_penguin_race_RM2C_path[] = {
 	TRAJECTORY_POS(11,-2658,-4300,2067),
 	TRAJECTORY_POS(12,-3742,-4454,1279),
 	TRAJECTORY_END(),
+};
+
+const Trajectory rr_bowling_ball_path[] = {
+    TRAJECTORY_POS(0, -1546, 6719, 7173),
+    TRAJECTORY_POS(1, 82, 6298, 7143),
+    TRAJECTORY_POS(2, 1108, 6029, 6691),
+    TRAJECTORY_POS(3, 1544, 6102, 5737),
+    TRAJECTORY_POS(4, 1089, 5427, 4659),
+    TRAJECTORY_POS(5, 610, 5341, 4363),
+    TRAJECTORY_POS(6, -432, 5056, 4102),
+    TRAJECTORY_POS(7, -1265, 4784, 3373),
+    TRAJECTORY_POS(8, -1400, 4619, 1820),
+    TRAJECTORY_END(),
+};
+
+const Trajectory ttc_bowling_ball_path[] = {
+    TRAJECTORY_POS(0, -455, 1472, -1684),
+    TRAJECTORY_POS(1, -455, 1472, 5361),
+    TRAJECTORY_END(),
 };

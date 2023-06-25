@@ -9,9 +9,21 @@
 
 #ifdef RM2C
 #include "behavior_actions.h"
+#include "Star_Pos.inc.c"
 extern const Trajectory KoopaBoB_path[];
-extern const Trajectory KoopaTHI_path[]; //#include "Trajectories.inc.c"
-#include "Star_Pos.inc.c" //just defines
+extern const Trajectory KoopaTHI_path[];
+extern const Trajectory rr_seg7_trajectory_0702EC3C_RM2C_path[];
+extern const Trajectory rr_seg7_trajectory_0702ECC0_RM2C_path[];
+extern const Trajectory ccm_seg7_trajectory_0701669C_RM2C_path[];
+extern const Trajectory bitfs_seg7_trajectory_070159AC_RM2C_path[];
+extern const Trajectory hmc_seg7_trajectory_0702B86C_RM2C_path[];
+extern const Trajectory lll_seg7_trajectory_0702856C_RM2C_path[];
+extern const Trajectory lll_seg7_trajectory_07028660_RM2C_path[];
+extern const Trajectory rr_seg7_trajectory_0702ED9C_RM2C_path[];
+extern const Trajectory rr_seg7_trajectory_0702EEE0_RM2C_path[];
+extern const Trajectory ccm_seg7_trajectory_penguin_race_RM2C_path[];
+extern const Trajectory rr_bowling_ball_path[];
+extern const Trajectory ttc_bowling_ball_path[];
 #endif
 
 void set_yoshi_as_not_dead(void);
